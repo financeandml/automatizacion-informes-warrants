@@ -1,0 +1,22 @@
+# Secretos y configuración local
+.env
+.env.*
+!.env.example
+
+# Entornos y dependencias
+.venv/
+venv/
+node_modules/
+__pycache__/
+*.py[cod]
+
+# Salidas generadas
+output/
+*.log
+
+# Sistema / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/

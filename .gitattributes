@@ -1,0 +1,4 @@
+# Normaliza finales de línea para que el repo funcione igual en Windows, macOS y Linux
+* text=auto eol=lf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
