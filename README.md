@@ -3,3 +3,7 @@
 SaaS para automatizar la generación de informes de inversión.
 
 > En desarrollo.
+
+## Licencia
+
+[MIT](LICENSE)
