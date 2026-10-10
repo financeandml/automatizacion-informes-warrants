@@ -2,7 +2,7 @@
 
 SaaS para automatizar la generación de informes de inversión sobre empresas cotizadas en EEUU, a partir de los datos públicos de la SEC (EDGAR) mediante [edgartools](https://github.com/dgunning/edgartools).
 
-> En desarrollo. Repositorios base reutilizados: [docs/repositorios-base.md](docs/repositorios-base.md).
+> En desarrollo. Ver [estructura del informe](docs/estructura-informe.md) y [repositorios base](docs/repositorios-base.md).
 
 ## Puesta en marcha
 
