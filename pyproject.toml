@@ -1,0 +1,24 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "informes-warrants"
+version = "0.1.0"
+description = "Automatización de informes sobre empresas cotizadas en EEUU"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+dependencies = [
+    "edgartools>=5.61",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+informes-warrants = "informes_warrants.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
