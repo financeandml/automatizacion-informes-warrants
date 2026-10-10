@@ -20,3 +20,6 @@ Thumbs.db
 desktop.ini
 .vscode/
 .idea/
+
+# Código de terceros descargado (usar pip install edgartools)
+edgartools-main.zip
