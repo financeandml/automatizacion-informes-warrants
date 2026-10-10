@@ -29,7 +29,7 @@ Las copias locales viven en `repositorios-github/` (zips, ignorados por git). Pa
 Se instala con `pip install edgartools`. Paquete `edgar/`:
 - `Company`, `get_filings`, `Filing`: búsqueda de empresas y presentaciones (filings).
 - `company_reports/`: objetos tipados para 10-K, 10-Q, 8-K, 20-F, 40-F, 6-K, notas de prensa, auditor y filiales.
-- `xbrl/`: parseo de XBRL, estados financieros, cosido multiperiodo (`stitching`), dimensiones, notas y estandarización.
+- `xbrl/`: parseo de XBRL (`standardization/gaap_mappings.json` incluye los vencimientos de deuda `LongTermDebtMaturitiesRepaymentsOfPrincipal…`), estados financieros, cosido multiperiodo (`stitching`), dimensiones, notas y estandarización.
 - `financials.py`: `Financials.balance_sheet()`, `income_statement()`, `cash_flow_statement()`.
 - `ttm/`: cálculo de los últimos 12 meses (TTM) y ajuste por *splits*.
 - `standardization/`: sinónimos de conceptos contables.
@@ -40,8 +40,11 @@ Se instala con `pip install edgartools`. Paquete `edgar/`:
 
 ### edgar_analytics — métricas y scoring
 Uso: `ea.analyze("AAPL", peers=[...])` y la CLI `edgar-analytics`. Módulos:
-- `metrics`: más de 40 métricas GAAP/IFRS.
-- `scores`: modelos de scoring (Altman, Piotroski…).
+- `metrics`: más de 40 métricas GAAP/IFRS (márgenes, ROE/ROA, deuda neta, DN/EBITDA, FCF, coberturas, calidad del beneficio = OCF/BN).
+- `market_data`: precio y market cap (yfinance), EV, PER, P/BV, EV/EBITDA y earnings yield.
+- `scores`: ROIC (`CapitalEfficiency`), BPA/FCF por acción, ciclo de circulante, DuPont.
+- Referencia completa de fórmulas: `docs/METRICS_REFERENCE.md`.
+- `scores`: modelos de scoring (Altman, Piotroski, Beneish).
 - `forecasting`: previsión de ingresos con ARIMA/SARIMAX mediante patrón de estrategia.
 - `multi_period_analysis`: análisis anual y trimestral.
 - `synonyms`: mapeo de conceptos XBRL.
@@ -57,14 +60,15 @@ Depende de `edgartools>=5,<6`. **Es candidato directo para la capa de análisis.
 - `src/api/`: API REST con rutas, esquemas y seguridad.
 - `src/models/`: persistencia de análisis e informes.
 - `frontend/`: Streamlit con 17 páginas (dashboard, análisis, informes, peers…).
-- Stack: LangChain/LangGraph y varios proveedores de LLM (incluido Anthropic).
+- Stack: LangChain/LangGraph. **Configuración LLM adoptada:** `src/config.py` (`LLMSettings`: `LLM_PROVIDER`, `LLM_MODEL`, temperatura 0.1, 4096 tokens) y `src/agents/base.py` (ollama, openai, anthropic, groq, lmstudio, vllm).
+- `tools/dividend_analyzer.py`: dividend yield, pay-out. `tools/financial_metrics.py`: ratios de valoración, rentabilidad, liquidez y CAGR.
 
 ### equity-research-agent — patrón multiagente
-Google ADK con un agente coordinador y subagentes de fundamentales, técnico, flujos de fondos y política. Exporta a PDF/HTML y envía por email. Está orientado al mercado chino (akshare), así que lo reutilizable es la arquitectura y los prompts.
+Google ADK con un agente coordinador y subagentes de fundamentales, técnico, flujos de fondos y política. Exporta a PDF/HTML (`tools.py`: Markdown → HTML → **WeasyPrint** con CSS; **patrón PDF adoptado**) y envía por email. LLM vía LiteLLM (Gemini/OpenAI). Está orientado al mercado chino (akshare), así que lo reutilizable es la arquitectura y los prompts.
 
 ### stock-screener — screening y automatización
 - `src/screening/`: indicadores, fases de Weinstein/Minervini, `quant_engine`, `signal_engine` y procesado por lotes.
-- `src/data/`: yfinance/FMP, universo de unas 3.800 acciones, fundamentales, calidad de datos y almacenamiento SQLAlchemy/Postgres.
+- `src/data/`: yfinance/FMP (`fetcher.py` dividend yield; `quality.py` FCF yield), universo de unas 3.800 acciones, fundamentales, calidad de datos y almacenamiento SQLAlchemy/Postgres.
 - `src/notifications/`: email, Slack y *scheduler*.
 - Ejecución diaria con GitHub Actions.
 
