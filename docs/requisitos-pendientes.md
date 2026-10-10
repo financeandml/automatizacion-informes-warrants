@@ -8,7 +8,7 @@ Lo que hace falta definir o aportar para construir el SaaS. Cada punto incluye u
 |---|---|---|---|
 | A1 | Ejemplo maquetado del informe | ✅ Estilo similar a los informes de Morningstar ([identidad-corporativa.md](identidad-corporativa.md)) | — |
 | A2 | Página: tamaño, orientación, márgenes, columnas | Indicación o el propio ejemplo | A4 vertical, columna lateral de ladillos como en la referencia |
-| A3 | Identidad: logo, colores, tipografías | ✅ Logo y nombre en `Plantilla/`; burdeos casi negro, negro y blanco. Pendiente: confirmar el hex del burdeos y la tipografía | Tipografía sans-serif de Google Fonts (p. ej. Inter) |
+| A3 | Identidad: logo, colores, tipografías | ✅ Logo y nombre en `Plantilla/`; burdeos casi negro, negro y blanco. Burdeos `#2B0B02`; tipografía Montserrat (títulos) + Inter (texto); logos vectorizados | — |
 | A4 | Cabecera y pie de cada página | Lista de elementos | Empresa, ticker, fecha, nº de página, aviso legal breve |
 | A5 | Portada: bloques y su orden | Boceto o ejemplo | Igual que la página 1 de la referencia |
 | A6 | Índice definitivo: secciones que se quedan, salen o se añaden, y su orden | Marcar sobre [estructura-informe.md](estructura-informe.md) | Índice completo actual |
