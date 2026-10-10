@@ -6,15 +6,15 @@ Lo que hace falta definir o aportar para construir el SaaS. Cada punto incluye u
 
 | # | Necesito | Formato ideal | Propuesta por defecto |
 |---|---|---|---|
-| A1 | Ejemplo maquetado del informe | HTML+CSS; si no, PDF, Word o Figma (lo convierto a HTML) | — (imprescindible) |
+| A1 | Ejemplo maquetado del informe | ✅ Estilo similar a los informes de Morningstar ([identidad-corporativa.md](identidad-corporativa.md)) | — |
 | A2 | Página: tamaño, orientación, márgenes, columnas | Indicación o el propio ejemplo | A4 vertical, columna lateral de ladillos como en la referencia |
-| A3 | Identidad: logo, colores, tipografías | Logo en SVG/PNG, colores en hex, fuentes con licencia o Google Fonts | — (imprescindible) |
+| A3 | Identidad: logo, colores, tipografías | ✅ Logo y nombre en `Plantilla/`; burdeos casi negro, negro y blanco. Pendiente: confirmar el hex del burdeos y la tipografía | Tipografía sans-serif de Google Fonts (p. ej. Inter) |
 | A4 | Cabecera y pie de cada página | Lista de elementos | Empresa, ticker, fecha, nº de página, aviso legal breve |
 | A5 | Portada: bloques y su orden | Boceto o ejemplo | Igual que la página 1 de la referencia |
 | A6 | Índice definitivo: secciones que se quedan, salen o se añaden, y su orden | Marcar sobre [estructura-informe.md](estructura-informe.md) | Índice completo actual |
 | A7 | Por sección: tablas y gráficos exactos, años históricos y estimados | Lista por sección | 5 años históricos + 3 estimados, en USD Mn |
 | A8 | Idioma del informe y formato numérico | — | Español, coma decimal, negativos entre paréntesis |
-| A9 | Texto legal / disclaimer propio | Texto definitivo (revisado legalmente) | — (no se puede copiar el de IEAF) |
+| A9 | Texto legal / disclaimer propio | ✅ `plantillas/legal/descargo.md` | — |
 | A10 | Autoría: analistas, contacto, entidad emisora | Datos | — |
 
 ## B. Editor (human-in-the-loop)
