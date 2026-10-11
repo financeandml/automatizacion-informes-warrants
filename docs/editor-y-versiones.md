@@ -65,7 +65,30 @@ Descartado, con el motivo:
 
 ## Alcance
 
-Se cubren todas las empresas de EEUU con 10-K. La plantilla general sirve para las empresas operativas y los holdings. Bancos, aseguradoras, REIT, fondos, BDC, SPAC y emisores extranjeros (20-F/40-F) se generan con la plantilla general marcada como **«plantilla pendiente de validar»** ([cobertura.py](../src/informes_warrants/informe/cobertura.py)), hasta que tengan plantilla propia.
+Se cubren todas las empresas de EEUU que presentan informes a la SEC, con la plantilla que corresponde a su categoría de negocio (edgartools `Company.business_category`). Código: [cobertura.py](../src/informes_warrants/informe/cobertura.py) y [perfiles.py](../src/informes_warrants/informe/perfiles.py).
+
+| Categoría | Plantilla | Métricas propias | Valoración | Validada con |
+|---|---|---|---|---|
+| Empresa operativa, holding, gestora | General | Capa 2 | DCF + múltiplos | AAPL, MSFT, TSLA |
+| Banco, agencia de crédito | Banca | Margen de intereses/activos, eficiencia, coste del riesgo, préstamos/depósitos, ROE, ROA, ROTE, patrimonio tangible | P/BV y P/TBV vs ROE/ROTE; P/BV justo = (ROE − g)/(Ke − g) | JPM, BAC, WFC |
+| Aseguradora | Seguros | Siniestralidad, gastos, ratio combinado, rendimiento de inversiones, ROE | P/BV vs ROE; PER | TRV, ALL, PGR |
+| REIT | Inmobiliario | FFO, dividendos/FFO, deuda/activos (LTV), ROE | P/FFO, rentabilidad por dividendo | O, PLD, SPG |
+| BDC, fondo cerrado | Inversión | NAV por acción, cobertura del dividendo, deuda/patrimonio, ingreso neto de inversiones/patrimonio | P/NAV, rentabilidad por dividendo | ARCC, MAIN, FSK |
+| Emisor extranjero (20-F/40-F) | La de su categoría | Las de su categoría, en USD | La de su categoría | TSM (20-F, IFRS, TWD) |
+| SPAC, ETF, fondo abierto, desconocida | **Plantilla pendiente de validar** | — | — | — |
+
+**Qué resolvían los repos y qué se ha construido:**
+- **Datos de los repos:**
+  - edgartools ya extrae los estados propios de banca, seguros, inmobiliario y sociedades de inversión (`entity/data/industry_extensions/`), y los de fondos y BDC (`funds/`, `bdc/`).
+  - También extrae el 20-F (`TwentyF.risk_factors`, Item 3.D) y los tipos de cambio declarados (`xbrl/currency.CurrencyConverter`).
+  - Los textos (riesgos y MD&A) funcionan igual en todas las categorías.
+- **Métricas construidas aquí:** NIM, eficiencia, ratio combinado, FFO, P/TBV y NAV no estaban en ningún repo (verificado con grep en los 9). edgar_analytics, con `is_financial=True`, solo desactiva el circulante y el Altman Z. Se calculan sobre conceptos us-gaap con alternativas, y cada cifra lleva su concepto, su ejercicio y su número de registro (`informes-warrants metricas JPM`).
+- **Métricas esenciales y secundarias:**
+  - Las esenciales tienen que salir para dar el perfil por validado.
+  - Si una empresa no declara una secundaria en XBRL estándar, sale «n.d.» con marcador para el analista. Ejemplos: WFC no da el total de préstamos sin desglose, ALL declara sus siniestros con concepto propio y SPG solo da el dividendo por acción.
+- **Emisores extranjeros:**
+  - Las cifras se pasan a USD con el tipo declarado en el filing o, si no lo hay, con la media anual de yfinance ([divisas.py](../src/informes_warrants/ingesta/divisas.py)). Ejemplo: TSM 2024 = 90.300 M USD.
+  - Si la empresa remite sus riesgos a un anexo (por ejemplo, NVO), el bloque pasa al analista.
 
 ## Versiones
 

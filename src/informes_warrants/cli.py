@@ -1,6 +1,7 @@
 """Línea de comandos: `informes-warrants <comando> ...` (ver `informes-warrants -h`)."""
 
 import argparse
+import logging
 import sys
 
 from .config import configurar_identidad
@@ -21,12 +22,40 @@ def _cobertura(args) -> None:
     print(cobertura_de(args.ticker).motivo)
 
 
+def _metricas(args) -> None:
+    import math
+
+    from edgar import Company
+
+    from .calculo.sectoriales import calcular
+    from .informe.cobertura import cobertura_de
+    from .informe.perfiles import PERFILES_SECTORIALES
+
+    cobertura = cobertura_de(args.ticker)
+    print(cobertura.motivo)
+    perfil = next((p for p in PERFILES_SECTORIALES if p.id == cobertura.plantilla), None)
+    if not perfil:
+        print("Las métricas de la plantilla general llegan con la capa 2 (fase 2 del plan).")
+        return
+    r = calcular(perfil, Company(args.ticker).get_facts())
+    print(f"Ejercicio fiscal {r.ejercicio} · validado: {'sí' if r.completo else 'no'}")
+    for m in perfil.metricas:
+        v = r.metricas[m.id]
+        print(f"  {m.nombre:42} {'n.d. (analista)' if math.isnan(v) else f'{v:,.4f}'}")
+    for nombre, d in r.datos.items():
+        if d.concepto:
+            print(f"    {nombre:26} {d.concepto} · FY{d.ejercicio} · {d.accession}")
+
+
 def _riesgos(args) -> None:
     from .ia.bloques import riesgos_principales
-    from .ingesta.riesgos import riesgos_del_10k
+    from .ingesta.riesgos import riesgos_anuales
 
-    titulos, texto, accession = riesgos_del_10k(args.ticker)
-    print(f"{len(titulos)} factores de riesgo en el 10-K {accession}.")
+    titulos, texto, accession = riesgos_anuales(args.ticker)
+    print(f"{len(titulos)} factores de riesgo en el informe anual {accession}.")
+    if not titulos:
+        print("La empresa remite sus riesgos a un anexo: el bloque queda marcado para el analista.")
+        return
     if args.sin_ia:
         print("\n".join(f"- {t}" for t in titulos))
         return
@@ -58,6 +87,7 @@ def _ia(args) -> None:
 
 def main() -> None:
     sys.stdout.reconfigure(encoding="utf-8")  # acentos y «» en cualquier consola de Windows (también en la ayuda)
+    logging.basicConfig(level=logging.WARNING, format="Aviso: %(message)s")
     parser = argparse.ArgumentParser(prog="informes-warrants", description="Informes de empresas cotizadas en EEUU")
     sub = parser.add_subparsers(dest="comando", required=True)
 
@@ -68,6 +98,10 @@ def main() -> None:
     p = sub.add_parser("cobertura", help="¿Plantilla general o pendiente de validar?")
     p.add_argument("ticker")
     p.set_defaults(func=_cobertura, sec=True)
+
+    p = sub.add_parser("metricas", help="Métricas del perfil sectorial con su fuente XBRL")
+    p.add_argument("ticker")
+    p.set_defaults(func=_metricas, sec=True)
 
     p = sub.add_parser("riesgos", help="Factores de riesgo del 10-K y los 5 principales (IA)")
     p.add_argument("ticker")

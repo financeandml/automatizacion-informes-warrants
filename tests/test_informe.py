@@ -83,8 +83,55 @@ def test_ajustes_del_bloque_fijo():
 
 @pytest.mark.parametrize("categoria, extranjera, plantilla", [
     ("Operating Company", False, PLANTILLA_GENERAL), ("Holding Company", False, PLANTILLA_GENERAL),
-    ("Bank", False, PENDIENTE_VALIDAR), ("REIT", False, PENDIENTE_VALIDAR),
-    ("Insurance Company", False, PENDIENTE_VALIDAR), ("Operating Company", True, PENDIENTE_VALIDAR),
+    ("Investment Manager", False, PLANTILLA_GENERAL), ("Operating Company", True, PLANTILLA_GENERAL),
+    ("Bank", False, "banco"), ("Insurance Company", False, "aseguradora"), ("REIT", False, "reit"),
+    ("BDC", False, "inversion"), ("Closed-End Fund", False, "inversion"),
+    ("SPAC", False, PENDIENTE_VALIDAR), ("ETF", False, PENDIENTE_VALIDAR), ("Unknown", False, PENDIENTE_VALIDAR),
 ])
 def test_cobertura(categoria, extranjera, plantilla):
-    assert clasificar(categoria, extranjera).plantilla == plantilla
+    c = clasificar(categoria, extranjera)
+    assert c.plantilla == plantilla and c.extranjera == extranjera
+    assert c.validada == (plantilla != PENDIENTE_VALIDAR)
+
+
+class _Hecho:
+    def __init__(self, v):
+        self.numeric_value, self.fiscal_year, self.accession = v, 2025, "0000000000-25-000001"
+
+
+class _Facts:
+    def __init__(self, valores):
+        self.valores = valores
+
+    def get_annual_fact(self, concepto, ejercicio=None):
+        return _Hecho(self.valores[concepto]) if concepto in self.valores else None
+
+
+def test_metricas_de_banco_con_trazabilidad():
+    from informes_warrants.calculo.sectoriales import calcular
+    from informes_warrants.informe.perfiles import BANCO
+
+    facts = _Facts({"NetIncomeLoss": 10, "StockholdersEquity": 100, "Assets": 1000, "InterestIncomeExpenseNet": 30,
+                    "NoninterestIncome": 20, "NoninterestExpense": 25, "Deposits": 800, "Goodwill": 20})
+    r = calcular(BANCO, facts)
+    assert r.completo and r.ejercicio == 2025
+    assert r.metricas["eficiencia"] == 0.5 and r.metricas["rote"] == 10 / 80
+    assert set(r.para_el_analista) == {"coste_riesgo", "prestamos_depositos"}  # secundarias no declaradas
+    assert r.datos["patrimonio"].concepto == "StockholdersEquity" and r.datos["intangibles"].concepto is None
+
+
+def test_metrica_esencial_que_falta_invalida():
+    from informes_warrants.calculo.sectoriales import calcular
+    from informes_warrants.informe.perfiles import REIT
+
+    r = calcular(REIT, _Facts({"NetIncomeLoss": 10, "StockholdersEquity": 100, "Assets": 1000}))
+    assert not r.completo and "amortizacion" in r.faltan
+
+
+def test_conversion_a_usd(monkeypatch):
+    from informes_warrants.ingesta import divisas
+
+    assert divisas.a_usd(5.0, "usd", 2025).valor_usd == 5.0
+    monkeypatch.setattr(divisas, "tipo_medio_yfinance", lambda moneda, anio: 0.03)
+    r = divisas.a_usd(100.0, "TWD", 2024)
+    assert (r.valor_usd, r.tipo) == (3.0, 0.03) and "yfinance" in r.fuente

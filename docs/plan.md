@@ -97,8 +97,8 @@ Definidos en detalle en [editor-y-versiones.md](editor-y-versiones.md). En resum
 
 ```
 src/informes_warrants/
-  ingesta/        # capa 1 (hecho: títulos de riesgo del 10-K)
-  calculo/        # capa 2 (pendiente)
+  ingesta/        # capa 1 (hecho: títulos de riesgo del 10-K/20-F, conversión a USD)
+  calculo/        # capa 2 (hecho: métricas sectoriales con trazabilidad; pendiente: plantilla general)
   visual/         # capa 3 (hecho: HTML → PDF)
   plantillas/     # plantillas Markdown de bloques y texto legal; HTML del informe (pendiente)
   informe/        # bloques y quién los produce, plantillas, estimaciones, ajustes, cobertura
@@ -129,9 +129,9 @@ La lógica (capas 1-4) no depende de la UI, así que la interfaz se puede cambia
 |---|---|---|
 | UI | Streamlit en localhost | Usuario |
 | PDF | Plantilla HTML → WeasyPrint (GTK con MSYS2 en Windows) | equity-research-agent |
-| LLM | llama4 (Llama 4 Scout) en Groq como principal; Ollama `llama3.2:3b` como respaldo local; mismo código para todos los proveedores | [ia.md](ia.md) |
+| LLM | llama4 en OpenRouter (si hay key) > `gpt-oss-120b` en Groq (activo) > Ollama `llama3.2:3b` local; mismo código para todos los proveedores | [ia.md](ia.md) |
 | Uso de la IA | Mínimo: 2 bloques, solo elige y resume fragmentos literales | Usuario |
 | Editor | Markdown, vista previa en tiempo real, emisión con confirmación del analista | Usuario |
 | Recomendación | Sí: el SaaS la propone por potencial y el analista la confirma | Usuario |
 | Versiones | Detección automática + confirmación; año fiscal; SQLite fuera de OneDrive | Usuario |
-| Alcance | Todas las empresas de EEUU con 10-K; las no operativas, «plantilla pendiente de validar» | Usuario |
+| Alcance | Todas las empresas de EEUU: plantilla general + perfiles sectoriales validados (banca, seguros, REIT, BDC/fondos cerrados) y emisores extranjeros en USD; el resto, «plantilla pendiente de validar» | Usuario + [editor-y-versiones.md](editor-y-versiones.md#alcance) |

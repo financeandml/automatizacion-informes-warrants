@@ -48,10 +48,14 @@ def test_frases_candidatas_del_mdna():
 
 
 def test_proveedor_por_defecto(monkeypatch):
-    for var in ("LLM_PROVIDER", "LLM_MODEL", "LLM_BASE_URL", "GROQ_API_KEY"):
+    for var in ("LLM_PROVIDER", "LLM_MODEL", "LLM_BASE_URL", "GROQ_API_KEY", "OPENROUTER_API_KEY"):
         monkeypatch.delenv(var, raising=False)
     monkeypatch.setattr("informes_warrants.ia.llm.load_dotenv", lambda: None)
     assert LLMSettings.desde_entorno().proveedor == "ollama"
     monkeypatch.setenv("GROQ_API_KEY", "gsk_x")
+    assert (LLMSettings.desde_entorno().proveedor, LLMSettings.desde_entorno().modelo) == ("groq", "openai/gpt-oss-120b")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-x")
     cfg = LLMSettings.desde_entorno()
-    assert (cfg.proveedor, cfg.modelo) == ("groq", "meta-llama/llama-4-scout-17b-16e-instruct")
+    assert (cfg.proveedor, cfg.modelo) == ("openrouter", "meta-llama/llama-4-scout")
+    monkeypatch.setenv("LLM_PROVIDER", "groq")
+    assert LLMSettings.desde_entorno().proveedor == "groq"

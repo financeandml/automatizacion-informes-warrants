@@ -53,17 +53,17 @@ Detección automática con confirmación del analista, nombre por año fiscal, h
 - ~~**Python 3.14**~~ ✅ Resuelto: el proyecto usa Python 3.13 (`requires-python >= 3.11`).
 - ~~**WeasyPrint en Windows**~~ ✅ Resuelto: GTK con MSYS2, documentado en el README y detectado automáticamente.
 - ~~**LLM por defecto del repo base (Ollama + llama4)**~~ ✅ Resuelto: llama4 vía Groq y `llama3.2:3b` en local ([ia.md](ia.md)).
-- **Sectores con contabilidad distinta** (bancos, aseguradoras, REITs): EBITDA, EV y deuda neta no aplican igual. La detección ya existe (edgartools `classify_business_category`, `Company.is_financial_institution()`; edgar_analytics `compute_all_scores(is_financial=...)`); solo hay que decidir si se excluyen o si tienen plantilla propia.
-- **Emisores extranjeros (20-F)** y empresas sin XBRL completo: cobertura parcial.
+- ~~**Sectores con contabilidad distinta**~~ ✅ Resuelto: perfiles sectoriales de banca, seguros, REIT y BDC/fondos cerrados, validados con empresas reales ([editor-y-versiones.md](editor-y-versiones.md#alcance)).
+- ~~**Emisores extranjeros (20-F)**~~ ✅ Resuelto: textos del 20-F y cifras en USD. Las empresas que remiten sus riesgos a un anexo pasan ese bloque al analista.
 
 ## E. Datos del usuario
 
 | # | Necesito | Estado |
 |---|---|---|
 | E1 | `EDGAR_IDENTITY` en `.env` | ✅ Configurado |
-| E2 | Proveedor de LLM | ✅ Decidido e integrado (llama4 en Groq + Ollama local, [ia.md](ia.md)). **Pendiente: `GROQ_API_KEY`** para activar llama4 (gratis, 2 minutos) |
+| E2 | Proveedor de LLM | ✅ Integrado: `gpt-oss-120b` en Groq (activo) + Ollama local. Groq retiró llama4; para usarlo, `OPENROUTER_API_KEY` (opcional, de pago, [ia.md](ia.md)) |
 | E3 | GTK para WeasyPrint | ✅ Instalado (MSYS2 + pango) y probado |
-| E4 | Alcance del universo | ✅ Todas las empresas de EEUU con 10-K; las no operativas y extranjeras, «plantilla pendiente de validar» |
+| E4 | Alcance del universo | ✅ Plantilla general + 4 perfiles sectoriales validados con 12 empresas + extranjeros en USD; SPAC/ETF/fondos abiertos, «plantilla pendiente de validar» |
 | E5 | Comparables | ✅ Automáticos por SIC; el analista puede quitar o añadir con motivo |
 | E6 | Índices de referencia | ✅ S&P 500 + ETF sectorial SPDR asignado por SIC (mapeo por construir en la fase 3) |
 | E7 | `git push` | ✅ Autorizado; el repo es público |

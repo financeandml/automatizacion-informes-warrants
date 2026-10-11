@@ -18,7 +18,7 @@ python -m venv .venv
 pip install -e ".[dev,pdf]"
 
 # 3. Configuración
-copy .env.example .env          # rellena EDGAR_IDENTITY (y GROQ_API_KEY para usar llama4)
+copy .env.example .env          # rellena EDGAR_IDENTITY y la key del modelo (docs/ia.md)
 ```
 
 ### WeasyPrint en Windows (PDF)
@@ -34,7 +34,7 @@ El proyecto las encuentra solo en `C:\msys64\mingw64\bin`. Si las instalas en ot
 
 ### Modelo de lenguaje
 
-Por defecto se usa llama4 en Groq si hay `GROQ_API_KEY`; si no, Ollama en local. Detalle en [docs/ia.md](docs/ia.md).
+Por orden: llama4 en OpenRouter (`OPENROUTER_API_KEY`), `gpt-oss-120b` en Groq (`GROQ_API_KEY`, gratis) y Ollama en local. Detalle en [docs/ia.md](docs/ia.md).
 
 ```powershell
 winget install Ollama.Ollama
@@ -45,7 +45,8 @@ ollama pull llama3.2:3b
 
 ```bash
 informes-warrants datos AAPL                 # estados financieros del último 10-K
-informes-warrants cobertura AAPL             # plantilla general o «pendiente de validar»
+informes-warrants cobertura JPM              # plantilla: general, sectorial o «pendiente de validar»
+informes-warrants metricas JPM               # métricas del perfil sectorial con su fuente XBRL
 informes-warrants riesgos AAPL               # riesgos del 10-K y los 5 principales (IA)
 informes-warrants riesgos AAPL --sin-ia      # solo la lista literal
 informes-warrants versiones detectar AAPL    # propone la versión del último 10-Q/10-K

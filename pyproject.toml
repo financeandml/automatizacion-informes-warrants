@@ -17,6 +17,7 @@ dependencies = [
     "openai>=1.40",           # cliente común para Groq, Ollama y demás APIs compatibles
     "platformdirs>=4",
     "python-dotenv>=1.0",
+    "yfinance>=0.2.50",       # precios y tipos de cambio (fuente de mercado de edgar_analytics)
 ]
 
 [project.optional-dependencies]

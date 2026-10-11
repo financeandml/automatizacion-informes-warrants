@@ -44,10 +44,18 @@ def titulos_de_riesgo(html: str, texto_item_1a: str) -> list[str]:
     return titulos
 
 
-def riesgos_del_10k(ticker: str) -> tuple[list[str], str, str]:
-    """(títulos, texto del Item 1A, accession) del último 10-K. Requiere EDGAR_IDENTITY."""
+FORMULARIOS_ANUALES = ["10-K", "20-F", "40-F"]
+
+
+def riesgos_anuales(ticker: str) -> tuple[list[str], str, str]:
+    """(títulos, texto de riesgos, accession) del último informe anual: 10-K (Item 1A) o 20-F (Item 3.D).
+
+    Sin enmiendas (las 10-K/A no traen el Item 1A). Si la empresa remite sus riesgos a un anexo
+    (p. ej., NVO o muchos 40-F), la lista sale vacía y el bloque pasa al analista.
+    Requiere EDGAR_IDENTITY.
+    """
     from edgar import Company
 
-    filing = Company(ticker).get_filings(form="10-K", amendments=False).latest()  # las 10-K/A no traen el Item 1A
-    texto = filing.obj().risk_factors or ""
+    filing = Company(ticker).get_filings(form=FORMULARIOS_ANUALES, amendments=False).latest()
+    texto = getattr(filing.obj(), "risk_factors", None) or ""
     return titulos_de_riesgo(filing.html(), texto), texto, filing.accession_no

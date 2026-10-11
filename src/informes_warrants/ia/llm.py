@@ -4,10 +4,11 @@ Configuración adaptada de `LLMSettings` de financial-research-analyst-agent (sr
 MIT, Copyright (c) 2024 Gopal Saini): proveedor elegible por .env, temperatura 0,1, 4096 tokens.
 Todos los proveedores se usan por su API compatible con OpenAI, así que hay un solo camino de código.
 
-Por defecto: Llama 4 Scout en Groq si hay GROQ_API_KEY; si no, o si Groq falla, Ollama local.
-Ver docs/ia.md.
+Sin LLM_PROVIDER se usa el primero disponible de PRIORIDAD (llama4 en OpenRouter, gpt-oss-120b en
+Groq, Ollama local); si el elegido falla, se recurre a Ollama local. Ver docs/ia.md.
 """
 
+import logging
 import os
 from dataclasses import dataclass
 
@@ -15,7 +16,8 @@ from dotenv import load_dotenv
 
 PROVEEDORES = {
     # proveedor: (URL base compatible con OpenAI, modelo por defecto, variable de la API key)
-    "groq": ("https://api.groq.com/openai/v1", "meta-llama/llama-4-scout-17b-16e-instruct", "GROQ_API_KEY"),
+    "openrouter": ("https://openrouter.ai/api/v1", "meta-llama/llama-4-scout", "OPENROUTER_API_KEY"),  # llama4
+    "groq": ("https://api.groq.com/openai/v1", "openai/gpt-oss-120b", "GROQ_API_KEY"),  # Groq retiró llama4
     "ollama": ("http://localhost:11434/v1", "llama3.2:3b", None),
     "openai": ("https://api.openai.com/v1", "gpt-4o-mini", "OPENAI_API_KEY"),
     "anthropic": ("https://api.anthropic.com/v1/", "claude-haiku-5-5", "ANTHROPIC_API_KEY"),
@@ -23,6 +25,8 @@ PROVEEDORES = {
     "vllm": ("http://localhost:8000/v1", "meta-llama/Llama-4-Scout-17B-16E-Instruct", None),
 }
 RESPALDO = "ollama"
+log = logging.getLogger(__name__)
+PRIORIDAD = ("openrouter", "groq", RESPALDO)  # sin LLM_PROVIDER, el primero con API key
 
 
 class LLMError(RuntimeError):
@@ -41,7 +45,8 @@ class LLMSettings:
     @classmethod
     def desde_entorno(cls, proveedor: str | None = None) -> "LLMSettings":
         load_dotenv()
-        proveedor = (proveedor or os.getenv("LLM_PROVIDER") or ("groq" if os.getenv("GROQ_API_KEY") else RESPALDO)).lower()
+        proveedor = (proveedor or os.getenv("LLM_PROVIDER") or next(
+            p for p in PRIORIDAD if p == RESPALDO or os.getenv(PROVEEDORES[p][2] or ""))).lower()
         if proveedor not in PROVEEDORES:
             raise LLMError(f"Proveedor desconocido: {proveedor}. Opciones: {', '.join(PROVEEDORES)}")
         url, modelo, var_key = PROVEEDORES[proveedor]
@@ -75,6 +80,7 @@ def completar(sistema: str, usuario: str, cfg: LLMSettings | None = None) -> tup
     except Exception as error:
         if cfg.proveedor == RESPALDO:
             raise LLMError(f"Ollama no responde en {cfg.url_base}: ¿está instalado y arrancado? ({error})") from error
+        log.warning("Falló %s · %s (%s); se usa el respaldo local %s.", cfg.proveedor, cfg.modelo, error, RESPALDO)
         respaldo = LLMSettings.desde_entorno(RESPALDO)
         try:
             return _llamar(respaldo, sistema, usuario), respaldo
