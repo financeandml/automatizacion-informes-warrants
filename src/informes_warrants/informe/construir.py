@@ -82,8 +82,11 @@ def _series_bolsa(ticker: str, etf: str, historico, indice: str) -> dict:
 
 def componer(*, ticker: str, empresa: str, sic, cobertura, filing: dict, estados, calidad, cotizacion, acciones: float,
              beta_estimada: float, comportamiento: dict, series_bolsa: dict, riesgos: list, riesgos_lista: list,
-             texto_negocio: str, fecha: str | None = None) -> dict:
-    """Parte pura (sin red): de los datos ya reunidos al contexto completo del informe."""
+             texto_negocio: str, fecha: str | None = None, estimaciones: Estimaciones | None = None) -> dict:
+    """Parte pura (sin red): de los datos ya reunidos al contexto completo del informe.
+
+    Sin `estimaciones`, se usan las de por defecto; el editor pasa las del analista y todo se recalcula.
+    """
     from ..ingesta.mercado import etf_sectorial
 
     ejercicios = estados.ejercicios[-ANIOS:]  # el ejercicio anterior, si se cargó, solo sirve de base del crecimiento
@@ -92,21 +95,28 @@ def componer(*, ticker: str, empresa: str, sic, cobertura, filing: dict, estados
     mercado = Mercado(cotizacion.precio, acciones, cotizacion.fecha)
     multiplos = valoracion(estados, ejercicio, mercado)
 
-    est = estimaciones_por_defecto(fund, ejercicios, beta_estimada)
     f = fund[ejercicio]
-    intereses = estados.valor("gasto_intereses", ejercicio)
-    if intereses and f["deuda_bruta"]:  # si la empresa no declara el gasto por intereses, se usa el valor por defecto
-        est = Estimaciones(**{**asdict(est), "coste_deuda": round(_limitar(intereses / f["deuda_bruta"], 0.02, 0.12), 4)})
+    est = estimaciones
+    if est is None:
+        est = estimaciones_por_defecto(fund, ejercicios, beta_estimada)
+        intereses = estados.valor("gasto_intereses", ejercicio)
+        if intereses and f["deuda_bruta"]:  # si la empresa no declara el gasto por intereses, se usa el valor por defecto
+            est = Estimaciones(**{**asdict(est), "coste_deuda": round(_limitar(intereses / f["deuda_bruta"], 0.02, 0.12), 4)})
+    if errores := est.validar():
+        raise ValueError("Estimaciones no válidas: " + " ".join(errores))
     valor = dcf(est, f["ingresos"], f["dfn"] or 0.0, f["deuda_bruta"], estados.valor("minoritarios", ejercicio) or 0.0,
                 acciones, mercado.capitalizacion)
-    potencial = valor.valor_por_accion / cotizacion.precio - 1
+    potencial_dcf = valor.valor_por_accion / cotizacion.precio - 1
+    precio_objetivo = est.precio_objetivo_analista or valor.valor_por_accion  # el del analista prevalece si lo fija
+    potencial = precio_objetivo / cotizacion.precio - 1
     propuesta = recomendacion_propuesta(potencial)
 
     anio_ini = ejercicios[0]
     datos = {
         "empresa": empresa, "ticker": ticker, "ejercicio": f"FY{ejercicio}",
-        "recomendacion_propuesta": propuesta, "precio_objetivo": valor.valor_por_accion, "precio": cotizacion.precio,
-        "potencial": potencial, "ventas": f["ingresos"] / 1e6, "crecimiento_ventas": f["crecimiento_ingresos"],
+        "recomendacion_propuesta": propuesta, "precio_objetivo": precio_objetivo, "precio": cotizacion.precio,
+        "potencial": potencial, "potencial_dcf": potencial_dcf, "ventas": f["ingresos"] / 1e6,
+        "crecimiento_ventas": f["crecimiento_ingresos"],
         "margen_ebitda": f["margen_ebitda"], "dfn_ebitda": f["dfn_ebitda"],
         "anio_ini": anio_ini, "anio_fin": ejercicio, "ventas_ini": fund[anio_ini]["ingresos"] / 1e6,
         "ventas_fin": f["ingresos"] / 1e6, "cagr_ventas": cagr(fund[anio_ini]["ingresos"], f["ingresos"], len(ejercicios) - 1),
@@ -127,7 +137,8 @@ def componer(*, ticker: str, empresa: str, sic, cobertura, filing: dict, estados
         "ticker": ticker, "empresa": empresa, "sic": sic, "etf": etf_sectorial(sic), "cobertura": cobertura, "filing": filing,
         "ejercicios": ejercicios, "estados": estados, "fundamentales": fund, "calidad": calidad,
         "cotizacion": cotizacion, "mercado": mercado, "multiplos": multiplos, "comportamiento": comportamiento,
-        "estimaciones": est, "beta": beta_estimada, "dcf": valor, "potencial": potencial, "recomendacion": propuesta,
+        "estimaciones": est, "beta": beta_estimada, "dcf": valor, "precio_objetivo": precio_objetivo, "potencial": potencial,
+        "potencial_dcf": potencial_dcf, "recomendacion": propuesta,
         "riesgos": riesgos, "riesgos_lista": riesgos_lista, "textos": textos,
         "pendientes": [p for t in textos.values() for p in pendientes(t)], "fecha": fecha or date.today().isoformat(),
         "series_bolsa": series_bolsa,

@@ -5,6 +5,7 @@ cabecera, que rompe los acentos). En Windows, WeasyPrint necesita las DLL de GTK
 (ver README); si existen en la ruta estándar, se configuran solas.
 """
 
+import logging
 import os
 import sys
 from pathlib import Path
@@ -22,6 +23,9 @@ def html_a_pdf(html: str, destino: Path | None = None, base_url: str | Path | No
     _preparar_gtk()
     from weasyprint import HTML
 
+    # Los SVG de matplotlib llevan propiedades de presentación en `style` (stroke, text-anchor…) que el
+    # analizador CSS de WeasyPrint avisa como desconocidas aunque las dibuja bien: solo se muestran errores.
+    logging.getLogger("weasyprint").setLevel(logging.ERROR)
     pdf = HTML(string=html, base_url=str(base_url) if base_url else None).write_pdf()
     if destino:
         Path(destino).write_bytes(pdf)

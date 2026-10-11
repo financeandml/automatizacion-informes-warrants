@@ -34,8 +34,15 @@ def _pct(valor, decimales: int = 1) -> str:
     return "n.d." if valor is None else f"{_num(valor * 100, decimales)} %"
 
 
-_entorno.filters["num"] = _num
-_entorno.filters["pct"] = _pct
+def _var(valor, decimales: int = 1) -> str:
+    """Variación con signo explícito para el texto corrido (+15,2 % / −72,5 %); las tablas usan paréntesis."""
+    if valor is None:
+        return "n.d."
+    texto = f"{abs(valor) * 100:,.{decimales}f}".replace(",", "§").replace(".", ",").replace("§", ".")
+    return f"{'+' if valor > 0 else '−' if valor < 0 else ''}{texto} %"
+
+
+_entorno.filters.update(num=_num, pct=_pct, var=_var)
 
 
 def rellenar(id_bloque: str, datos: dict) -> str:

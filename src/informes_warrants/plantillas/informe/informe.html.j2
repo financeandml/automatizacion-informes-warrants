@@ -16,20 +16,8 @@
   </div>
 
   <div class="titulo">
-    <div>
-      <h1>{{ c.empresa }}</h1>
-      <div class="sub"><strong>{{ c.ticker }}</strong> · SIC {{ c.sic }} · Índice sectorial {{ c.etf }} · Último 10-K: FY{{ c.filing.ejercicio }} ({{ c.filing.fecha }}) · {{ c.cobertura.motivo }}</div>
-    </div>
-    <div class="recomendacion">
-      <div class="etiqueta">Recomendación propuesta</div>
-      <div class="valor">{{ c.recomendacion }}</div>
-      <table>
-        <tr><td>Precio objetivo (DCF)</td><td class="n">{{ c.dcf.valor_por_accion|num(2) }} USD</td></tr>
-        <tr><td>Cotización</td><td class="n">{{ c.cotizacion.precio|num(2) }} USD</td></tr>
-        <tr><td>Potencial</td><td class="n">{{ c.potencial|pct }}</td></tr>
-      </table>
-      <div class="nota">Propuesta mecánica con supuestos por defecto; la confirma el analista.</div>
-    </div>
+    <h1>{{ c.empresa }}</h1>
+    <div class="sub"><strong>{{ c.ticker }}</strong> · SIC {{ c.sic }} · Índice sectorial {{ c.etf }} · Último 10-K: FY{{ c.filing.ejercicio }} ({{ c.filing.fecha }})</div>
   </div>
 
   <div class="rejilla">
@@ -51,6 +39,16 @@
     </div>
 
     <div class="lateral">
+      <div class="recomendacion">
+        <div class="etiqueta">Recomendación</div>
+        <div class="valor">{{ c.recomendacion }}</div>
+        <table>
+          {% if c.precio_objetivo != c.dcf.valor_por_accion %}<tr><td>Precio objetivo (analista)</td><td class="n">{{ c.precio_objetivo|num(2) }} USD</td></tr>{% endif %}
+          <tr><td>Precio objetivo (DCF)</td><td class="n">{{ c.dcf.valor_por_accion|num(2) }} USD</td></tr>
+          <tr><td>Cotización</td><td class="n">{{ c.cotizacion.precio|num(2) }} USD</td></tr>
+          <tr><td>Potencial</td><td class="n">{{ c.potencial|var }}</td></tr>
+        </table>
+      </div>
       <h3>Datos de mercado</h3>
       <table class="datos lateral-tabla">
         <tr><td>Cotización (USD)</td><td>{{ c.cotizacion.precio|num(2) }}</td></tr>
@@ -174,7 +172,7 @@
 </section>
 
 <!-- ============ 6. RIESGOS ============ -->
-<section class="salto">
+<section>
   <h2><span class="num">06</span>Análisis de riesgos</h2>
   <h3>Riesgos principales</h3>
   {% if c.riesgos %}<ul>{% for r in c.riesgos %}<li><strong>{{ r.resumen }}</strong><br><span class="cita">«{{ r.cita }}»</span></li>{% endfor %}</ul>
@@ -194,6 +192,7 @@
     {% if c.calidad.avisos %}Avisos: {{ c.calidad.avisos|join("; ") }}.{% endif %}
     {% if not c.calidad.errores and not c.calidad.avisos %}Activo = pasivo + patrimonio, beneficio bruto y consistencia entre companyfacts y el 10-K verificados en todos los ejercicios.{% endif %}
   </div>
+  <p>Plantilla aplicada: {{ c.cobertura.motivo }}.</p>
   <h3>Origen de cada partida (FY{{ c.filing.ejercicio }})</h3>
   <table class="datos">
     <tr><th>Partida</th><th style="text-align:left">Concepto XBRL (us-gaap)</th><th>Valor (USD mn)</th><th>Filing (accession)</th></tr>

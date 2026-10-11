@@ -14,8 +14,7 @@ from informes_warrants.ingesta.mercado import Cotizacion
 FIXTURE = Path(__file__).parent / "fixtures" / "aapl_10k_2023"
 
 
-@pytest.fixture(scope="module")
-def contexto():
+def _componer(**extra):
     from edgar.xbrl import XBRL
 
     estados = normalizar(FuenteXBRL(XBRL.from_directory(FIXTURE), "0000320193-23-000106"), [2022, 2023], "AAPL")
@@ -31,8 +30,13 @@ def contexto():
         series_bolsa={"AAPL": serie, "S&P 500": serie * 0.9, "XLK": serie * 1.1},
         riesgos=[{"resumen": "Dependencia de la economía global.", "cita": "The Company's operations depend on conditions.",
                   "modelo": "prueba"}],
-        riesgos_lista=["The Company's operations depend on conditions."], texto_negocio="", fecha="2023-12-30",
+        riesgos_lista=["The Company's operations depend on conditions."], texto_negocio="", fecha="2023-12-30", **extra,
     )
+
+
+@pytest.fixture(scope="module")
+def contexto():
+    return _componer()
 
 
 def test_contexto_coherente(contexto):
@@ -51,7 +55,24 @@ def test_html_del_informe(contexto):
         assert esperado in html, esperado
     import re
 
-    assert not re.search(r"(None|nan|inf)", html)  # ningún hueco sin formatear
+    assert not re.search(r"\b(None|nan|inf)\b", html)  # ningún hueco sin formatear
+
+
+def test_precio_objetivo_del_analista(contexto):
+    """El analista fija el precio objetivo: el potencial y la propuesta se recalculan; el DCF no cambia."""
+    from dataclasses import replace
+
+    from informes_warrants.informe import render
+
+    c = _componer(estimaciones=replace(contexto["estimaciones"], precio_objetivo_analista=250.0))
+    assert c["precio_objetivo"] == 250.0
+    assert c["potencial"] == pytest.approx(250.0 / 190.0 - 1)
+    assert c["recomendacion"] == "Comprar"
+    assert c["dcf"].valor_por_accion == contexto["dcf"].valor_por_accion
+    assert c["potencial_dcf"] == contexto["potencial_dcf"]
+    assert "Precio objetivo (analista)" in render.html(c)
+    with pytest.raises(ValueError):
+        _componer(estimaciones=replace(contexto["estimaciones"], precio_objetivo_analista=-1.0))
 
 
 def test_pdf_del_informe(contexto, tmp_path):

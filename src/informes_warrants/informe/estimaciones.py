@@ -29,6 +29,7 @@ class Estimaciones:
     coste_deuda: float = 0.05
     g: float = 0.025
     peso_dcf: float = 0.5  # peso del DCF frente a múltiplos en el precio objetivo
+    precio_objetivo_analista: float | None = None  # si se fija, sustituye al calculado; el potencial lo recalcula el código
 
     def validar(self) -> list[str]:
         """Errores de coherencia; una lista vacía significa que se pueden usar."""
@@ -44,6 +45,8 @@ class Estimaciones:
             errores.append("El margen EBITDA debe estar entre -100 % y 100 %.")
         if not 0 < self.beta <= 4:
             errores.append("La beta debe estar entre 0 y 4.")
+        if self.precio_objetivo_analista is not None and self.precio_objetivo_analista <= 0:
+            errores.append("El precio objetivo del analista debe ser positivo.")
         if self.g >= self.coste_equity():
             errores.append("g debe ser menor que el coste del capital.")
         return errores

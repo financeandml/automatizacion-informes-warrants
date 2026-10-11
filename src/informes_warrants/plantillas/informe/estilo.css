@@ -26,20 +26,20 @@ body { margin: 0; }
 .masthead .tipo { text-align: right; font: 600 6.5pt "Montserrat"; letter-spacing: 0.14em; text-transform: uppercase; color: var(--burdeos); }
 .masthead .tipo span { display: block; font: 400 6.5pt "Inter"; letter-spacing: 0; text-transform: none; color: var(--negro); margin-top: 1mm; }
 
-.titulo { display: flex; justify-content: space-between; align-items: flex-start; margin: 5mm 0 4mm; }
+.titulo { margin: 4.5mm 0 4mm; padding-bottom: 3mm; border-bottom: 0.25pt solid var(--negro); }
 .titulo h1 { font: 700 19pt/1.1 "Montserrat"; margin: 0; letter-spacing: -0.01em; }
 .titulo .sub { margin-top: 1.5mm; font-size: 7.2pt; }
-.recomendacion { background: var(--burdeos); color: var(--blanco); padding: 3mm 4mm; min-width: 52mm; }
+.recomendacion { background: var(--burdeos); color: var(--blanco); padding: 2.6mm 3.2mm; margin-bottom: 1mm; }
 .recomendacion .etiqueta { font: 600 5.8pt "Montserrat"; letter-spacing: 0.14em; text-transform: uppercase; }
 .recomendacion .valor { font: 700 15pt "Montserrat"; margin: 0.5mm 0 2mm; }
 .recomendacion table { width: 100%; border-collapse: collapse; color: var(--blanco); font-size: 7pt; }
 .recomendacion td { padding: 0.6mm 0; border: 0; }
 .recomendacion td.n { text-align: right; font-weight: 600; }
-.recomendacion .nota { font-size: 5.6pt; margin-top: 1.5mm; }
 
 .rejilla { display: flex; gap: 5mm; }
 .principal { flex: 1.5; }
 .lateral { flex: 1.1; border-left: 0.5pt solid var(--negro); padding-left: 4mm; }
+.principal > h3:first-child { margin-top: 0; }
 
 /* Títulos y texto */
 h2, h3 { break-after: avoid; }

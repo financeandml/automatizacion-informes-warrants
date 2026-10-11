@@ -13,14 +13,14 @@ from markupsafe import Markup
 
 from ..calculo.normalizador import PARTIDAS
 from ..visual import graficos
-from .plantillas import MARCADOR, _num, _pct
+from .plantillas import MARCADOR, _num, _pct, _var
 
 DIR = Path(__file__).resolve().parent.parent / "plantillas"
 DIR_INFORME = DIR / "informe"
 MESES = ("enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre")
 
 _env = Environment(loader=FileSystemLoader(DIR_INFORME), undefined=StrictUndefined, autoescape=True)
-_env.filters.update(num=_num, pct=_pct)
+_env.filters.update(num=_num, pct=_pct, var=_var)
 
 
 def _md(texto: str) -> Markup:

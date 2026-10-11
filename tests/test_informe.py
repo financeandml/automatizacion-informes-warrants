@@ -5,12 +5,12 @@ import pytest
 from informes_warrants.informe.bloque_fijo import AjusteComparable, AjustesBloqueFijo, PartidaNoRecurrente, aplicar_comparables
 from informes_warrants.informe.cobertura import PENDIENTE_VALIDAR, PLANTILLA_GENERAL, clasificar
 from informes_warrants.informe.estimaciones import Estimaciones, recomendacion_propuesta
-from informes_warrants.informe.plantillas import DIR_PLANTILLAS, _num, pendientes, rellenar
+from informes_warrants.informe.plantillas import DIR_PLANTILLAS, _num, _var, pendientes, rellenar
 from informes_warrants.informe.secciones import BLOQUES, Tipo, bloques_por_tipo
 
 DATOS = {
     "empresa": "Apple Inc.", "ticker": "AAPL", "ejercicio": "FY2025",
-    "recomendacion_propuesta": "Mantener", "precio_objetivo": 250.0, "precio": 230.5, "potencial": 0.085,
+    "recomendacion_propuesta": "Mantener", "precio_objetivo": 250.0, "precio": 230.5, "potencial": 0.085, "potencial_dcf": 0.041,
     "ventas": 416161.0, "crecimiento_ventas": 0.064, "margen_ebitda": 0.345, "dfn_ebitda": -0.2,
     "anio_ini": 2021, "anio_fin": 2025, "ventas_ini": 365817.0, "ventas_fin": 416161.0, "cagr_ventas": 0.033,
     "margen_ebitda_ini": 0.33, "margen_ebitda_fin": 0.345, "dfn": -30000.0,
@@ -135,3 +135,7 @@ def test_conversion_a_usd(monkeypatch):
     monkeypatch.setattr(divisas, "tipo_medio_yfinance", lambda moneda, anio: 0.03)
     r = divisas.a_usd(100.0, "TWD", 2024)
     assert (r.valor_usd, r.tipo) == (3.0, 0.03) and "yfinance" in r.fuente
+
+
+def test_variacion_con_signo_para_el_texto():
+    assert (_var(-0.7253), _var(0.152), _var(0.0), _var(None)) == ("−72,5 %", "+15,2 %", "0,0 %", "n.d.")
