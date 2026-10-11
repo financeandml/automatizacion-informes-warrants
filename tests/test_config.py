@@ -24,3 +24,11 @@ def test_falla_sin_email(monkeypatch):
 def test_acepta_identidad_valida(monkeypatch):
     monkeypatch.setenv("EDGAR_IDENTITY", "Ana Prueba ana@example.com")
     assert configurar_identidad() == "Ana Prueba ana@example.com"
+
+
+def test_directorio_datos_fuera_de_onedrive(monkeypatch, tmp_path):
+    monkeypatch.setenv("INFORMES_DATA_DIR", str(tmp_path / "datos"))
+    assert config.directorio_datos() == tmp_path / "datos"
+    monkeypatch.setenv("INFORMES_DATA_DIR", str(tmp_path / "OneDrive" / "datos"))
+    with pytest.raises(ConfiguracionError, match="OneDrive"):
+        config.directorio_datos()

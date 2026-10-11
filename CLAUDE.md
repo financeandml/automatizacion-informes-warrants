@@ -12,7 +12,8 @@ SaaS que genera informes de análisis (estilo *equity research*) sobre empresas 
 4. **Ahorro de tokens:** leer solo lo necesario (inventario y docs primero), sin repetir información entre documentos.
 5. **Repo publicable en todo momento:** sin secretos (`.env` ignorado), sin código de terceros versionado (`repositorios-github/` ignorado), docs al día.
 6. **Licencias:** MIT/Apache se puede copiar con atribución; sec-edgar-toolkit (AGPL-3.0), automated-market-report y financial-ai-agent (sin licencia) solo como referencia.
-7. **Determinismo:** las cifras salen de código (capas 1-3); la IA (capa 4) solo redacta texto con cita literal del 10-K y siempre lo revisa un humano.
+7. **Determinismo e IA mínima:** las cifras salen de código; lo que no, de plantilla; lo que no, lo marca el SaaS para el analista (`[[ANALISTA: …]]`). La IA solo elige y resume fragmentos literales del 10-K (2 bloques) y siempre la revisa un humano.
+8. **Datos fuera de OneDrive:** base de datos, cachés y entorno virtual en carpetas locales (`config.directorio_datos`).
 
 ## Navegación
 
@@ -20,6 +21,9 @@ SaaS que genera informes de análisis (estilo *equity research*) sobre empresas 
 |---|---|
 | Plan, capas, fases y decisiones | [docs/plan.md](docs/plan.md) |
 | Contenido del informe (índice) | [docs/estructura-informe.md](docs/estructura-informe.md) |
+| Quién produce cada bloque, editor, versiones | [docs/editor-y-versiones.md](docs/editor-y-versiones.md) · código en `src/informes_warrants/informe/` y `almacenamiento/` |
+| Modelo de lenguaje (llama4/Groq, Ollama) | [docs/ia.md](docs/ia.md) · `src/informes_warrants/ia/` |
+| Cómo contribuir | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Qué reutilizar y dónde (rutas exactas) | [docs/inventario/README.md](docs/inventario/README.md) |
 | Resumen de los repos base y licencias | [docs/repositorios-base.md](docs/repositorios-base.md) |
 | Identidad corporativa (colores, tipografía, logo) | [docs/identidad-corporativa.md](docs/identidad-corporativa.md) |
@@ -41,8 +45,10 @@ Solo tres colores: burdeos `#2B0B02`, negro `#000000` y blanco `#FFFFFF`. Tipogr
 ## Comandos
 
 ```bash
-pip install -e ".[dev]"   # instalar (Python 3.13 recomendado)
-pytest                    # tests
+pip install -e ".[dev,pdf]"   # instalar (Python 3.13; entorno fuera de OneDrive)
+pytest -m "not red"           # tests sin conexión (CI); `pytest` incluye la SEC real
+ruff check src tests          # estilo
+informes-warrants -h          # comandos disponibles
 ```
 
 ## Definition of Done

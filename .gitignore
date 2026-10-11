@@ -23,3 +23,7 @@ desktop.ini
 
 # Copias locales de los repositorios base (ver docs/repositorios-base.md)
 repositorios-github/
+
+# Cachés de herramientas
+.ruff_cache/
+.pytest_cache/

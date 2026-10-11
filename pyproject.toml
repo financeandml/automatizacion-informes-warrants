@@ -8,17 +8,35 @@ version = "0.1.0"
 description = "Automatización de informes sobre empresas cotizadas en EEUU"
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
-    "edgartools>=5.61",
+    "edgartools>=5.61.1,<6",  # la 6.0 cambia la API (None → excepciones)
+    "beautifulsoup4>=4.12",
+    "lxml>=5",
+    "jinja2>=3.1",
+    "openai>=1.40",           # cliente común para Groq, Ollama y demás APIs compatibles
+    "platformdirs>=4",
     "python-dotenv>=1.0",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8"]
+pdf = ["weasyprint>=62"]  # en Windows necesita GTK (ver README)
+dev = ["pytest>=8", "ruff>=0.6"]
 
 [project.scripts]
 informes-warrants = "informes_warrants.cli:main"
 
+[tool.hatch.build.targets.wheel]
+packages = ["src/informes_warrants"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = ["red: necesita conexión (SEC o modelo de lenguaje); se excluye con -m 'not red'"]
+
+[tool.ruff]
+line-length = 140
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

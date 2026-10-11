@@ -17,69 +17,54 @@ Lo que hace falta definir o aportar para construir el SaaS. Cada punto incluye u
 | A9 | Texto legal / disclaimer propio | ✅ `plantillas/legal/descargo.md` | — |
 | A10 | Autoría: analistas, contacto, entidad emisora | Datos | — |
 
-## B. Editor (human-in-the-loop)
+## B. Editor — ✅ resuelto
 
-| # | Decisión | Propuesta por defecto |
-|---|---|---|
-| B1 | Bloques editables y cuáles precarga la IA | IA: riesgos, catalizadores (MD&A), descripción del negocio. Vacíos: tesis, conclusiones, industria |
-| B2 | Formato de edición | Markdown con vista renderizada (nativo en Streamlit; el WYSIWYG requiere un componente de terceros) |
-| B3 | Estimaciones que ajusta el analista | Crecimiento de ventas, margen EBITDA, capex/ventas, circulante, tasa fiscal, WACC (Rf, ERP, beta), g. Valores iniciales: media histórica de 3-5 años |
-| B4 | ¿El informe emite recomendación o precio objetivo? | No (como la referencia: análisis sin recomendación). Implica requisitos legales si es «sí» |
-| B5 | ¿Qué puede hacer el analista con el bloque fijo? | Solo ocultar o mostrar tablas y gráficos. Los ajustes (p. ej., EBITDA recurrente) se hacen como partidas explícitas con justificación, visibles en el informe |
-| B6 | Usuarios y aprobación | Un analista que redacta y aprueba (localhost, sin login) |
-| B7 | Vista previa | Botón «Generar vista previa» (WeasyPrint tarda unos segundos, no es en tiempo real) |
-| B8 | Guardado | Autoguardado del borrador en cada cambio |
-| B9 | Control de la IA | Botón para regenerar cada bloque; citas del 10-K visibles junto a cada viñeta |
+Decidido por el usuario y detallado en [editor-y-versiones.md](editor-y-versiones.md):
+- IA mínima: código, después plantilla y, por último, marcador para el analista.
+- Edición en Markdown con vista previa en tiempo real.
+- Recomendación sí: la propone el SaaS y la confirma el analista.
+- El analista solo puede ajustar los comparables y las partidas no recurrentes.
+- Emisión con confirmación del analista.
 
-## C. Sistema de versiones
+## C. Sistema de versiones — ✅ resuelto
 
-| # | Decisión | Propuesta por defecto |
-|---|---|---|
-| C1 | ¿Cómo se crea una versión nueva? | El analista la crea manualmente. Al abrir la app se avisa si hay un 10-Q/10-K nuevo desde la última versión |
-| C2 | Nomenclatura del periodo | Año fiscal de la empresa, p. ej. `AAPL · FY2026 Q2 · v1` (el ejercicio de Apple acaba en septiembre) |
-| C3 | Estados | `borrador` → `aprobado` (inmutable). Para corregir uno aprobado se crea una revisión `v2` |
-| C4 | Herencia | La versión nueva copia la tesis, los textos y las estimaciones de la anterior aprobada |
-| C5 | Comparación entre versiones | Diferencias de texto de la tesis, tabla de estimaciones antes y después, y variación de métricas clave |
-| C6 | Almacenamiento | SQLite + carpeta de PDFs y *snapshots* **fuera de OneDrive** (la sincronización puede corromper SQLite), con la ruta configurable en `.env`. También fuera: la caché de edgartools (`EDGAR_LOCAL_DATA_DIR`, por defecto `~/.edgar`) |
-| C7 | Retención | Indefinida |
-| C8 | Salida | Descarga del PDF (sin envío por email en esta fase) |
+Detección automática con confirmación del analista, nombre por año fiscal, herencia de lo que aportó el analista, comparación entre versiones y SQLite fuera de OneDrive ([editor-y-versiones.md](editor-y-versiones.md#versiones)).
 
 ## D. Análisis del proyecto
 
 ### Hecho
 - Estructura Python (`pyproject.toml`, `src/`, tests), configuración de `EDGAR_IDENTITY` y CLI mínima.
 - Documentación: [plan.md](plan.md), [estructura-informe.md](estructura-informe.md), [repositorios-base.md](repositorios-base.md).
-- Repositorio en GitHub (`origin`), pero **6 commits sin subir** (`git push` pendiente).
+- Repositorio público en GitHub (`origin`), sincronizado con `git push`.
 
-### Falta en el código (por fase del plan)
-| Fase | Falta |
+### Estado del código (por fase del plan)
+| Fase | Estado |
 |---|---|
-| 0 | CI (GitHub Actions: tests + ruff, en Ubuntu y Windows), `CONTRIBUTING`/guía para colaboradores, versión de Python fijada, `edgartools>=5.61.1,<6`. Patrones a reutilizar: CI de edgar_analytics, carriles fast/network del `conftest` de edgartools, `CLAUDE.md` y `.claude/` de edgartools |
-| 1 | Módulo `ingesta/`: estados de 5 años, precio, texto del 10-K, vencimientos de deuda, *snapshot*. `datos.py` actual (solo último 10-K) se sustituye |
-| 2 | Módulo `calculo/`: orquestar edgar_analytics + dividendos + P/FCF; tests contra el 10-K de AAPL |
-| 3 | `visual/` + `plantillas/`: gráficos Plotly/kaleido, tablas, plantilla Jinja2, PDF WeasyPrint (**bloqueado por A**) |
-| 4 | `ia/`: `LLMSettings`, prompts de riesgos/MD&A con citas |
-| 5 | `almacenamiento/`: modelos SQLAlchemy, versiones (**bloqueado por C**) |
-| 6 | `ui/`: Streamlit (**bloqueado por B**) |
+| 0 | ✅ CI (tests + ruff, Ubuntu y Windows), CONTRIBUTING, Python 3.13, `edgartools>=5.61.1,<6` |
+| 1 | Hecho: títulos de riesgo del 10-K. Falta: estados de 5 años, precio, vencimientos de deuda, *snapshot* (`datos.py` actual solo da el último 10-K) |
+| 2 | Falta: módulo `calculo/` (definiciones propias + edgar_analytics; tests con los valores *golden* de AAPL) |
+| 3 | Hecho: HTML → PDF con WeasyPrint. Falta: gráficos, tablas y plantilla HTML del informe (estilo en [identidad-corporativa.md](identidad-corporativa.md)) |
+| 4 | ✅ LLM, selección con cita literal, bloques de riesgos y catalizadores. Falta conectarlos al borrador (fase 3) |
+| 5 | ✅ Estados, herencia, comparación, SQLite inmutable, detección. Falta guardar el *snapshot* y el PDF por versión |
+| 6 | Falta: `ui/` Streamlit (diseño cerrado en [editor-y-versiones.md](editor-y-versiones.md)) |
 | 7-8 | DCF, comparables, gobierno corporativo, proyecciones; usuarios y despliegue |
-| — | Dependencias en `pyproject.toml`: edgar_analytics, yfinance, plotly, kaleido, jinja2, weasyprint, streamlit, sqlalchemy, cliente LLM |
 
 ### Riesgos técnicos detectados
-- **Python 3.14** (el instalado por defecto) es muy reciente: WeasyPrint, kaleido, pyarrow o las librerías de LLM pueden no tener versión compatible. Propuesta: fijar **Python 3.13** (también instalado).
-- **WeasyPrint en Windows** necesita GTK (instalación aparte, se documentará en el README).
-- **LLM por defecto del repo base (Ollama + llama4):** llama4 es un modelo muy grande, inviable en un portátil normal. Hace falta elegir un modelo local pequeño o una API.
+- ~~**Python 3.14**~~ ✅ Resuelto: el proyecto usa Python 3.13 (`requires-python >= 3.11`).
+- ~~**WeasyPrint en Windows**~~ ✅ Resuelto: GTK con MSYS2, documentado en el README y detectado automáticamente.
+- ~~**LLM por defecto del repo base (Ollama + llama4)**~~ ✅ Resuelto: llama4 vía Groq y `llama3.2:3b` en local ([ia.md](ia.md)).
 - **Sectores con contabilidad distinta** (bancos, aseguradoras, REITs): EBITDA, EV y deuda neta no aplican igual. La detección ya existe (edgartools `classify_business_category`, `Company.is_financial_institution()`; edgar_analytics `compute_all_scores(is_financial=...)`); solo hay que decidir si se excluyen o si tienen plantilla propia.
 - **Emisores extranjeros (20-F)** y empresas sin XBRL completo: cobertura parcial.
 
-## E. Lo que necesito de ti (además de A, B y C)
+## E. Datos del usuario
 
-| # | Necesito | Para |
+| # | Necesito | Estado |
 |---|---|---|
-| E1 | Rellenar `EDGAR_IDENTITY` en `.env` (nombre + email) | Fase 1: sin esto no hay acceso a la SEC |
-| E2 | Proveedor de LLM: API (Anthropic, OpenAI…) con su API key en `.env`, o modelo local con Ollama (y qué hardware tienes) | Fase 4 |
-| E3 | Instalar GTK para WeasyPrint (te daré el comando) | Fase 3 |
-| E4 | Alcance del universo: ¿todas las cotizadas de EEUU o una lista? ¿Incluir financieras y 20-F? | Fases 1-2 |
-| E5 | Selección de comparables: manual por el analista o automática por sector (SIC; ya existe `get_companies_by_industry` en edgartools) | Fase 7 |
-| E6 | Índices de referencia para el comportamiento en bolsa (propuesta: S&P 500 + ETF sectorial SPDR; el cálculo ya existe en financial-research-analyst-agent `performance_tracker`, falta el mapeo SIC → ETF) | Fase 3 |
-| E7 | Autorización para hacer `git push` a GitHub y confirmar si el repo es público o privado | Publicación |
-| E8 | Clave de Alpha Vantage (opcional, solo como respaldo de yfinance) | Fase 1 |
+| E1 | `EDGAR_IDENTITY` en `.env` | ✅ Configurado |
+| E2 | Proveedor de LLM | ✅ Decidido e integrado (llama4 en Groq + Ollama local, [ia.md](ia.md)). **Pendiente: `GROQ_API_KEY`** para activar llama4 (gratis, 2 minutos) |
+| E3 | GTK para WeasyPrint | ✅ Instalado (MSYS2 + pango) y probado |
+| E4 | Alcance del universo | ✅ Todas las empresas de EEUU con 10-K; las no operativas y extranjeras, «plantilla pendiente de validar» |
+| E5 | Comparables | ✅ Automáticos por SIC; el analista puede quitar o añadir con motivo |
+| E6 | Índices de referencia | ✅ S&P 500 + ETF sectorial SPDR asignado por SIC (mapeo por construir en la fase 3) |
+| E7 | `git push` | ✅ Autorizado; el repo es público |
+| E8 | Clave de Alpha Vantage (opcional) | Opcional, como respaldo de yfinance |

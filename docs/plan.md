@@ -82,33 +82,29 @@ Decisión (corregida tras el inventario completo): edgar_analytics se usa **como
 5. Estado «Resumiendo el 10-K…» → capa 4 (IA): riesgos y catalizadores.
 6. Estado «Listo para revisión» → editor híbrido.
 
-## Editor híbrido (human-in-the-loop)
+## Editor híbrido y versiones
 
-> El diseño detallado de la plantilla, el editor y el sistema de versiones lo proporcionará el usuario; esta sección es provisional.
+Definidos en detalle en [editor-y-versiones.md](editor-y-versiones.md). En resumen:
 
-- **Izquierda, bloque fijo:** tablas, múltiplos y gráficos generados por código. Son de solo lectura y cada cifra muestra su fuente (concepto XBRL, filing y fecha).
-- **Derecha, bloque editable:** Markdown precargado con el resumen de la IA. El analista escribe la tesis y ajusta sus **estimaciones** (crecimiento, márgenes, WACC…). Al cambiar una estimación se recalculan la valoración y la parte de proyecciones, y las cifras históricas no cambian.
-- **Vista previa:** el PDF se recompila desde la misma plantilla HTML.
-
-## Versiones y almacenamiento
-
-- Unidad de versión: **(ticker, periodo fiscal del último filing, nº de revisión)**, por ejemplo `AAPL · Q2 FY2026 · v1`.
-- Cada versión guarda: *snapshot* de datos de entrada, métricas calculadas, textos de IA, textos y estimaciones del analista, PDF final y estado (`borrador` → `aprobado`).
-- Una versión aprobada es **inmutable**. Al salir un 10-Q/10-K nuevo se crea un borrador que hereda la tesis anterior para que el analista la actualice.
-- Historial por empresa con comparación entre versiones (tesis y estimaciones), para auditar la evolución.
-- Almacenamiento: SQLAlchemy con SQLite en local y PostgreSQL en producción, fuera de OneDrive. financial-research-analyst-agent `src/models/persistence.py` solo sirve como patrón (no se usa en su repo, no tiene tests ni cierra sesiones). Los PDFs y *snapshots*, en disco o en almacenamiento de objetos. Ningún repo resuelve las versiones inmutables: se construyen.
+- **Bloques:** 18 AUTO (código), 4 PLANTILLA (texto con datos), 2 IA (riesgos y catalizadores, con cita literal) y 7 ANALISTA (marcados con `[[ANALISTA: …]]`; bloquean la emisión).
+- **Izquierda, bloque fijo:** solo lectura, con la fuente de cada cifra. El analista solo puede ajustar los comparables y marcar partidas no recurrentes, siempre con motivo.
+- **Derecha, bloque editable:** Markdown con las plantillas ya rellenas, las estimaciones (recalculan proyección y DCF) y la recomendación, que el SaaS propone y el analista confirma.
+- **Vista previa en tiempo real:** HTML en cada cambio y PDF recompilado en segundo plano.
+- **Emisión:** apartado «Confirmar emisión del informe»; la versión pasa a `emitida` y queda inmutable.
+- **Versiones:** se detectan automáticamente con cada 10-Q/10-K (sin enmiendas) y el analista las confirma. Se nombran por año fiscal (`AAPL · FY2026 Q3 · v1`), heredan solo lo que aportó el analista y se guardan en SQLite fuera de OneDrive.
 
 ## Estructura del código
 
 ```
 src/informes_warrants/
-  ingesta/        # capa 1
-  calculo/        # capa 2
-  visual/         # capa 3 (gráficos, tablas)
-  plantillas/     # HTML/Jinja2 del informe
-  ia/             # capa 4 (prompts y extracción del 10-K)
-  almacenamiento/ # modelos, versiones
-  ui/             # Streamlit (localhost)
+  ingesta/        # capa 1 (hecho: títulos de riesgo del 10-K)
+  calculo/        # capa 2 (pendiente)
+  visual/         # capa 3 (hecho: HTML → PDF)
+  plantillas/     # plantillas Markdown de bloques y texto legal; HTML del informe (pendiente)
+  informe/        # bloques y quién los produce, plantillas, estimaciones, ajustes, cobertura
+  ia/             # capa 4 (hecho: LLM, selección con cita literal, bloques de IA)
+  almacenamiento/ # versiones: estados, herencia, comparación, SQLite, detección (hecho)
+  ui/             # Streamlit (localhost) (pendiente)
 ```
 
 La lógica (capas 1-4) no depende de la UI, así que la interfaz se puede cambiar sin tocar el núcleo.
@@ -117,12 +113,12 @@ La lógica (capas 1-4) no depende de la UI, así que la interfaz se puede cambia
 
 | Fase | Entregable | Hito verificable |
 |---|---|---|
-| 0. Base | Estructura, configuración, tests, CI (GitHub Actions en Ubuntu **y Windows**: los repos base solo usan Ubuntu), `edgartools>=5.61.1,<6` (la 6.0 cambia la API) | ✅ en parte (estructura y config) |
+| 0. Base | Estructura, configuración, tests, CI (GitHub Actions en Ubuntu **y Windows**: los repos base solo usan Ubuntu), `edgartools>=5.61.1,<6` (la 6.0 cambia la API) | ✅ Hecho: Python 3.13, dependencias fijadas, ruff, CI en Ubuntu y Windows, CONTRIBUTING |
 | 1. Ingesta | Estados financieros de 5 años + precio + texto del 10-K + *snapshot* | `informes-warrants datos AAPL` |
 | 2. Cálculo | Todas las métricas de la capa 2, con tests | Las cifras de AAPL cuadran con el 10-K |
-| 3. Visual | Gráficos, tablas, plantilla HTML y PDF | **Primer informe borrador PDF completo por CLI (MVP)** |
-| 4. IA | Resumen de riesgos y MD&A con citas | Bloques cualitativos en el borrador |
-| 5. Versiones | Persistencia, estados, historial | Dos versiones de AAPL comparables |
+| 3. Visual | Gráficos, tablas, plantilla HTML y PDF (WeasyPrint + GTK instalados y probados) | **Primer informe borrador PDF completo por CLI (MVP)** |
+| 4. IA | ✅ Proveedor, selección con cita literal y los 2 bloques de IA ([ia.md](ia.md)); falta conectar al borrador | `informes-warrants riesgos AAPL` |
+| 5. Versiones | ✅ Estados, herencia, comparación, SQLite inmutable y detección; falta el snapshot y el PDF por versión (dependen de las fases 1-3) | `informes-warrants versiones detectar AAPL` |
 | 6. UI | Streamlit: dashboard con estados, editor híbrido, vista previa | Flujo completo en localhost |
 | 7. Contenido completo | Resto del índice: DCF, comparables, gobierno (proxy), proyecciones, anexos | Informe equivalente a la referencia |
 | 8. SaaS | Usuarios, autenticación, multiempresa, despliegue, avisos legales | Acceso externo |
@@ -132,6 +128,10 @@ La lógica (capas 1-4) no depende de la UI, así que la interfaz se puede cambia
 | Tema | Decisión | Origen |
 |---|---|---|
 | UI | Streamlit en localhost | Usuario |
-| PDF | Plantilla HTML → WeasyPrint | equity-research-agent |
-| LLM | `LLMSettings` multiproveedor configurable por `.env` | financial-research-analyst-agent |
-| Plantilla, editor y versiones | Pendiente: los aporta el usuario | Usuario |
+| PDF | Plantilla HTML → WeasyPrint (GTK con MSYS2 en Windows) | equity-research-agent |
+| LLM | llama4 (Llama 4 Scout) en Groq como principal; Ollama `llama3.2:3b` como respaldo local; mismo código para todos los proveedores | [ia.md](ia.md) |
+| Uso de la IA | Mínimo: 2 bloques, solo elige y resume fragmentos literales | Usuario |
+| Editor | Markdown, vista previa en tiempo real, emisión con confirmación del analista | Usuario |
+| Recomendación | Sí: el SaaS la propone por potencial y el analista la confirma | Usuario |
+| Versiones | Detección automática + confirmación; año fiscal; SQLite fuera de OneDrive | Usuario |
+| Alcance | Todas las empresas de EEUU con 10-K; las no operativas, «plantilla pendiente de validar» | Usuario |
