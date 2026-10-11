@@ -14,6 +14,7 @@ SaaS que genera informes de análisis (estilo *equity research*) sobre empresas 
 6. **Licencias:** MIT/Apache se puede copiar con atribución; sec-edgar-toolkit (AGPL-3.0), automated-market-report y financial-ai-agent (sin licencia) solo como referencia.
 7. **Determinismo e IA mínima:** las cifras salen de código; lo que no, de plantilla; lo que no, lo marca el SaaS para el analista (`[[ANALISTA: …]]`). La IA solo elige y resume fragmentos literales del 10-K (2 bloques) y siempre la revisa un humano.
 8. **Datos fuera de OneDrive:** base de datos, cachés y entorno virtual en carpetas locales (`config.directorio_datos`).
+9. **Cero alucinaciones financieras:** toda cifra y ratio sale de código determinista; la IA nunca produce ni modifica números. Los tags XBRL equivalentes (`Revenues`, `SalesRevenueNet`, `RevenueFromContractWithCustomer…`) se traducen en **un único normalizador SEC** dentro de `calculo/`, sobre `SynonymGroups` y `gaap_mappings.json` de edgartools; ninguna fórmula fuera de ese módulo.
 
 ## Navegación
 
