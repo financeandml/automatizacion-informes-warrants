@@ -1,6 +1,6 @@
 # Repositorios base
 
-Código de terceros que el proyecto usa como infraestructura. **Antes de implementar algo, comprueba aquí si ya existe.**
+Código de terceros que el proyecto usa como infraestructura. **Resumen.** El análisis completo (100 % de los archivos, rutas y símbolos exactos, discrepancias y huecos) está en [inventario/README.md](inventario/README.md): consúltalo antes de cualquier tarea.
 
 Las copias locales viven en `repositorios-github/` (zips, ignorados por git). Para obtenerlas, descarga cada repo desde su URL.
 
@@ -44,36 +44,35 @@ Uso: `ea.analyze("AAPL", peers=[...])` y la CLI `edgar-analytics`. Módulos:
 - `market_data`: precio y market cap (yfinance), EV, PER, P/BV, EV/EBITDA y earnings yield.
 - `scores`: ROIC (`CapitalEfficiency`), BPA/FCF por acción, ciclo de circulante, DuPont.
 - Referencia completa de fórmulas: `docs/METRICS_REFERENCE.md`.
-- `scores`: modelos de scoring (Altman, Piotroski, Beneish).
 - `forecasting`: previsión de ingresos con ARIMA/SARIMAX mediante patrón de estrategia.
 - `multi_period_analysis`: análisis anual y trimestral.
 - `synonyms`: mapeo de conceptos XBRL.
 - `market_data`, `company_facts`, `reporting`, `orchestrator` (CSV y salida *rich*), `cache`.
 
-Depende de `edgartools>=5,<6`. **Es candidato directo para la capa de análisis.**
+Depende de `edgartools>=5,<6`. Se usa como dependencia para la capa de análisis, con matices: `market_data` no devuelve el EV, su `EBITDA (standard)` incluye resultados no operativos, `compute_ttm` no suma 12 meses consecutivos, desacumula trimestres por año natural, cachea en el directorio de trabajo y su `CompanyFactsClient` usa un User-Agent genérico.
 
 ### financial-research-analyst-agent — capa de IA y app
 - `src/agents/`: orquestador y agentes de fundamentales, técnico, sentimiento, riesgo, resultados, dividendos, opciones, temático, disrupción, generador de informes y *mixin* de RAG.
 - `src/tools/` (40): `dcf_model`, `peer_comparison`, `financial_metrics`, `technical_indicators`, `monte_carlo`, `factor_model`, `insider_activity`, `news_fetcher`, `sentiment_engine`, `report_export`, `scheduled_reports`, `alerts`, `portfolio_optimizer`, `backtesting_engine`, `macro_data`, `short_interest`, etc.
-- `src/data/`: proveedores Alpha Vantage y FMP con validación.
+- `src/data/`: proveedores `YFinanceProvider`, `AlphaVantageProvider`, FMP y `MultiProvider` (con respaldo). `validator.py` existe pero no está conectado.
 - `src/rag/`: ingesta, *embeddings* y recuperación (Chroma/FAISS).
 - `src/api/`: API REST con rutas, esquemas y seguridad.
-- `src/models/`: persistencia de análisis e informes.
+- `src/models/`: `persistence.py` (SQLAlchemy) no lo usa ningún módulo; solo patrón.
 - `frontend/`: Streamlit con 17 páginas (dashboard, análisis, informes, peers…).
 - Stack: LangChain/LangGraph. **Configuración LLM adoptada:** `src/config.py` (`LLMSettings`: `LLM_PROVIDER`, `LLM_MODEL`, temperatura 0.1, 4096 tokens) y `src/agents/base.py` (ollama, openai, anthropic, groq, lmstudio, vllm).
 - `tools/dividend_analyzer.py`: dividend yield, pay-out. `tools/financial_metrics.py`: ratios de valoración, rentabilidad, liquidez y CAGR.
 
 ### equity-research-agent — patrón multiagente
-Google ADK con un agente coordinador y subagentes de fundamentales, técnico, flujos de fondos y política. Exporta a PDF/HTML (`tools.py`: Markdown → HTML → **WeasyPrint** con CSS; **patrón PDF adoptado**) y envía por email. LLM vía LiteLLM (Gemini/OpenAI). Está orientado al mercado chino (akshare), así que lo reutilizable es la arquitectura y los prompts.
+Google ADK con un agente coordinador y subagentes de fundamentales, técnico, flujos de fondos y política. Exporta a PDF/HTML (`tools.py` `combine_reports`: Markdown → HTML → **WeasyPrint** con CSS; **patrón PDF adoptado**, con el fallo de usar `html_content` en vez de `html_full`). LLM vía LiteLLM (Gemini/OpenAI). `email_report` no está registrada como herramienta, lleva credenciales de ejemplo en el código y devuelve éxito aunque falle.
 
 ### stock-screener — screening y automatización
 - `src/screening/`: indicadores, fases de Weinstein/Minervini, `quant_engine`, `signal_engine` y procesado por lotes.
-- `src/data/`: yfinance/FMP (`fetcher.py` dividend yield; `quality.py` FCF yield), universo de unas 3.800 acciones, fundamentales, calidad de datos y almacenamiento SQLAlchemy/Postgres.
+- `src/data/`: yfinance/FMP (`fetcher.py` dividend yield; `storage.py` `StockDatabase._calculate_fcf_yield`; `quality.py` `DataQualityChecker`, la pieza más útil), universo de unas 3.800 acciones, fundamentales, calidad de datos y almacenamiento SQLAlchemy/Postgres.
 - `src/notifications/`: email, Slack y *scheduler*.
 - Ejecución diaria con GitHub Actions.
 
 ### mtcb — evaluación RAG
-Benchmark de estrategias de chunking (chonkie). El dataset `Ficha` (filings SEC) y `Tacha` (tablas financieras) sirven para elegir el chunking del RAG sobre 10-K.
+Benchmark de estrategias de chunking (chonkie). Los datasets `Ficha` (filings SEC) y `Tacha` (tablas financieras) están en Hugging Face, no en el repo, con licencia por confirmar. Lo más útil para la capa 4: `ExactMatchValidator`/`FuzzyMatchValidator`, que verifican que una cita existe literalmente en el texto.
 
 ### sec-edgar-toolkit — solo referencia (AGPL)
 Cliente EDGAR en Python y TypeScript con *rate limit*, extracción de items de 10-K/10-Q/8-K, XBRL *as-reported*, 13F y ownership. Solapa con edgartools; consúltalo solo si edgartools no cubre algo.
@@ -82,18 +81,22 @@ Cliente EDGAR en Python y TypeScript con *rate limit*, extracción de items de 1
 Informe diario en PDF con reportlab y plotly: índices, FICC, ETFs, *top movers*, calendario económico y noticias.
 
 ### financial-ai-agent — solo ideas (sin licencia)
-Flujo LangGraph con nodos, estado y memoria SQLite: datos CSV → comparación con competidores (Tavily) → informe con bucle de *feedback* en Streamlit.
+Flujo LangGraph con nodos y estado: datos CSV → búsqueda de competidores (Tavily) → informe con bucle de *feedback* en Streamlit. Ojo: la memoria es `SqliteSaver(":memory:")` (se pierde en cada ejecución) y la investigación de competidores no llega al LLM, que inventa las cifras.
 
 ## Mapa: pieza del SaaS → qué reutilizar
 
+Versión resumida; la matriz completa está en [inventario/README.md](inventario/README.md).
+
 | Pieza | Reutilizar |
 |---|---|
-| Datos SEC (filings, XBRL, estados) | edgartools |
-| Métricas, ratios, scores, forecast | edgar_analytics |
-| Valoración (DCF), peers, Monte Carlo | financial-research-analyst-agent `src/tools` |
-| Datos de mercado/precio | stock-screener `src/data`, financial-research-analyst-agent `src/data` |
-| Redacción del informe con LLM | financial-research-analyst-agent `src/agents` (patrón: equity-research-agent) |
-| RAG sobre 10-K | financial-research-analyst-agent `src/rag` + mtcb para evaluar el chunking |
-| Exportar el informe (PDF/HTML) | financial-research-analyst-agent `report_export` (idea: automated-market-report) |
+| Datos SEC (filings, XBRL, estados, Items del 10-K, referencia de tickers/SIC) | edgartools (`XBRLS`, `ttm/`, `TenK`, `reference/`, `documents/`) |
+| Métricas, ratios y scores | edgar_analytics (dependencia) + módulo propio de definiciones y métricas faltantes |
+| Valoración (DCF) y comparables | DCF propio (patrón `dcf_model`); comparables con edgartools `get_companies_by_industry` |
+| Datos de mercado e histórico de precios | financial-research-analyst-agent `src/data/provider.py` (`MultiProvider`); comportamiento relativo con `performance_tracker` |
+| Calidad de datos | stock-screener `DataQualityChecker` + edgartools `validate_balance_sheet` |
+| Redacción con LLM | Prompts propios; patrón `llm_insight_engine` de financial-research-analyst-agent |
+| Verificación de citas del 10-K | mtcb `ExactMatchValidator`/`FuzzyMatchValidator` + edgartools `DocumentSearch` |
+| Plantilla y PDF | equity-research-agent `combine_reports` (WeasyPrint) + patrón Jinja2 de edgartools `ownership/html_render.py` |
+| Gráficos y UI Streamlit | financial-research-analyst-agent `frontend/` (`plotly_charts.py`, `theme.py`) |
 | Programación y notificaciones | stock-screener `notifications`, financial-research-analyst-agent `scheduled_reports` |
-| API y frontend | financial-research-analyst-agent `src/api` + `frontend` |
+| Organización, tests, CI y gobierno de agentes IA | edgartools (`CLAUDE.md`, `.claude/agents`, `.claude/commands`, `conftest` con carriles fast/network); CI de edgar_analytics |
