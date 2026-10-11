@@ -8,7 +8,7 @@ Lo que hace falta definir o aportar para construir el SaaS. Cada punto incluye u
 |---|---|---|---|
 | A1 | Ejemplo maquetado del informe | ✅ Estilo similar a los informes de Morningstar ([identidad-corporativa.md](identidad-corporativa.md)) | — |
 | A2 | Página: tamaño, orientación, márgenes, columnas | Indicación o el propio ejemplo | A4 vertical, columna lateral de ladillos como en la referencia |
-| A3 | Identidad: logo, colores, tipografías | ✅ Logo y nombre en `Plantilla/`; burdeos casi negro, negro y blanco. Burdeos `#2B0B02`; tipografía Montserrat (títulos) + Inter (texto); logos vectorizados | — |
+| A3 | Identidad: logo, colores, tipografías | ✅ Logo y nombre vectoriales en `src/informes_warrants/plantillas/marca/`; burdeos `#2B0B02`; tipografía Montserrat (títulos) + Inter (texto); logos vectorizados | — |
 | A4 | Cabecera y pie de cada página | Lista de elementos | Empresa, ticker, fecha, nº de página, aviso legal breve |
 | A5 | Portada: bloques y su orden | Boceto o ejemplo | Igual que la página 1 de la referencia |
 | A6 | Índice definitivo: secciones que se quedan, salen o se añaden, y su orden | Marcar sobre [estructura-informe.md](estructura-informe.md) | Índice completo actual |
@@ -41,9 +41,9 @@ Detección automática con confirmación del analista, nombre por año fiscal, h
 | Fase | Estado |
 |---|---|
 | 0 | ✅ CI (tests + ruff, Ubuntu y Windows), CONTRIBUTING, Python 3.13, `edgartools>=5.61.1,<6` |
-| 1 | Hecho: títulos de riesgo del 10-K. Falta: estados de 5 años, precio, vencimientos de deuda, *snapshot* (`datos.py` actual solo da el último 10-K) |
-| 2 | Falta: módulo `calculo/` (definiciones propias + edgar_analytics; tests con los valores *golden* de AAPL) |
-| 3 | Hecho: HTML → PDF con WeasyPrint. Falta: gráficos, tablas y plantilla HTML del informe (estilo en [identidad-corporativa.md](identidad-corporativa.md)) |
+| 1 | ✅ Estados de 5 años, contraste de fuentes, mercado, riesgos. Falta: vencimientos de deuda, segmentos y *snapshot* por versión |
+| 2 | ✅ Normalizador SEC, métricas, DCF, semáforo, tests *golden*. Falta: valoración por múltiplos de comparables (fase 7) |
+| 3 | ✅ Primer PDF completo ([ejemplo](ejemplos/AAPL_FY2025_borrador.pdf)). Falta: gráfico de cascada FCF y de vencimientos de deuda |
 | 4 | ✅ LLM, selección con cita literal, bloques de riesgos y catalizadores. Falta conectarlos al borrador (fase 3) |
 | 5 | ✅ Estados, herencia, comparación, SQLite inmutable, detección. Falta guardar el *snapshot* y el PDF por versión |
 | 6 | Falta: `ui/` Streamlit (diseño cerrado en [editor-y-versiones.md](editor-y-versiones.md)) |

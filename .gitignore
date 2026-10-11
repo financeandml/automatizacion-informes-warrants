@@ -27,3 +27,6 @@ repositorios-github/
 # Cachés de herramientas
 .ruff_cache/
 .pytest_cache/
+
+# Material de referencia de diseño (no se publica: Morningstar es de terceros; el boceto es interno)
+Plantilla/*.pdf

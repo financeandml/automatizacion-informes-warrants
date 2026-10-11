@@ -98,10 +98,10 @@ Definidos en detalle en [editor-y-versiones.md](editor-y-versiones.md). En resum
 ```
 src/informes_warrants/
   ingesta/        # capa 1 (hecho: títulos de riesgo del 10-K/20-F, conversión a USD)
-  calculo/        # capa 2 (hecho: métricas sectoriales con trazabilidad; pendiente: plantilla general)
-  visual/         # capa 3 (hecho: HTML → PDF)
-  plantillas/     # plantillas Markdown de bloques y texto legal; HTML del informe (pendiente)
-  informe/        # bloques y quién los produce, plantillas, estimaciones, ajustes, cobertura
+  calculo/        # capa 2 (hecho: normalizador SEC, métricas, DCF, semáforo de calidad, métricas sectoriales)
+  visual/         # capa 3 (hecho: gráficos SVG de marca, HTML → PDF)
+  plantillas/     # bloques Markdown, informe HTML/CSS, marca, fuentes (OFL) y texto legal
+  informe/        # bloques, plantillas, estimaciones, ajustes, cobertura, perfiles, construir (datos) y render (HTML/PDF)
   ia/             # capa 4 (hecho: LLM, selección con cita literal, bloques de IA)
   almacenamiento/ # versiones: estados, herencia, comparación, SQLite, detección (hecho)
   ui/             # Streamlit (localhost) (pendiente)
@@ -114,9 +114,9 @@ La lógica (capas 1-4) no depende de la UI, así que la interfaz se puede cambia
 | Fase | Entregable | Hito verificable |
 |---|---|---|
 | 0. Base | Estructura, configuración, tests, CI (GitHub Actions en Ubuntu **y Windows**: los repos base solo usan Ubuntu), `edgartools>=5.61.1,<6` (la 6.0 cambia la API) | ✅ Hecho: Python 3.13, dependencias fijadas, ruff, CI en Ubuntu y Windows, CONTRIBUTING |
-| 1. Ingesta | Estados financieros de 5 años + precio + texto del 10-K + *snapshot* | `informes-warrants datos AAPL` |
-| 2. Cálculo | Todas las métricas de la capa 2, con tests | Las cifras de AAPL cuadran con el 10-K |
-| 3. Visual | Gráficos, tablas, plantilla HTML y PDF (WeasyPrint + GTK instalados y probados) | **Primer informe borrador PDF completo por CLI (MVP)** |
+| 1. Ingesta | ✅ 5 ejercicios normalizados (companyfacts) contrastados con el XBRL del 10-K, cotización, histórico, comportamiento vs SPY/ETF, riesgos y texto del 10-K. Falta el *snapshot* por versión | `informes-warrants informe AAPL` |
+| 2. Cálculo | ✅ Normalizador SEC, métricas propias, DCF, beta y semáforo, con tests *golden* del 10-K FY2023 de AAPL | Las cifras de AAPL cuadran al dólar con el 10-K |
+| 3. Visual | ✅ Gráficos SVG, tablas, plantilla HTML A4 y PDF de 8 páginas ([ejemplo](ejemplos/AAPL_FY2025_borrador.pdf)) | **Primer informe borrador PDF completo por CLI (MVP)** ✅ |
 | 4. IA | ✅ Proveedor, selección con cita literal y los 2 bloques de IA ([ia.md](ia.md)); falta conectar al borrador | `informes-warrants riesgos AAPL` |
 | 5. Versiones | ✅ Estados, herencia, comparación, SQLite inmutable y detección; falta el snapshot y el PDF por versión (dependen de las fases 1-3) | `informes-warrants versiones detectar AAPL` |
 | 6. UI | Streamlit: dashboard con estados, editor híbrido, vista previa | Flujo completo en localhost |

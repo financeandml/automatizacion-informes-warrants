@@ -1,0 +1,88 @@
+"""Datos de mercado: cotización, histórico y comportamiento relativo (capa 1).
+
+Fuente: yfinance, la misma que usan edgar_analytics `market_data` y financial-research-analyst-agent
+`src/data/provider.py`. El cálculo del comportamiento relativo (1m…5a, YTD frente a SPY y al ETF
+sectorial) sigue la idea de financial-research-analyst-agent `performance_tracker.track_performance`.
+Las acciones en circulación salen de la portada del último filing (dei, SEC), no de Yahoo.
+El mapeo SIC → ETF sectorial SPDR no existía en ningún repo: se define aquí.
+"""
+
+from dataclasses import dataclass
+
+# (desde, hasta, ETF) por orden: el primer rango que contiene el SIC gana
+SIC_A_ETF: tuple[tuple[int, int, str], ...] = (
+    (1300, 1399, "XLE"), (2900, 2999, "XLE"),
+    (2830, 2836, "XLV"), (3840, 3851, "XLV"), (5122, 5122, "XLV"), (8000, 8099, "XLV"),
+    (3570, 3579, "XLK"), (3600, 3629, "XLK"), (3640, 3699, "XLK"), (3800, 3839, "XLK"), (3852, 3899, "XLK"), (7370, 7379, "XLK"),
+    (2700, 2799, "XLC"), (4800, 4899, "XLC"), (7800, 7999, "XLC"),
+    (4900, 4999, "XLU"),
+    (6500, 6553, "XLRE"), (6798, 6798, "XLRE"),
+    (6000, 6799, "XLF"),
+    (2000, 2199, "XLP"), (2840, 2844, "XLP"), (5400, 5499, "XLP"), (5912, 5912, "XLP"),
+    (2200, 2399, "XLY"), (2500, 2599, "XLY"), (3630, 3639, "XLY"), (3710, 3716, "XLY"), (3900, 3999, "XLY"),
+    (5200, 5999, "XLY"), (7000, 7099, "XLY"), (7200, 7299, "XLY"),
+    (1500, 1799, "XLI"), (3400, 3569, "XLI"), (3580, 3599, "XLI"), (3717, 3799, "XLI"), (4000, 4799, "XLI"),
+    (5000, 5199, "XLI"), (7300, 7369, "XLI"), (7380, 7399, "XLI"), (8700, 8799, "XLI"),
+    (1000, 1499, "XLB"), (2400, 2499, "XLB"), (2600, 2699, "XLB"), (2800, 2899, "XLB"), (3000, 3399, "XLB"),
+)
+INDICE = "SPY"
+HORIZONTES = {"1m": 21, "3m": 63, "12m": 252, "3a": 756, "5a": 1260}  # sesiones bursátiles
+
+
+def etf_sectorial(sic: int | str | None) -> str:
+    try:
+        sic = int(sic)
+    except (TypeError, ValueError):
+        return INDICE
+    return next((etf for desde, hasta, etf in SIC_A_ETF if desde <= sic <= hasta), INDICE)
+
+
+@dataclass(frozen=True)
+class Cotizacion:
+    ticker: str
+    precio: float
+    fecha: str
+    maximo_12m: float
+    minimo_12m: float
+    medio_12m: float
+    volumen_medio_12m: float  # en USD
+
+
+def historico(ticker: str, anios: int = 6):  # 6 años para poder medir la rentabilidad a 5 años completos
+    """Cierres ajustados diarios (pandas.Series) de los últimos `anios` años."""
+    import yfinance as yf
+
+    datos = yf.Ticker(ticker).history(period=f"{anios}y", auto_adjust=True)
+    if datos.empty:
+        raise ValueError(f"yfinance no devuelve cotizaciones de {ticker}")
+    return datos
+
+
+def cotizacion(ticker: str) -> Cotizacion:
+    h = historico(ticker, 1)
+    cierre = h["Close"]
+    return Cotizacion(ticker.upper(), float(cierre.iloc[-1]), str(cierre.index[-1].date()), float(cierre.max()),
+                      float(cierre.min()), float(cierre.mean()), float((h["Close"] * h["Volume"]).mean()))
+
+
+def rentabilidades(cierres) -> dict[str, float | None]:
+    """Rentabilidad simple por horizonte y en el año (YTD) de una serie de cierres."""
+    ultimo = float(cierres.iloc[-1])
+    r = {k: (ultimo / float(cierres.iloc[-n - 1]) - 1) if len(cierres) > n else None for k, n in HORIZONTES.items()}
+    del_anio = cierres[cierres.index.year == cierres.index[-1].year]
+    previos = cierres[cierres.index < del_anio.index[0]]
+    r["ytd"] = ultimo / float(previos.iloc[-1]) - 1 if len(previos) else None
+    return r
+
+
+def comportamiento(ticker: str, sic: int | str | None) -> dict[str, dict[str, float | None]]:
+    """Rentabilidad absoluta y relativa (diferencia en puntos) frente a SPY y al ETF del sector."""
+    etf = etf_sectorial(sic)
+    series = {t: historico(t)["Close"] for t in dict.fromkeys((ticker, INDICE, etf))}
+    absoluta = {t: rentabilidades(s) for t, s in series.items()}
+    propia = absoluta[ticker]
+
+    def relativa(ref):
+        return {k: None if propia[k] is None or absoluta[ref][k] is None else propia[k] - absoluta[ref][k] for k in propia}
+
+    return {"absoluta": propia, f"vs {INDICE}": relativa(INDICE), f"vs {etf}": relativa(etf)}

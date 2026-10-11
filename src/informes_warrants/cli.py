@@ -22,6 +22,24 @@ def _cobertura(args) -> None:
     print(cobertura_de(args.ticker).motivo)
 
 
+def _informe(args) -> None:
+    from pathlib import Path
+
+    from .config import directorio_datos
+    from .informe import render
+    from .informe.construir import construir
+
+    c = construir(args.ticker, con_ia=not args.sin_ia)
+    carpeta = Path(args.salida) if args.salida else directorio_datos() / "informes"
+    carpeta.mkdir(parents=True, exist_ok=True)
+    destino = render.pdf(c, carpeta / f"{c['ticker']}_FY{c['filing']['ejercicio']}_borrador.pdf")
+    print(f"Borrador: {destino}")
+    print(f"Calidad de los datos: {c['calidad'].nivel}" + (f" ({'; '.join(c['calidad'].errores + c['calidad'].avisos)})"
+                                                             if c["calidad"].errores or c["calidad"].avisos else ""))
+    print(f"Propuesta: {c['recomendacion']} · precio objetivo {c['dcf'].valor_por_accion:,.2f} USD · potencial {c['potencial']:+.1%}")
+    print(f"Apartados pendientes del analista: {len(c['pendientes'])}")
+
+
 def _metricas(args) -> None:
     import math
 
@@ -98,6 +116,12 @@ def main() -> None:
     p = sub.add_parser("cobertura", help="¿Plantilla general o pendiente de validar?")
     p.add_argument("ticker")
     p.set_defaults(func=_cobertura, sec=True)
+
+    p = sub.add_parser("informe", help="Genera el borrador del informe en PDF (y su vista previa HTML)")
+    p.add_argument("ticker")
+    p.add_argument("--sin-ia", action="store_true", help="Sin modelo de lenguaje (el bloque de riesgos queda para el analista)")
+    p.add_argument("--salida", help="Carpeta de destino (por defecto, la carpeta de datos del usuario)")
+    p.set_defaults(func=_informe, sec=True)
 
     p = sub.add_parser("metricas", help="Métricas del perfil sectorial con su fuente XBRL")
     p.add_argument("ticker")

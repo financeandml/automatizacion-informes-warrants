@@ -1,11 +1,10 @@
 """Cálculo de las métricas de un perfil sectorial con trazabilidad (concepto, año fiscal, accession)."""
 
-import logging
 import math
-import warnings
 from dataclasses import dataclass
 
 from ..informe.perfiles import Perfil
+from .normalizador import FuenteEntityFacts
 
 
 @dataclass(frozen=True)
@@ -35,16 +34,9 @@ class Resultado:
         return [m for m, v in self.metricas.items() if m not in self.esenciales and math.isnan(v)]
 
 
-def _hecho(facts, conceptos: tuple[str, ...], ejercicio: int | None):
+def _hecho(fuente: FuenteEntityFacts, conceptos: tuple[str, ...], ejercicio: int | None):
     for concepto in conceptos:
-        with warnings.catch_warnings():  # edgartools avisa de cada concepto que la empresa no declara
-            warnings.simplefilter("ignore")
-            nivel = logging.root.manager.disable
-            logging.disable(logging.WARNING)
-            try:
-                hecho = facts.get_annual_fact(concepto, ejercicio)
-            finally:
-                logging.disable(nivel)
+        hecho = fuente.fact(concepto, ejercicio)
         if hecho is not None and getattr(hecho, "numeric_value", None) is not None:
             return concepto, hecho
     return None, None
@@ -55,6 +47,7 @@ def calcular(perfil: Perfil, facts, ejercicio: int | None = None) -> Resultado:
 
     `facts` es un `EntityFacts` de edgartools (`Company(ticker).get_facts()`).
     """
+    facts = facts if isinstance(facts, FuenteEntityFacts) else FuenteEntityFacts(facts)
     if ejercicio is None:
         _, ref = _hecho(facts, perfil.entradas["beneficio"].conceptos, None)
         ejercicio = getattr(ref, "fiscal_year", None)

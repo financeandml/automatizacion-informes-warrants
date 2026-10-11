@@ -1,0 +1,93 @@
+/* Warrants & Co. — informe de apertura de posición. Solo tres colores: burdeos, negro y blanco. */
+@font-face { font-family: "Inter"; src: url("../fuentes/Inter.ttf"); font-weight: 100 900; }
+@font-face { font-family: "Montserrat"; src: url("../fuentes/Montserrat.ttf"); font-weight: 100 900; }
+
+:root { --burdeos: #2B0B02; --negro: #000000; --blanco: #FFFFFF; }
+
+@page {
+  size: A4; margin: 19mm 14mm 17mm 14mm;
+  @top-left { content: "WARRANTS & CO. · EQUITY RESEARCH"; font: 600 6.5pt "Montserrat"; letter-spacing: 0.12em; color: var(--burdeos); }
+  @top-right { content: string(cabecera); font: 400 6.5pt "Inter"; color: var(--negro); }
+  @bottom-left { content: "Documento informativo; no constituye asesoramiento. Ver descargo de responsabilidad."; font: 400 5.5pt "Inter"; color: var(--negro); }
+  @bottom-right { content: "Página " counter(page) " de " counter(pages); font: 400 6pt "Inter"; color: var(--negro); }
+}
+@page portada { margin-top: 12mm; @top-left { content: none; } @top-right { content: none; } }
+
+html { font: 400 7.6pt/1.42 "Inter"; color: var(--negro); background: var(--blanco); }
+body { margin: 0; }
+.cabecera-dato { string-set: cabecera content(); display: none; }
+
+/* Portada */
+.portada { page: portada; }
+.masthead { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2.2pt solid var(--burdeos); padding-bottom: 3mm; }
+.masthead .marca { display: flex; align-items: center; gap: 2.5mm; }
+.masthead .marca img.logo { height: 9mm; }
+.masthead .marca img.nombre { height: 4.2mm; }
+.masthead .tipo { text-align: right; font: 600 6.5pt "Montserrat"; letter-spacing: 0.14em; text-transform: uppercase; color: var(--burdeos); }
+.masthead .tipo span { display: block; font: 400 6.5pt "Inter"; letter-spacing: 0; text-transform: none; color: var(--negro); margin-top: 1mm; }
+
+.titulo { display: flex; justify-content: space-between; align-items: flex-start; margin: 5mm 0 4mm; }
+.titulo h1 { font: 700 19pt/1.1 "Montserrat"; margin: 0; letter-spacing: -0.01em; }
+.titulo .sub { margin-top: 1.5mm; font-size: 7.2pt; }
+.recomendacion { background: var(--burdeos); color: var(--blanco); padding: 3mm 4mm; min-width: 52mm; }
+.recomendacion .etiqueta { font: 600 5.8pt "Montserrat"; letter-spacing: 0.14em; text-transform: uppercase; }
+.recomendacion .valor { font: 700 15pt "Montserrat"; margin: 0.5mm 0 2mm; }
+.recomendacion table { width: 100%; border-collapse: collapse; color: var(--blanco); font-size: 7pt; }
+.recomendacion td { padding: 0.6mm 0; border: 0; }
+.recomendacion td.n { text-align: right; font-weight: 600; }
+.recomendacion .nota { font-size: 5.6pt; margin-top: 1.5mm; }
+
+.rejilla { display: flex; gap: 5mm; }
+.principal { flex: 1.5; }
+.lateral { flex: 1.1; border-left: 0.5pt solid var(--negro); padding-left: 4mm; }
+
+/* Títulos y texto */
+h2, h3 { break-after: avoid; }
+section > h2:first-child { margin-top: 0; }
+h2 { font: 700 10.5pt "Montserrat"; color: var(--burdeos); margin: 5mm 0 2mm; padding-bottom: 1mm; border-bottom: 0.6pt solid var(--burdeos); }
+h2 .num { color: var(--negro); margin-right: 2mm; }
+h3 { font: 600 7.4pt "Montserrat"; letter-spacing: 0.08em; text-transform: uppercase; margin: 3.5mm 0 1.2mm; }
+p { margin: 0 0 2mm; text-align: justify; hyphens: auto; }
+ul { margin: 0 0 2mm; padding-left: 4mm; }
+li { margin-bottom: 1.2mm; }
+.cita { font-style: italic; }
+.salto { break-before: page; }
+.dos-col { columns: 2; column-gap: 6mm; }
+.fuente { font-size: 5.6pt; margin-top: 0.8mm; }
+
+/* Tablas densas, sin sombreados */
+table.datos { break-inside: avoid; width: 100%; border-collapse: collapse; font-size: 6.6pt; margin-bottom: 2.5mm; font-variant-numeric: tabular-nums; }
+table.datos th { font: 600 6pt "Montserrat"; text-align: right; border-bottom: 0.6pt solid var(--negro); padding: 0.7mm 1mm; }
+table.datos th:first-child, table.datos td:first-child { text-align: left; }
+table.datos td { text-align: right; padding: 0.55mm 1mm; border-bottom: 0.25pt solid var(--negro); }
+table.datos tr.total td { font-weight: 700; border-top: 0.6pt solid var(--negro); }
+table.datos tr.seccion td { font: 600 6pt "Montserrat"; letter-spacing: 0.06em; text-transform: uppercase; color: var(--burdeos); border-bottom: 0.6pt solid var(--burdeos); padding-top: 1.6mm; }
+table.datos td.e, table.datos th.e { font-style: italic; }
+table.lateral-tabla td:first-child { width: 55%; }
+.lateral table.datos { font-size: 6.1pt; }
+.lateral table.datos th { font-size: 5.6pt; padding: 0.6mm 0.6mm; }
+.lateral table.datos td { padding: 0.45mm 0.6mm; }
+.lateral table.datos td:first-child { white-space: nowrap; }
+
+/* Gráficos */
+.graficos { display: flex; flex-wrap: wrap; gap: 3mm 6mm; }
+.grafico { width: calc(50% - 3mm); break-inside: avoid; }
+.grafico .titulo-g { font: 600 6.6pt "Montserrat"; margin-bottom: 1mm; }
+.grafico svg { width: 100%; height: auto; }
+
+/* Indicadores destacados */
+.kpis { display: flex; border-top: 0.6pt solid var(--negro); border-bottom: 0.6pt solid var(--negro); margin: 2mm 0 3mm; }
+.kpi { flex: 1; padding: 1.8mm 2mm; border-right: 0.25pt solid var(--negro); }
+.kpi:last-child { border-right: 0; }
+.kpi .v { font: 700 11pt "Montserrat"; color: var(--burdeos); }
+.kpi .l { font-size: 5.8pt; text-transform: uppercase; letter-spacing: 0.06em; }
+
+/* Apartados pendientes del analista (borrador) */
+.pendiente { display: inline; border: 0.6pt solid var(--burdeos); color: var(--burdeos); padding: 0 1mm; font-weight: 600; font-size: 6.6pt; }
+.pendiente::before { content: "PENDIENTE DEL ANALISTA · "; font: 700 5.6pt "Montserrat"; letter-spacing: 0.06em; }
+
+.semaforo { border: 0.6pt solid var(--negro); padding: 2mm 3mm; margin: 2mm 0; }
+.semaforo strong { color: var(--burdeos); text-transform: uppercase; letter-spacing: 0.06em; }
+.legal { font-size: 6.2pt; columns: 2; column-gap: 6mm; }
+.legal h2 { column-span: all; }
+.legal p { text-align: justify; margin-bottom: 1.4mm; }

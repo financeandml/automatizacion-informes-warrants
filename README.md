@@ -2,7 +2,7 @@
 
 SaaS para automatizar la generación de informes de inversión (estilo *equity research*) sobre empresas cotizadas en EEUU, a partir de los datos públicos de la SEC (EDGAR) mediante [edgartools](https://github.com/dgunning/edgartools).
 
-> En desarrollo. Empieza por [CLAUDE.md](CLAUDE.md) (guía, reglas y mapa del proyecto). Ver [plan](docs/plan.md), [editor y versiones](docs/editor-y-versiones.md), [IA](docs/ia.md), [inventario de repos base](docs/inventario/README.md), [estructura del informe](docs/estructura-informe.md) y [requisitos pendientes](docs/requisitos-pendientes.md).
+> En desarrollo. Ejemplo de salida: [docs/ejemplos/AAPL_FY2025_borrador.pdf](docs/ejemplos/AAPL_FY2025_borrador.pdf). Empieza por [CLAUDE.md](CLAUDE.md) (guía, reglas y mapa del proyecto). Ver [plan](docs/plan.md), [editor y versiones](docs/editor-y-versiones.md), [IA](docs/ia.md), [inventario de repos base](docs/inventario/README.md), [estructura del informe](docs/estructura-informe.md) y [requisitos pendientes](docs/requisitos-pendientes.md).
 
 ## Puesta en marcha
 
@@ -44,6 +44,7 @@ ollama pull llama3.2:3b
 ## Uso
 
 ```bash
+informes-warrants informe AAPL               # borrador del informe en PDF + vista previa HTML
 informes-warrants datos AAPL                 # estados financieros del último 10-K
 informes-warrants cobertura JPM              # plantilla: general, sectorial o «pendiente de validar»
 informes-warrants metricas JPM               # métricas del perfil sectorial con su fuente XBRL

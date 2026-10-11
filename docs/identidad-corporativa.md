@@ -1,8 +1,8 @@
 # Identidad corporativa y maquetación
 
 ## Marca
-- Logo: `Plantilla/Logo de la marca.svg`. Vectorizado como polígonos exactos (3 piezas: 2 barras y 1 triángulo, con el borde superior común).
-- Nombre comercial: `Plantilla/Nombre de marca.svg`. Trazado vectorial (potrace) del original.
+- Logo: `src/informes_warrants/plantillas/marca/logo.svg`. Vectorizado como polígonos exactos (3 piezas: 2 barras y 1 triángulo, con el borde superior común).
+- Nombre comercial: `src/informes_warrants/plantillas/marca/nombre.svg`. Trazado vectorial (potrace) del original.
 - Ambos son vectoriales (escalan a cualquier resolución), sin fondo (transparentes) y en negro `#000000`. Fidelidad frente al PNG original: el 99,7 % de los píxeles coincide en el logo y el 98,7 % en el nombre; las diferencias son de subpíxel en los bordes antialiasados.
 
 ## Colores (solo estos tres)
