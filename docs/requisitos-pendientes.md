@@ -68,3 +68,6 @@ Detección automática con confirmación del analista, nombre por año fiscal, h
 | E6 | Índices de referencia | ✅ S&P 500 + ETF sectorial SPDR asignado por SIC (mapeo por construir en la fase 3) |
 | E7 | `git push` | ✅ Autorizado; el repo es público |
 | E8 | Clave de Alpha Vantage (opcional) | Opcional, como respaldo de yfinance |
+| E9 | Universo de comparables por SIC | Pendiente: descargar el *bulk* de *submissions* de la SEC (más de 1 GB, fuera de OneDrive) o consultar empresa a empresa con caché. Ver [rigor-del-contenido.md](rigor-del-contenido.md#1-valoración-poco-creíble) |
+| E10 | Remuneración en acciones en el DCF | Pendiente: propuesta, descontarla como coste en el FCFF |
+| E11 | Probabilidades de los escenarios | Pendiente: propuesta, 25/50/25 editables |

@@ -119,8 +119,8 @@ La lógica (capas 1-4) no depende de la UI, así que la interfaz se puede cambia
 | 3. Visual | ✅ Gráficos SVG, tablas, plantilla HTML A4 y PDF de 8 páginas ([ejemplo](ejemplos/AAPL_FY2025_borrador.pdf)) | **Primer informe borrador PDF completo por CLI (MVP)** ✅ |
 | 4. IA | ✅ Proveedor, selección con cita literal y los 2 bloques de IA ([ia.md](ia.md)); falta conectar al borrador | `informes-warrants riesgos AAPL` |
 | 5. Versiones | ✅ Estados, herencia, comparación, SQLite inmutable y detección; falta el snapshot y el PDF por versión (dependen de las fases 1-3) | `informes-warrants versiones detectar AAPL` |
-| 6. UI | Streamlit: dashboard con estados, editor híbrido, vista previa | Flujo completo en localhost |
-| 7. Contenido completo | Resto del índice: DCF, comparables, gobierno (proxy), proyecciones, anexos | Informe equivalente a la referencia |
+| 6. Rigor del contenido | Las 8 carencias y los apartados «parciales» del índice, pasos 4.1-4.7 de [rigor-del-contenido.md](rigor-del-contenido.md): LTM, segmentos, valoración (5 + 5 años, escenarios, DCF inverso, comparables), analítica, riesgos cuantitativos, catalizadores, insiders, fuentes | PDF intermedio revisado en cada paso |
+| 7. UI | Streamlit: dashboard con estados, editor híbrido, vista previa (sobre los bloques ya cerrados en la fase 6) | Flujo completo en localhost |
 | 8. SaaS | Usuarios, autenticación, multiempresa, despliegue, avisos legales | Acceso externo |
 
 ## Decisiones tomadas
@@ -132,6 +132,7 @@ La lógica (capas 1-4) no depende de la UI, así que la interfaz se puede cambia
 | LLM | llama4 en OpenRouter (si hay key) > `gpt-oss-120b` en Groq (activo) > Ollama `llama3.2:3b` local; mismo código para todos los proveedores | [ia.md](ia.md) |
 | Uso de la IA | Mínimo: 2 bloques, solo elige y resume fragmentos literales | Usuario |
 | Editor | Markdown, vista previa en tiempo real, emisión con confirmación del analista | Usuario |
-| Recomendación | Sí: el SaaS la propone por potencial y el analista la confirma | Usuario |
+| Recomendación | Sí: el SaaS la propone por potencial y el analista la confirma; se muestra siempre el precio objetivo calculado y el analista puede fijar el suyo | Usuario |
+| Contenido | Enfoque determinista. Primero los apartados «parciales» del índice; lo «hecho» se mantiene y sus cambios van al final; lo «ejecutable», lo «externo» y lo del analista se aparcan | Usuario (2026-10-12) |
 | Versiones | Detección automática + confirmación; año fiscal; SQLite fuera de OneDrive | Usuario |
 | Alcance | Todas las empresas de EEUU: plantilla general + perfiles sectoriales validados (banca, seguros, REIT, BDC/fondos cerrados) y emisores extranjeros en USD; el resto, «plantilla pendiente de validar» | Usuario + [editor-y-versiones.md](editor-y-versiones.md#alcance) |

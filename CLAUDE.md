@@ -29,6 +29,7 @@ SaaS que genera informes de análisis (estilo *equity research*) sobre empresas 
 | Resumen de los repos base y licencias | [docs/repositorios-base.md](docs/repositorios-base.md) |
 | Identidad corporativa (colores, tipografía, logo) | [docs/identidad-corporativa.md](docs/identidad-corporativa.md) |
 | Decisiones pendientes del usuario | [docs/requisitos-pendientes.md](docs/requisitos-pendientes.md) |
+| Carencias de contenido, soluciones y orden de trabajo | [docs/rigor-del-contenido.md](docs/rigor-del-contenido.md) |
 | Motor matemático y normalizador SEC | `src/informes_warrants/calculo/` (normalizador, métricas, DCF, calidad) · tests en `tests/test_calculo.py` |
 | Plantilla y PDF del informe | `src/informes_warrants/plantillas/informe/` · `informe/render.py` · [ejemplo](docs/ejemplos/AAPL_FY2025_borrador.pdf) |
 | Configuración de EDGAR | [src/informes_warrants/config.py](src/informes_warrants/config.py), [.env.example](.env.example) |
