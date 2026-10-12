@@ -115,6 +115,8 @@ La lógica (capas 1-4) no depende de la UI, así que la interfaz se puede cambia
 
 ## Fases
 
+La lista detallada de tareas que faltan, en tres fases (primer uso real, perfeccionamiento y lanzamiento), está en [hoja-de-ruta.md](hoja-de-ruta.md).
+
 | Fase | Entregable | Hito verificable |
 |---|---|---|
 | 0. Base | Estructura, configuración, tests, CI (GitHub Actions en Ubuntu **y Windows**: los repos base solo usan Ubuntu), `edgartools>=5.61.1,<6` (la 6.0 cambia la API) | ✅ Hecho: Python 3.13, dependencias fijadas, ruff, CI en Ubuntu y Windows, CONTRIBUTING |
