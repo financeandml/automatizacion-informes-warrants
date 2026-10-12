@@ -95,3 +95,5 @@ table.lateral-tabla td:first-child { width: 55%; }
 /* Aviso «Revisar»: propuesta automática que el analista debe confirmar (comparables) */
 .revisar { display: inline-block; border: 0.6pt solid var(--burdeos); background: var(--burdeos); color: var(--blanco); padding: 0 1.2mm; margin-right: 1.5mm; font: 700 5.6pt "Montserrat"; letter-spacing: 0.08em; text-transform: uppercase; }
 tr.seccion-base td { font-weight: 600; }
+.aviso-revisar { border: 0.6pt solid var(--burdeos); padding: 1.5mm 2.5mm; font-size: 6.6pt; margin: 1mm 0 2mm; }
+.nota-recomendacion { font-size: 5.6pt; margin-top: 1.5mm; }

@@ -14,12 +14,13 @@ SaaS que genera informes de análisis (estilo *equity research*) sobre empresas 
 6. **Licencias:** MIT/Apache se puede copiar con atribución (p. ej. FinRobot, Apache-2.0); sec-edgar-toolkit (AGPL-3.0), automated-market-report y financial-ai-agent (sin licencia) solo como referencia; vectorbt (Commons Clause: prohíbe vender) no se usa.
 7. **Determinismo e IA mínima:** las cifras salen de código; lo que no, de plantilla; lo que no, lo marca el SaaS para el analista (`[[ANALISTA: …]]`). La IA solo elige y resume fragmentos literales del 10-K (2 bloques) y siempre la revisa un humano.
 8. **Datos fuera de OneDrive:** base de datos, cachés y entorno virtual en carpetas locales (`config.directorio_datos`).
-9. **Cero alucinaciones financieras:** toda cifra y ratio sale de código determinista; la IA nunca produce ni modifica números. Los tags XBRL equivalentes (`Revenues`, `SalesRevenueNet`, `RevenueFromContractWithCustomer…`) se traducen en **un único normalizador SEC** dentro de `calculo/`, sobre `SynonymGroups` y `gaap_mappings.json` de edgartools; ninguna fórmula fuera de ese módulo.
+9. **Cero alucinaciones financieras:** toda cifra y ratio sale de código determinista; la IA nunca produce ni modifica números. Los tags XBRL equivalentes (`Revenues`, `SalesRevenueNet`, `RevenueFromContractWithCustomer…`) se traducen en **un único normalizador SEC** (`calculo/normalizador.py`), con listas exactas de tags por prioridad (la estandarización automática de edgartools se descartó: etiquetaba mal partidas como los dividendos de AAPL); las partidas calculadas quedan trazadas y avisadas en el semáforo. Ninguna fórmula fuera de `calculo/`.
 
 ## Navegación
 
 | Necesito… | Archivo |
 |---|---|
+| Índice de toda la documentación | [docs/README.md](docs/README.md) |
 | Plan, capas, fases y decisiones | [docs/plan.md](docs/plan.md) |
 | Contenido del informe (índice) | [docs/estructura-informe.md](docs/estructura-informe.md) |
 | Quién produce cada bloque, editor, versiones | [docs/editor-y-versiones.md](docs/editor-y-versiones.md) · código en `src/informes_warrants/informe/` y `almacenamiento/` |
@@ -32,6 +33,7 @@ SaaS que genera informes de análisis (estilo *equity research*) sobre empresas 
 | Carencias de contenido, soluciones y orden de trabajo | [docs/rigor-del-contenido.md](docs/rigor-del-contenido.md) |
 | Motor matemático y normalizador SEC | `src/informes_warrants/calculo/` (normalizador con LTM, métricas, DCF con escenarios y DCF inverso, proyección hasta el BPA, valoración relativa, puntuaciones, analítica, notas, definiciones, calidad) · tests en `tests/test_calculo.py` |
 | Plantilla y PDF del informe | `src/informes_warrants/plantillas/informe/` · `informe/render.py` · [ejemplo](docs/ejemplos/AAPL_FY2025_borrador.pdf) |
+| Ingesta (SEC, mercado, comparables, gobierno, riesgos) | `src/informes_warrants/ingesta/` (índice en su `__init__.py`) |
 | Configuración de EDGAR | [src/informes_warrants/config.py](src/informes_warrants/config.py), [.env.example](.env.example) |
 | Texto legal del informe | [src/informes_warrants/plantillas/legal/descargo.md](src/informes_warrants/plantillas/legal/descargo.md) |
 

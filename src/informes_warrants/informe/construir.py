@@ -209,7 +209,10 @@ def componer(*, ticker: str, empresa: str, sic, cobertura, filing: dict, estados
     comps = comparables or []
     stats = estadisticas(comps)
     implicitos = valor_implicito(stats, f_ltm, dfn, minoritarios, acciones)
-    valor_multiplos = valor_por_multiplos(implicitos)
+    # La propuesta automática por SIC es orientativa (agrupa mal a muchas empresas: AAPL → DELL, SMCI): la valoración
+    # por múltiplos solo entra en el precio objetivo con la lista del analista. Hasta entonces, marcador pendiente.
+    valor_multiplos_orientativo = valor_por_multiplos(implicitos)
+    valor_multiplos = valor_multiplos_orientativo if comparables_del_analista else None
     valor_dcf = r_esc.valor_ponderado if r_esc else None
     if valor_dcf is not None and valor_multiplos is not None:
         precio_modelo = base.peso_dcf * valor_dcf + (1 - base.peso_dcf) * valor_multiplos
@@ -253,6 +256,7 @@ def componer(*, ticker: str, empresa: str, sic, cobertura, filing: dict, estados
         "margen_bruto": f["margen_bruto"], "margen_operativo": f["margen_operativo"], "roic": f["roic"], "roe": f["roe"],
         "fcf": (f["fcf"] or 0) / 1e6, "conversion_fcf": f["conversion_fcf"],
         "precio_objetivo_dcf": valor_dcf, "precio_objetivo_multiplos": valor_multiplos,
+        "comparables_pendientes": not comparables_del_analista,
         "wacc": valor.wacc if valor else None, "g": base.g,
         "auditor": (gobierno.auditor if gobierno and gobierno.auditor else "[[ANALISTA: auditor (Item 9 / proxy)]]"),
         "gobierno": gobierno, "puente": puente, "apalancamiento": apalancamiento, "uso": uso, "fecha_ltm": fecha_ltm,
@@ -272,7 +276,8 @@ def componer(*, ticker: str, empresa: str, sic, cobertura, filing: dict, estados
         "inverso": inverso, "proyeccion": proyeccion, "etiquetas_estimadas": etiquetas,
         "comparables": comps, "comparables_stats": stats, "comparables_implicitos": implicitos,
         "comparables_criterio": comparables_criterio, "comparables_del_analista": comparables_del_analista,
-        "valor_dcf": valor_dcf, "valor_multiplos": valor_multiplos, "precio_modelo": precio_modelo,
+        "valor_dcf": valor_dcf, "valor_multiplos": valor_multiplos, "valor_multiplos_orientativo": valor_multiplos_orientativo,
+        "precio_modelo": precio_modelo,
         "precio_objetivo": precio_objetivo, "potencial": potencial, "potencial_dcf": potencial_dcf, "recomendacion": propuesta,
         "avisos_valoracion": avisos_valoracion, "puente": puente, "apalancamiento": apalancamiento, "uso": uso, "notas": notas,
         "puntuaciones": puntuaciones, "gobierno": gobierno, "riesgos_cambios": riesgos_cambios,

@@ -46,10 +46,11 @@
           <tr><td>Precio objetivo{% if c.estimaciones.precio_objetivo_analista %} (analista){% endif %}</td><td class="n">{{ c.precio_objetivo|num(2) }} USD</td></tr>
           {% if c.estimaciones.precio_objetivo_analista %}<tr><td>Precio objetivo del modelo</td><td class="n">{{ c.precio_modelo|num(2) }} USD</td></tr>{% endif %}
           {% if c.valor_dcf is not none %}<tr><td>Valor DCF (escenarios)</td><td class="n">{{ c.valor_dcf|num(2) }} USD</td></tr>{% endif %}
-          {% if c.valor_multiplos is not none %}<tr><td>Valor por múltiplos</td><td class="n">{{ c.valor_multiplos|num(2) }} USD</td></tr>{% endif %}
+          {% if c.valor_multiplos is not none %}<tr><td>Valor por múltiplos</td><td class="n">{{ c.valor_multiplos|num(2) }} USD</td></tr>{% elif not c.comparables_del_analista %}<tr><td>Valor por múltiplos</td><td class="n">pendiente*</td></tr>{% endif %}
           <tr><td>Cotización</td><td class="n">{{ c.cotizacion.precio|num(2) }} USD</td></tr>
           <tr><td>Potencial</td><td class="n">{{ c.potencial|var }}</td></tr>
         </table>
+        {% if not c.comparables_del_analista %}<div class="nota-recomendacion">* Precio objetivo solo por DCF: falta la lista de comparables del analista.</div>{% endif %}
       </div>
       <h3>Datos de mercado</h3>
       <table class="datos lateral-tabla">
@@ -213,7 +214,7 @@
 
   <div style="break-inside: avoid">
   <h3>Comparables ({{ etiqueta_ltm }} de cada empresa)</h3>
-  {% if not c.comparables_del_analista %}<p class="fuente"><span class="revisar">Revisar</span> Selección automática: {{ c.comparables_criterio }}. El analista puede sustituir la lista.</p>{% else %}<p class="fuente">Lista de comparables del analista.</p>{% endif %}
+  {% if not c.comparables_del_analista %}<p class="aviso-revisar"><span class="revisar">Revisar</span> <strong>El analista debe introducir su lista de comparables para que la valoración por múltiplos se genere correctamente.</strong> La tabla muestra una propuesta automática orientativa ({{ c.comparables_criterio }}) que <strong>no entra en el precio objetivo</strong>: el código SIC agrupa mal a muchas empresas.</p>{% else %}<p class="fuente">Lista de comparables del analista.</p>{% endif %}
   {% if comparables %}
   <table class="datos">
     <tr><th>Empresa</th><th>Cap. (USD bn)</th><th>Crec. ventas</th><th>Margen EBITDA</th>{% for _, nombre, _, _, _ in multiplos_def %}<th>{{ nombre }}</th>{% endfor %}</tr>
@@ -222,7 +223,7 @@
     <tr><td>{{ c.empresa }} ({{ c.ticker }})</td><td>{{ (c.multiplos.capitalizacion/1e9)|num(1) }}</td><td>{{ fl.crecimiento_ingresos|pct }}</td><td>{{ fl.margen_ebitda|pct }}</td>{% for clave, _, _, _, _ in multiplos_def %}<td>{{ c.multiplos[clave]|num(1) }}x</td>{% endfor %}</tr>
     <tr class="total"><td>Valor implícito por acción (USD)</td><td></td><td></td><td></td>{% for clave, _, _, _, _ in multiplos_def %}<td>{{ c.comparables_implicitos[clave]|num(2) }}</td>{% endfor %}</tr>
   </table>
-  <div class="fuente">Múltiplos LTM con el mismo normalizador SEC. La mediana excluye valores negativos y no significativos (n.s.: PER &gt; 75x, EV/EBITDA o P/FCF por encima del límite) y exige al menos 3 comparables. Valor por múltiplos (media de EV/EBITDA y PER): {{ c.valor_multiplos|num(2) }} USD.</div>
+  <div class="fuente">Múltiplos LTM con el mismo normalizador SEC. La mediana excluye valores negativos y no significativos (n.s.: PER &gt; 75x, EV/EBITDA o P/FCF por encima del límite) y exige al menos 3 comparables. Valor por múltiplos (media de EV/EBITDA y PER): {% if c.comparables_del_analista %}{{ c.valor_multiplos|num(2) }} USD{% else %}{{ c.valor_multiplos_orientativo|num(2) }} USD (orientativo, fuera del precio objetivo){% endif %}.</div>
   {% else %}<p><span class="pendiente">no hay comparables cotizados con datos LTM completos: añade la lista</span></p>{% endif %}
   </div>
 </section>

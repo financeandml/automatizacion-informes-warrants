@@ -17,11 +17,16 @@ Las copias locales viven en `repositorios-github/` (zips, ignorados por git). Pa
 | sec-edgar-toolkit | github.com/stefanoamorelli/sec-edgar-toolkit | **AGPL-3.0** | Cliente EDGAR alternativo (Python + TypeScript) |
 | automated-market-report | github.com/hgnx/automated-market-report | **Sin licencia** | Informe diario de mercado en PDF |
 | financial-ai-agent | (URL original desconocida) | **Sin licencia** | Agente LangGraph + Streamlit de análisis |
+| FinRobot | github.com/AI4Finance-Foundation/FinRobot | Apache-2.0 | Motor de valoración determinista (DCF inverso, comparables, SOTP, DDM, LBO) y generador de informes ([ficha](inventario/finrobot.md)) |
+| ai-hedge-fund | github.com/virattt/ai-hedge-fund | MIT | Fondo simulado con agentes; estudio de eventos ([ficha](inventario/otros-backtesting.md)) |
+| vectorbt | github.com/polakowo/vectorbt | Apache-2.0 **+ Commons Clause** | *Backtesting* vectorizado; no usable en un SaaS ([ficha](inventario/otros-backtesting.md)) |
+| Lean | github.com/QuantConnect/Lean | Apache-2.0 | Motor de *trading* algorítmico en C# ([ficha](inventario/otros-backtesting.md)) |
 
 **Restricciones legales:**
 - **AGPL-3.0 (sec-edgar-toolkit):** si se incorpora su código a un SaaS, hay que publicar el código fuente del servicio. Úsalo como referencia, no lo copies.
 - **Sin licencia (automated-market-report, financial-ai-agent):** todos los derechos están reservados. Solo se pueden tomar ideas, no código.
 - **MIT / Apache-2.0:** se puede reutilizar conservando el aviso de copyright.
+- **Commons Clause (vectorbt):** prohíbe vender el software o un servicio basado en él: no se usa.
 
 ## Detalle por repo
 

@@ -15,7 +15,7 @@ Implementado y verificado contra la SEC (97 tests, 23 contra la SEC real; ejempl
 
 | # | Carencia | Estado | Dónde está |
 |---|---|---|---|
-| 1 | Valoración | ✅ Escenarios pesimista/base/optimista editables (25/50/25), 5 + 5 años, flujo terminal normalizado, DCF inverso (crecimiento y rentabilidad implícitos), segunda sensibilidad, Rf de FRED, comparables con aviso «Revisar» | `calculo/dcf.py`, `calculo/valoracion_relativa.py`, `ingesta/comparables.py`, `informe/estimaciones.py` |
+| 1 | Valoración | ✅ Escenarios pesimista/base/optimista editables (25/50/25), 5 + 5 años, flujo terminal normalizado, DCF inverso (crecimiento y rentabilidad implícitos), segunda sensibilidad, Rf de FRED, comparables con aviso «Revisar» (la propuesta automática es orientativa: la valoración por múltiplos exige la lista del analista; el motor de valoración completo queda pendiente de los modelos del usuario) | `calculo/dcf.py`, `calculo/valoracion_relativa.py`, `ingesta/comparables.py`, `informe/estimaciones.py` |
 | 1 | Remuneración en acciones (SBC) | ✅ Coste: el FCFF parte del EBIT (que ya la resta) y no la suma; P/FCF y FCF yield sobre el FCF tras SBC | `calculo/metricas.py`, `calculo/dcf.py` |
 | 2 | Datos desfasados | ✅ LTM (cuatro últimos trimestres) en el normalizador; múltiplos, DCF y proyección sobre el LTM; periodos estimados de doce meses («jun-27e») | `calculo/normalizador.py` `FuenteLTM` |
 | 3 | Estimaciones hasta el BPA | ✅ Proyección línea a línea (resultado financiero, impuestos, minoritarios, acciones, BPA, DPA, FCF por acción) coherente con el DCF. El contraste con el consenso queda aparcado (fuente externa) | `calculo/proyeccion.py` |

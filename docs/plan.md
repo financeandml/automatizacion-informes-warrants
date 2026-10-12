@@ -19,48 +19,50 @@ ticker ─► [1 Ingesta] ─► [2 Cálculo] ─► [3 Visual] ─► informe b
 4. **Versiones inmutables:** una versión aprobada no se modifica y guarda el *snapshot* de los datos con los que se generó.
 5. **Reutilizar antes que construir:** antes de cualquier tarea se consulta el inventario completo de `repositorios-github/` ([inventario/README.md](inventario/README.md)) y se razona qué se reutiliza.
 
-### Capa 1 — Ingesta de datos estructurados
+Cada capa vive en su carpeta de `src/informes_warrants/` (índice de módulos en el docstring de cada `__init__.py`). Qué se reutilizó de cada repo base y por qué está en el docstring de cada módulo y en el [inventario](inventario/README.md).
 
-Detalle y rutas exactas: [inventario/README.md](inventario/README.md).
+### Capa 1 — Ingesta (`ingesta/`)
 
-| Necesidad | Reutilizar | Hay que construir |
+| Necesidad | Cómo se resuelve | Estado |
 |---|---|---|
-| Estados financieros de 5 años + 3 estimados (XBRL) | edgartools `XBRLS.from_filings(...)` (cosido multiperiodo) o `Company.income_statement(periods=5)`; `RenderedStatement.to_dict()` para tablas. `get_financials()` solo da 3 años de P&L y 2 de balance | — |
-| TTM y ajuste por *splits* | edgartools `ttm/` (`TTMCalculator`, `detect_splits`). **No** usar `compute_ttm` de edgar_analytics (no suma 12 meses consecutivos) | — |
-| Precio actual, acciones y market cap | edgar_analytics `market_data` (`get_share_price`, `get_market_cap`, yfinance) | — |
-| Histórico de precios (máx./medio/mín. 12m, volumen, base 100, beta) | financial-research-analyst-agent `src/data/provider.py` (`MarketDataProvider.get_history`, `MultiProvider` con respaldo `AlphaVantageProvider`) | — |
-| Texto del 10-K (Items 1, 1A, 7) | edgartools `TenK.business`, `.risk_factors`, `.management_discussion` (en 6.x: `report.get('Item 7')`) | — |
-| Perfil de vencimientos de deuda | edgartools: leer el concepto **bruto** `xbrl.facts.query().by_concept('LongTermDebtMaturitiesRepaymentsOfPrincipal', exact=False)`; la estandarización de `gaap_mappings.json` los agrega en `ShortTermDebt`/`LongTermDebt` y pierde el perfil | — |
-| Trazabilidad de cada cifra | `FinancialFact` (EntityFacts) y `source_filing_index` (XBRLS) | Añadir `filing.accession_no` y `filing_date` a cada hecho (los facts de un `XBRL` no los traen) |
-| Caché y *snapshot* | edgartools cachea HTTP (las *submissions* y *companyfacts* caducan a los 30 s) | *Snapshot* propio por informe (JSON de facts, `RenderedStatement.to_dict()`, `.txt` SGML); sin pickle (`Filing.save/load`) ni el `CacheLayer` de edgar_analytics. Cachés fuera de OneDrive (`EDGAR_LOCAL_DATA_DIR`) |
-| Datos de referencia y sectores | edgartools `reference/` (tickers, `get_companies_by_industry`), `classify_business_category`, `Company.is_financial_institution()`, `sic_to_fama_french` | — |
+| Estados financieros (5 ejercicios + LTM) | edgartools `Company.get_facts()` (companyfacts) leído por el normalizador SEC (`calculo/normalizador.py`), con el XBRL del último 10-K como contraste | ✅ |
+| LTM y ajuste por *splits* | edgartools `ttm/` (`TTMCalculator`) dentro del normalizador (`FuenteLTM`). **No** usar `compute_ttm` de edgar_analytics | ✅ |
+| Precio, histórico, comportamiento relativo, tipo libre de riesgo | yfinance (`ingesta/mercado.py`); Rf del CSV público de FRED (DGS10) | ✅ |
+| Acciones en circulación | Portada (dei) del último filing, con control de antigüedad (`acciones_en_circulacion`) | ✅ |
+| Texto del 10-K (Items 1 y 1A) | edgartools `TenK` (`ingesta/riesgos.py`) | ✅ (MD&A: pendiente de conectar) |
+| Gobierno | edgartools `ProxyStatement` y `extract_auditor_info` (`ingesta/gobierno.py`) | ✅ |
+| Comparables | SEC: CIK por SIC (`browse-edgar`, Atom) + tickers oficiales + tamaño por API *frames* (`ingesta/comparables.py`) | ✅ (propuesta orientativa; el analista introduce la lista) |
+| Vencimientos de deuda | Concepto **bruto** `LongTermDebtMaturitiesRepaymentsOfPrincipal…` (verificado en AAPL) | Pendiente |
+| Segmentos y geografía | edgartools `FactQuery.by_dimension` con validación propia ([plan](rigor-del-contenido.md#tarea-pendiente-segmentos-y-geografía-plan)) | Pendiente |
+| *Snapshot* por versión | JSON propio de los datos usados (sin pickle ni el `CacheLayer` de edgar_analytics), fuera de OneDrive | Pendiente |
 
-### Capa 2 — Motor de cálculo determinista
+### Capa 2 — Motor de cálculo (`calculo/`)
 
-| Métrica | Dónde está | Estado |
+Toda cifra sale de aquí (regla 9). Las fórmulas de edgar_analytics y FinRobot se **reimplementaron** sobre las partidas del normalizador, con atribución, en lugar de usarlos como dependencia: sus definiciones difieren (p. ej. el EBITDA de edgar_analytics incluye resultados no operativos) y trabajan sobre DataFrames por etiqueta.
+
+| Bloque | Módulo | Origen |
 |---|---|---|
-| Margen bruto, operativo y neto, ROE, ROA, deuda neta, DN/EBITDA, cobertura de intereses, D/E | edgar_analytics `metrics` | Reutilizar |
-| ROIC (NOPAT / capital invertido), asset turnover, DuPont, Piotroski, Altman, Beneish, BPA, FCF por acción, ciclo de circulante | edgar_analytics `scores` | Reutilizar |
-| CAGR | edgar_analytics `compute_cagr` (`financial_metrics.calc_cagr` de financial-research-analyst-agent está anidada y no se puede importar) | Reutilizar |
-| PER, P/BV, EV/EBITDA, earnings yield | edgar_analytics `market_data.compute_valuation_ratios` | Contraste: no devuelve el EV y su base no coincide con su `Net Debt` |
-| EV y su desglose (Anexo 3), EV/Ventas, EV/EBIT, FCF yield, P/FCF, rentabilidad por dividendo, pay-out, DPA, FCF conversion, ROCE | Piezas: stock-screener `src/data/storage.py` (`StockDatabase._calculate_fcf_yield`), financial-research-analyst-agent `src/tools/dividend_analyzer.py` (alimentado con DPA de XBRL, no con Yahoo) | **Construir** en `calculo/` |
-| Definiciones de EBIT y EBITDA | edgar_analytics usa `EBITDA (standard)` = BN + intereses + impuestos + D&A (incluye no operativos) | **Construir**: EBIT = resultado operativo; EBITDA = EBIT + D&A, con *fallback* para los 101 emisores sin línea de D&A estandarizada |
-| EBITDA ajustado publicado por la empresa | edgartools `edgar/earnings.py` (Adjusted EBITDA y `eps_reconciliation` del EX-99.1) | Reutilizar como contraste del EBITDA recurrente |
-| DCF (WACC, sensibilidad) | financial-research-analyst-agent `dcf_model.py` solo como patrón: no resta la deuda neta, usa crecimientos de Yahoo, mete `inf` y emite recomendación | **Construir** como función pura sobre las estimaciones del analista (FCFF desde EBIT·(1−t)) |
-| Comparables | edgartools `get_companies_by_industry(sic=..., sic_range=...)`; financial-research-analyst-agent `peer_comparison` como patrón | Filtro por tamaño con nuestro market cap |
-| Comportamiento relativo (1m…5a, YTD vs SPY/QQQ/ETF sectorial) | financial-research-analyst-agent `performance_tracker.track_performance` (`SECTOR_ETFS`) | Mapeo SIC → ETF sectorial |
-| Semáforo de calidad de datos antes de aprobar | stock-screener `src/data/quality.py` (`DataQualityChecker`) + edgartools `xbrl/validation.py` (`validate_balance_sheet`) | — |
+| Normalizador SEC (anual y LTM, partidas derivadas trazables) | `normalizador.py` | Propio; jerarquía de ingresos de edgartools `RevenueDeduplicator` |
+| Márgenes, FCF (y tras SBC), DFN, ROE, ROIC, ROCE, múltiplos | `metricas.py` | Propio (edgar_analytics como contraste) |
+| Semáforo de calidad | `calidad.py` | stock-screener `DataQualityChecker`, edgartools `validate_balance_sheet` (ideas) |
+| DCF por escenarios, sensibilidades, DCF inverso, beta | `dcf.py` | financial-research-analyst-agent `dcf_model` (patrón) + FinRobot `dcf.py` (DCF inverso, flujo terminal) |
+| Proyección hasta el BPA | `proyeccion.py` | Propio (no existía) |
+| Comparables (medianas y valor implícito) | `valoracion_relativa.py` | FinRobot `multiples.py` (reglas de la mediana) |
+| Analítica de márgenes y uso del capital | `analitica.py` | Propio (no existía) |
+| Altman, Beneish, Piotroski | `puntuaciones.py` | edgar_analytics `scores.py` (fórmulas y umbrales) |
+| Notas de los ratios y metodología | `notas.py`, `definiciones.py` | Propio |
+| Métricas sectoriales | `sectoriales.py` | Propio sobre `informe/perfiles.py` |
 
-Decisión (corregida tras el inventario completo): edgar_analytics se usa **como dependencia** para lo que calcula bien, pero la capa 2 necesita un **módulo propio de definiciones** (EBIT, EBITDA, DFN única, EV) y las métricas marcadas «Construir». Los tests se validan con los valores *golden* de AAPL del fixture de edgartools `tests/fixtures/xbrl/aapl/10k_2023` (`AAPL_METRICS`).
+Tests *golden* con el 10-K FY2023 de AAPL (`tests/fixtures/aapl_10k_2023`).
 
-### Capa 3 — Motor visual y estructural
+### Capa 3 — Presentación (`visual/` y `plantillas/`)
 
-| Necesidad | Reutilizar | Construir |
+| Necesidad | Cómo se resuelve | Estado |
 |---|---|---|
-| Gráficos | financial-research-analyst-agent `frontend/components/plotly_charts.py` + `utils/theme.get_plotly_layout` (adaptado a `#2B0B02`) | Cascada (*bridge* EBITDA → FCF), barras apiladas (mix), vencimientos de deuda, base 100; exportación SVG con `kaleido` (no existe en ningún repo con licencia) |
-| Tablas HTML corporativas | edgartools `RenderedStatement.to_dict()` (sangría, totales, unidades); pandas `Styler` + Jinja2 | Formato español completo: piezas en edgartools `xbrl/core.format_value` (paréntesis) y `display/formatting.moneyfmt(sep='.', dp=',')` |
-| Plantilla HTML | Patrón Jinja2 con herencia de edgartools `ownership/html_render.py` | Plantilla A4 con cabecera y pie, numeración (`@top-*`, `counter(page)`) y columna de ladillos: no existe en ningún repo |
-| PDF | equity-research-agent `stock_analysis_agent/tools.py` `combine_reports` (WeasyPrint `HTML(...).write_pdf(..., stylesheets=[CSS])`). Ojo: genera el PDF desde `html_content` (sin `<head>` ni charset) en lugar de `html_full` | Aplicarlo a la plantilla Jinja2. WeasyPrint necesita GTK en Windows (documentarlo en el README) |
+| Gráficos | matplotlib en SVG con los tres colores de la marca (`visual/graficos.py`) | ✅ (cascada, vencimientos y barras apiladas de segmentos: pendientes) |
+| Plantilla A4 (cabecera, pie, numeración) | Jinja2 + CSS propio (`plantillas/informe/`); no existía en ningún repo | ✅ |
+| Tablas y formato español (coma decimal, negativos entre paréntesis) | Filtros `num`, `pct` y `var` (`informe/plantillas.py`) | ✅ |
+| PDF | WeasyPrint (patrón de equity-research-agent `combine_reports`, corregido) | ✅ |
 
 ### Capa 4 — IA cualitativa y panel del analista
 
@@ -86,7 +88,7 @@ Decisión (corregida tras el inventario completo): edgar_analytics se usa **como
 
 Definidos en detalle en [editor-y-versiones.md](editor-y-versiones.md). En resumen:
 
-- **Bloques:** 18 AUTO (código), 4 PLANTILLA (texto con datos), 2 IA (riesgos y catalizadores, con cita literal) y 7 ANALISTA (marcados con `[[ANALISTA: …]]`; bloquean la emisión).
+- **Bloques:** 19 AUTO (código), 4 PLANTILLA (texto con datos), 2 IA (riesgos y catalizadores, con cita literal) y 7 ANALISTA (marcados con `[[ANALISTA: …]]`; bloquean la emisión).
 - **Izquierda, bloque fijo:** solo lectura, con la fuente de cada cifra. El analista solo puede ajustar los comparables y marcar partidas no recurrentes, siempre con motivo.
 - **Derecha, bloque editable:** Markdown con las plantillas ya rellenas, las estimaciones (recalculan proyección y DCF) y la recomendación, que el SaaS propone y el analista confirma.
 - **Vista previa en tiempo real:** HTML en cada cambio y PDF recompilado en segundo plano.
@@ -97,14 +99,16 @@ Definidos en detalle en [editor-y-versiones.md](editor-y-versiones.md). En resum
 
 ```
 src/informes_warrants/
-  ingesta/        # capa 1 (hecho: títulos de riesgo del 10-K/20-F, conversión a USD)
-  calculo/        # capa 2 (hecho: normalizador SEC, métricas, DCF, semáforo de calidad, métricas sectoriales)
-  visual/         # capa 3 (hecho: gráficos SVG de marca, HTML → PDF)
-  plantillas/     # bloques Markdown, informe HTML/CSS, marca, fuentes (OFL) y texto legal
-  informe/        # bloques, plantillas, estimaciones, ajustes, cobertura, perfiles, construir (datos) y render (HTML/PDF)
-  ia/             # capa 4 (hecho: LLM, selección con cita literal, bloques de IA)
-  almacenamiento/ # versiones: estados, herencia, comparación, SQLite, detección (hecho)
-  ui/             # Streamlit (localhost) (pendiente)
+  cli.py          # punto de entrada: informes-warrants -h
+  config.py       # identidad SEC y carpeta de datos (fuera de OneDrive)
+  ingesta/        # capa 1: SEC y mercado
+  calculo/        # capa 2: motor matemático (toda cifra sale de aquí)
+  informe/        # bloques, estimaciones, composición y render del informe
+  visual/         # capa 3: gráficos SVG y PDF
+  plantillas/     # plantilla HTML/CSS, bloques Markdown, marca, fuentes (OFL) y texto legal
+  ia/             # capa 4: uso mínimo del modelo de lenguaje
+  almacenamiento/ # versiones: estados, herencia, comparación, SQLite, detección
+  ui/             # Streamlit en localhost (pendiente, fase 7)
 ```
 
 La lógica (capas 1-4) no depende de la UI, así que la interfaz se puede cambiar sin tocar el núcleo.
@@ -114,12 +118,12 @@ La lógica (capas 1-4) no depende de la UI, así que la interfaz se puede cambia
 | Fase | Entregable | Hito verificable |
 |---|---|---|
 | 0. Base | Estructura, configuración, tests, CI (GitHub Actions en Ubuntu **y Windows**: los repos base solo usan Ubuntu), `edgartools>=5.61.1,<6` (la 6.0 cambia la API) | ✅ Hecho: Python 3.13, dependencias fijadas, ruff, CI en Ubuntu y Windows, CONTRIBUTING |
-| 1. Ingesta | ✅ 5 ejercicios normalizados (companyfacts) contrastados con el XBRL del 10-K, cotización, histórico, comportamiento vs SPY/ETF, riesgos y texto del 10-K. Falta el *snapshot* por versión | `informes-warrants informe AAPL` |
+| 1. Ingesta | ✅ 5 ejercicios + LTM normalizados (companyfacts) contrastados con el XBRL del 10-K, cotización, histórico, comportamiento vs SPY/ETF, Rf, comparables, gobierno, riesgos y texto del 10-K. Falta: *snapshot* por versión, vencimientos de deuda y segmentos | `informes-warrants informe AAPL` |
 | 2. Cálculo | ✅ Normalizador SEC, métricas propias, DCF, beta y semáforo, con tests *golden* del 10-K FY2023 de AAPL | Las cifras de AAPL cuadran al dólar con el 10-K |
-| 3. Visual | ✅ Gráficos SVG, tablas, plantilla HTML A4 y PDF de 8 páginas ([ejemplo](ejemplos/AAPL_FY2025_borrador.pdf)) | **Primer informe borrador PDF completo por CLI (MVP)** ✅ |
-| 4. IA | ✅ Proveedor, selección con cita literal y los 2 bloques de IA ([ia.md](ia.md)); falta conectar al borrador | `informes-warrants riesgos AAPL` |
+| 3. Visual | ✅ Gráficos SVG, tablas, plantilla HTML A4 y PDF de 10 páginas ([ejemplo](ejemplos/AAPL_FY2025_borrador.pdf)). Falta el PDF de las plantillas sectoriales (banca, seguros, REIT, BDC) | **Primer informe borrador PDF completo por CLI (MVP)** ✅ |
+| 4. IA | ✅ Proveedor, selección con cita literal y los 2 bloques de IA ([ia.md](ia.md)); los riesgos ya están en el informe; falta conectar los catalizadores del MD&A | `informes-warrants riesgos AAPL` |
 | 5. Versiones | ✅ Estados, herencia, comparación, SQLite inmutable y detección; falta el snapshot y el PDF por versión (dependen de las fases 1-3) | `informes-warrants versiones detectar AAPL` |
-| 6. Rigor del contenido | Las 8 carencias y los apartados «parciales» del índice ([rigor-del-contenido.md](rigor-del-contenido.md)). ✅ Carencias 1-3 y 5-8 (LTM, escenarios, DCF inverso, BPA, comparables, SBC, gobierno, puntuaciones, cambios del Item 1A, notas y metodología). Pendiente: segmentos (plan cerrado) y los apartados parciales del índice | PDF intermedio revisado en cada paso |
+| 6. Rigor del contenido | Las 8 carencias y los apartados «parciales» del índice ([rigor-del-contenido.md](rigor-del-contenido.md)). ✅ Carencias 1-3 y 5-8 (LTM, escenarios, DCF inverso, BPA, comparables, SBC, gobierno, puntuaciones, cambios del Item 1A, notas y metodología). Pendiente: segmentos (plan cerrado), los apartados parciales del índice y el motor de valoración con los modelos que aportará el usuario ([requisitos F1](requisitos-pendientes.md#f-aportaciones-futuras-del-usuario-tareas-pendientes)) | PDF intermedio revisado en cada paso |
 | 7. UI | Streamlit: dashboard con estados, editor híbrido, vista previa (sobre los bloques ya cerrados en la fase 6) | Flujo completo en localhost |
 | 8. SaaS | Usuarios, autenticación, multiempresa, despliegue, avisos legales | Acceso externo |
 
@@ -133,6 +137,7 @@ La lógica (capas 1-4) no depende de la UI, así que la interfaz se puede cambia
 | Uso de la IA | Mínimo: 2 bloques, solo elige y resume fragmentos literales | Usuario |
 | Editor | Markdown, vista previa en tiempo real, emisión con confirmación del analista | Usuario |
 | Recomendación | Sí: el SaaS la propone por potencial y el analista la confirma; se muestra siempre el precio objetivo calculado y el analista puede fijar el suyo | Usuario |
+| Comparables | La propuesta automática por SIC es orientativa y no entra en el precio objetivo; la valoración por múltiplos exige la lista del analista (marcador pendiente hasta entonces). Motor de valoración completo: con los modelos que aportará el usuario | Usuario (2026-10-12) |
 | Contenido | Enfoque determinista. Primero los apartados «parciales» del índice; lo «hecho» se mantiene y sus cambios van al final; lo «ejecutable», lo «externo» y lo del analista se aparcan | Usuario (2026-10-12) |
 | Versiones | Detección automática + confirmación; año fiscal; SQLite fuera de OneDrive | Usuario |
 | Alcance | Todas las empresas de EEUU: plantilla general + perfiles sectoriales validados (banca, seguros, REIT, BDC/fondos cerrados) y emisores extranjeros en USD; el resto, «plantilla pendiente de validar» | Usuario + [editor-y-versiones.md](editor-y-versiones.md#alcance) |

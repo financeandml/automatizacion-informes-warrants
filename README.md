@@ -2,7 +2,34 @@
 
 SaaS para automatizar la generación de informes de inversión (estilo *equity research*) sobre empresas cotizadas en EEUU, a partir de los datos públicos de la SEC (EDGAR) mediante [edgartools](https://github.com/dgunning/edgartools).
 
-> En desarrollo. Ejemplo de salida: [docs/ejemplos/AAPL_FY2025_borrador.pdf](docs/ejemplos/AAPL_FY2025_borrador.pdf). Empieza por [CLAUDE.md](CLAUDE.md) (guía, reglas y mapa del proyecto). Ver [plan](docs/plan.md), [editor y versiones](docs/editor-y-versiones.md), [IA](docs/ia.md), [inventario de repos base](docs/inventario/README.md), [estructura del informe](docs/estructura-informe.md) y [requisitos pendientes](docs/requisitos-pendientes.md).
+> En desarrollo. Ejemplo de salida: [docs/ejemplos/AAPL_FY2025_borrador.pdf](docs/ejemplos/AAPL_FY2025_borrador.pdf). Reglas y mapa del proyecto: [CLAUDE.md](CLAUDE.md). Índice de la documentación: [docs/README.md](docs/README.md).
+
+## Cómo funciona
+
+```
+ticker → ingesta/  (SEC: 10-K, 10-Q, proxy; mercado: cotización, bono a 10 años)
+       → calculo/  (normalizador SEC único → métricas, LTM, DCF por escenarios, proyección hasta el BPA, puntuaciones)
+       → informe/  (bloques: automáticos, plantillas con datos, 2 de IA y los del analista [[ANALISTA: …]])
+       → visual/   (gráficos SVG y PDF con la plantilla de la marca)
+       → borrador PDF + vista previa HTML → el analista completa y confirma → almacenamiento/ (versión)
+```
+
+Tres reglas lo explican casi todo:
+- **Las cifras salen siempre de código** (`calculo/`), con la fuente de cada dato en el anexo del informe.
+- **La IA solo elige y resume frases literales** del 10-K.
+- **Lo que el código no puede saber, lo marca para el analista**, y esas marcas bloquean la emisión.
+
+## Estructura
+
+```
+src/informes_warrants/   código (cada carpeta explica sus módulos en su __init__.py)
+  cli.py                 comandos: informes-warrants -h
+  ingesta/ calculo/ informe/ visual/ ia/ almacenamiento/   (ver «Cómo funciona»)
+  plantillas/            plantilla HTML/CSS del PDF, textos de cada bloque, marca, fuentes y texto legal
+tests/                   pytest: sin conexión (CI) y contra la SEC real (marcados «red»)
+docs/                    documentación (empieza por docs/README.md)
+repositorios-github/     copias locales de los repos base (zips; no se publican)
+```
 
 ## Puesta en marcha
 
@@ -42,6 +69,12 @@ ollama pull llama3.2:3b
 ```
 
 ## Uso
+
+Flujo del analista:
+1. Genera el borrador: `informes-warrants informe AAPL`.
+2. Revisa los recuadros «PENDIENTE DEL ANALISTA» y el aviso «REVISAR».
+3. **Introduce tu lista de comparables:** sin ella, la valoración por múltiplos no entra en el precio objetivo, que queda solo por DCF:
+   `informes-warrants informe AAPL --comparables MSFT,GOOGL,DELL`.
 
 ```bash
 informes-warrants informe AAPL               # borrador del informe en PDF + vista previa HTML

@@ -1,4 +1,8 @@
-"""Obtención de datos de empresas desde EDGAR."""
+"""Estados financieros tal como los presenta el último 10-K (comando `informes-warrants datos`).
+
+Es una vista de consulta rápida con el renderizado de edgartools (`Company.get_financials()`), sin
+normalizar. Las cifras del informe salen siempre del normalizador SEC (calculo/normalizador.py).
+"""
 
 from dataclasses import dataclass
 from typing import Any

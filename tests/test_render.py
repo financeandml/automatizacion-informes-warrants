@@ -84,3 +84,13 @@ def test_pdf_del_informe(contexto, tmp_path):
 
     destino = render.pdf(contexto, tmp_path / "AAPL.pdf")
     assert destino.read_bytes().startswith(b"%PDF") and destino.with_suffix(".html").exists()
+
+
+def test_comparables_automaticos_no_entran_en_el_precio(contexto):
+    """Sin lista del analista, el precio objetivo es solo el DCF y el informe lo avisa."""
+    from informes_warrants.informe import render
+
+    assert not contexto["comparables_del_analista"] and contexto["valor_multiplos"] is None
+    assert contexto["precio_objetivo"] == pytest.approx(contexto["valor_dcf"])
+    assert any("lista de comparables" in p for p in contexto["pendientes"])
+    assert "El analista debe introducir su lista de comparables" in render.html(contexto)
