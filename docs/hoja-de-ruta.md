@@ -37,7 +37,7 @@ Objetivo: que el analista genere, complete, emita (PDF descargable) y versione i
 | A10 | Emisores extranjeros en el PDF | `construir` solo busca 10-K: añadir 20-F/40-F (textos del 20-F y cifras en USD, ya resueltos en `ingesta/divisas.py`) | Lista para empezar |
 | A11 | Versiones conectadas al informe | Detectar 10-Q/10-K → construir → guardar contenido, *snapshot* de datos (JSON) y PDF por versión; herencia de lo que aportó el analista | Lista para empezar |
 | A12 | Interfaz Streamlit (un analista, en su ordenador) | Panel con estados; editor híbrido (cifras de solo lectura, textos en Markdown, estimaciones, escenarios, comparables y catalizadores editables); vista previa en tiempo real; avisos antes de emitir; botón «Confirmar emisión»; descarga del PDF | Tras A1-A11 |
-| A13 | Autoría | Nombre y contacto del analista y contacto de la empresa en la portada (propuesta R6) | Faltan los datos (nombre, correo, teléfono, empresa) |
+| A13 | Autoría | Nombre y contacto del analista y contacto de la empresa en la portada (propuesta R6). **Los introduce cada persona en el SaaS** (pantalla de configuración de la interfaz, A12), no van en el código | Con A12 |
 | A14 | Batería de regresión | IOVA, ORCL, NFLX, AAPL y una muestra de sectores (MSFT, JNJ, XOM, TSLA, RIVN, KO) generadas en cada cambio, comparando cifras clave | Lista para empezar |
 
 ## Fase B: perfeccionar el contenido y la valoración

@@ -71,5 +71,5 @@ El estado de cada fase está en una sola tabla: [plan.md, «Fases»](plan.md#fas
 | ~~F2~~ | ~~Parámetros del fondo~~ | ✅ Los pone el analista bajo su responsabilidad (2026-10-12) |
 | ~~F3~~ | ~~Fuentes externas~~ | ✅ Aceptadas **solo** para opciones y posiciones en corto, etiquetadas «no auditadas» (2026-10-12) |
 | ~~F4~~ | ~~Alcance del apartado 21~~ | ✅ Resultados de la empresa; reacción bursátil a 5 sesiones, sin comparar (2026-10-12) |
-| F5 | Autoría: nombre, correo y teléfono del analista; nombre y contacto de la empresa | Pendiente (datos) |
+| ~~F5~~ | ~~Autoría~~ | ✅ Cada persona introduce sus datos en el SaaS (configuración de la interfaz) (2026-10-12) |
 | F6 | Valoración de las propuestas R1-R18 de los informes de referencia ([propuestas-referencias.md](propuestas-referencias.md)) | Pendiente |
