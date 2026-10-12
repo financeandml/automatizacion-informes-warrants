@@ -80,6 +80,7 @@ BLOQUES: tuple[Bloque, ...] = (
     Bloque("anexo.ev", "A3", "Cálculo del EV", Tipo.AUTO, "Capa 2"),
     Bloque("anexo.historico", "A4", "Comportamiento histórico", Tipo.AUTO, "XBRL company facts"),
     Bloque("anexo.comparables", "A5", "Principales comparables", Tipo.AUTO, "Capa 2"),
+    Bloque("anexo.metodologia", "A6", "Metodología y fuentes", Tipo.AUTO, "calculo/definiciones.py y documentos usados"),
     Bloque("legal", "L", "Descargo de responsabilidad", Tipo.AUTO, "plantillas/legal/descargo.md"),
 )
 

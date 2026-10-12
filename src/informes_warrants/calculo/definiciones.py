@@ -1,0 +1,49 @@
+"""Definiciones del anexo de metodología: la versión legible de las fórmulas de calculo/.
+
+Cada fila resume una fórmula implementada en el módulo indicado (la fórmula exacta y su origen están en
+el docstring de ese módulo). tests/test_calculo.py comprueba que cada métrica del informe tiene aquí su
+definición, para que el anexo no se desincronice del código.
+"""
+
+DEFINICIONES: tuple[tuple[str, str, str], ...] = (
+    # (grupo, término, definición)
+    ("Datos", "Fuente", "SEC EDGAR: companyfacts (XBRL de todos los 10-K y 10-Q) y XBRL del último 10-K, proxy DEF 14A, "
+     "Form 8-K. Cotizaciones e índices: yfinance. Tipo libre de riesgo: FRED (DGS10)."),
+    ("Datos", "Normalizador SEC", "Cada partida se lee de una lista exacta de conceptos us-gaap por orden de prioridad, sin "
+     "desgloses dimensionales. Nunca se estima un dato que no se declara."),
+    ("Datos", "LTM (últimos doce meses)", "Suma de los cuatro últimos trimestres (el cuarto se deriva del anual menos los nueve "
+     "meses); balance al cierre del último trimestre; BPA = beneficio neto LTM / acciones diluidas del trimestre."),
+    ("Datos", "Control de calidad", "Activo = pasivo + patrimonio (±1 %), beneficio bruto declarado = ingresos − coste, contraste "
+     "entre companyfacts y el XBRL del 10-K y partidas obligatorias presentes. Un error bloquea la emisión."),
+    ("Márgenes", "EBITDA", "Resultado operativo (EBIT) declarado + amortizaciones del estado de flujos."),
+    ("Márgenes", "Margen bruto, EBITDA, operativo y neto", "Cada partida sobre los ingresos."),
+    ("Caja", "FCF", "Flujo de caja operativo − capex."),
+    ("Caja", "FCF tras SBC", "FCF − remuneración en acciones (se trata como coste). Base de P/FCF y de la rentabilidad FCF."),
+    ("Caja", "Conversión de FCF", "FCF / beneficio neto."),
+    ("Balance", "Deuda financiera neta (DFN)", "Deuda a corto + deuda a largo − caja − inversiones financieras a corto plazo. "
+     "Negativa = caja neta."),
+    ("Rentabilidad", "ROE", "Beneficio neto / patrimonio neto atribuible."),
+    ("Rentabilidad", "ROIC", "EBIT · (1 − tipo efectivo) / (patrimonio + minoritarios + DFN)."),
+    ("Rentabilidad", "ROCE", "EBIT / (activo total − pasivo corriente)."),
+    ("Múltiplos", "EV", "Capitalización + deuda + minoritarios − caja − inversiones a corto plazo."),
+    ("Múltiplos", "PER, EV/EBITDA, EV/Ventas, P/FCF", "Sobre las cifras LTM y la cotización de la fecha del informe."),
+    ("Valoración", "DCF", "FCFF = EBIT · (1 − t) + D&A − capex − Δcirculante. El EBIT ya resta la remuneración en acciones, "
+     "que no se vuelve a sumar. 5 años explícitos + 5 de convergencia lineal hacia g; valor terminal de Gordon sobre un flujo "
+     "normalizado (capex de mantenimiento)."),
+    ("Valoración", "WACC", "Ke = Rf + β · prima de riesgo; Kd después de impuestos; pesos a valor de mercado. β semanal a 5 años "
+     "frente al S&P 500."),
+    ("Valoración", "Escenarios", "Pesimista y optimista: base ∓ 1 desviación típica histórica del crecimiento y del margen "
+     "EBITDA. Valor DCF = media ponderada por probabilidades (25/50/25 por defecto). Editables por el analista."),
+    ("Valoración", "DCF inverso", "Crecimiento anual de ventas (años explícitos) y tasa de descuento que igualan el valor del "
+     "escenario base a la cotización, por bisección."),
+    ("Valoración", "Comparables", "Propuesta por código SIC y tamaño (ingresos), revisable por el analista. Múltiplos LTM con el "
+     "mismo normalizador; la mediana excluye valores negativos y no significativos (PER > 75x, EV/EBITDA > 50x)."),
+    ("Valoración", "Precio objetivo", "Media ponderada del DCF de escenarios y de la valoración por múltiplos (EV/EBITDA y PER) "
+     "según el peso del DCF; el analista puede fijar el suyo. Recomendación: comprar ≥ +15 %, vender ≤ −10 %."),
+    ("Riesgos", "Altman Z", "Probabilidad de insolvencia: Z (empresas con rotación de activos > 0,5) o Z'' (resto). "
+     "Zonas: segura, gris, riesgo."),
+    ("Riesgos", "Beneish M", "Ocho índices de calidad del beneficio; M > −1,78 indica manipulación probable."),
+    ("Riesgos", "Piotroski F", "Nueve pruebas de rentabilidad, apalancamiento y eficiencia (0-9)."),
+    ("Riesgos", "Cambios en los factores de riesgo", "Comparación de los títulos del Item 1A con los del informe anual "
+     "anterior por similitud de texto: nuevos, eliminados y modificados."),
+)

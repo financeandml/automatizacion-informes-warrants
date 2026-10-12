@@ -66,11 +66,13 @@ def test_valoracion():
 
     e = EstadosNormalizados("X", [2025])
     for p, v in {"ingresos": 1000, "resultado_operativo": 200, "amortizacion": 50, "beneficio_neto": 100, "patrimonio": 400,
-                 "caja": 100, "deuda_lp": 300, "flujo_operativo": 180, "capex": 30, "dividendos": 40}.items():
+                 "caja": 100, "deuda_lp": 300, "flujo_operativo": 180, "capex": 30, "dividendos": 40,
+                 "pagos_basados_acciones": 20}.items():
         e.datos[p] = {2025: Dato(v, p, 2025, "")}
     m = valoracion(e, 2025, Mercado(precio=20, acciones=100, fecha="2026-10-11"))
     assert m["capitalizacion"] == 2000 and m["ev"] == 2200
-    assert (m["per"], m["ev_ebitda"], m["ev_ebit"], m["p_fcf"]) == (20, 2200 / 250, 11, 2000 / 150)
+    # P/FCF sobre el FCF tras remuneración en acciones: 180 − 30 − 20 = 130
+    assert (m["per"], m["ev_ebitda"], m["ev_ebit"], m["p_fcf"]) == (20, 2200 / 250, 11, 2000 / 130)
     assert m["rentabilidad_dividendo"] == 0.02 and m["p_bv"] == 5
 
 
@@ -100,17 +102,106 @@ def test_dcf_contra_calculo_independiente():
 
     est = Estimaciones(crecimiento_ventas=[0.10, 0.10], margen_ebitda=[0.30, 0.30], da_sobre_ventas=0.05,
                        capex_sobre_ventas=0.06, circulante_sobre_ventas=0.10, tasa_fiscal=0.20, rf=0.04, erp=0.05,
-                       beta=1.2, coste_deuda=0.05, g=0.02)
+                       beta=1.2, coste_deuda=0.05, g=0.02, anios_convergencia=2)
     r = dcf(est, ingresos_base=1000, dfn=200, deuda=300, minoritarios=10, acciones=100, capitalizacion=1700)
-    # A mano: ventas 1100 y 1210; EBITDA 330 y 363; D&A 55 y 60,5; EBIT 275 y 302,5
-    # FCFF = EBIT·0,8 + D&A − capex − Δventas·0,10 → 220+55−66−10 = 199 ; 242+60,5−72,6−11 = 218,9
+    # A mano. Crecimientos: 10 %, 10 % y convergencia lineal a g: 6 %, 2 % → ventas 1100; 1210; 1282,6; 1308,252
+    # FCFF = EBIT·0,8 + D&A − capex − Δventas·0,10 (EBITDA 30 %, D&A 5 %, capex 6 %):
+    #   220 + 55 − 66 − 10 = 199 ; 242 + 60,5 − 72,6 − 11 = 218,9
+    #   256,52 + 64,13 − 76,956 − 7,26 = 236,434 ; 261,6504 + 65,4126 − 78,49512 − 2,5652 = 246,00268
+    # FCF terminal normalizado (capex de mantenimiento = min(D&A, capex) = D&A, crecido a g; circulante solo por g):
+    #   327,063·0,8 + 65,4126 − 65,4126·1,02 − 1308,252·0,02·0,10 = 257,725644
     ke = 0.04 + 1.2 * 0.05
     wacc = ke * 1700 / 2000 + 0.05 * 0.8 * 300 / 2000
-    ev = 199 / (1 + wacc) + 218.9 / (1 + wacc) ** 2 + 218.9 * 1.02 / (wacc - 0.02) / (1 + wacc) ** 2
-    assert r.flujos == pytest.approx([199, 218.9])
+    flujos = [199, 218.9, 236.434, 246.00268]
+    va = sum(f / (1 + wacc) ** (i + 1) for i, f in enumerate(flujos))
+    ev = va + 257.725644 * 1.02 / (wacc - 0.02) / (1 + wacc) ** 4
+    assert r.flujos == pytest.approx(flujos)
+    assert r.explicitos == 2 and r.ingresos[-1] == pytest.approx(1308.252)
     assert (r.ke, r.wacc) == (pytest.approx(ke), pytest.approx(wacc))
     assert r.ev == pytest.approx(ev) and r.valor_por_accion == pytest.approx((ev - 210) / 100)
+    assert r.va_flujos == pytest.approx(va)
     assert all(w > g for w, g in r.sensibilidad)  # nunca g ≥ WACC
+    assert r.sensibilidad_operativa[(0.0, 0.0)] == pytest.approx(r.valor_por_accion)
+
+
+def _est_prueba(**cambios):
+    from informes_warrants.informe.estimaciones import Estimaciones
+
+    base = dict(crecimiento_ventas=[0.08] * 3, margen_ebitda=[0.30] * 3, da_sobre_ventas=0.05, capex_sobre_ventas=0.06,
+                circulante_sobre_ventas=0.10, tasa_fiscal=0.20, rf=0.04, erp=0.05, beta=1.0, coste_deuda=0.05, g=0.02,
+                anios_convergencia=3)
+    return Estimaciones(**{**base, **cambios})
+
+
+def test_escenarios_ponderados_y_editables():
+    from dataclasses import replace
+
+    from informes_warrants.calculo.dcf import dcf, valorar_escenarios
+    from informes_warrants.informe.estimaciones import escenarios_por_defecto
+
+    base = _est_prueba()
+    esc = escenarios_por_defecto(base, sigma_crecimiento=0.03, sigma_margen=0.004)  # margen: se aplica el mínimo (1 pp)
+    assert esc.pesimista.crecimiento_ventas == [0.05] * 3 and esc.optimista.margen_ebitda == [0.31] * 3
+    kw = dict(ingresos_base=1000, dfn=200, deuda=300, minoritarios=0, acciones=100, capitalizacion=1700)
+    r = valorar_escenarios(esc, **kw)
+    valores = [dcf(e, **kw).valor_por_accion for e in (esc.pesimista, esc.base, esc.optimista)]
+    assert valores[0] < valores[1] < valores[2]
+    assert r.valor_ponderado == pytest.approx(0.25 * valores[0] + 0.5 * valores[1] + 0.25 * valores[2])
+    editado = replace(esc, probabilidades=(0.0, 1.0, 0.0))  # el analista puede cambiar probabilidades y supuestos
+    assert valorar_escenarios(editado, **kw).valor_ponderado == pytest.approx(valores[1])
+    with pytest.raises(ValueError):
+        valorar_escenarios(replace(esc, probabilidades=(0.5, 0.5, 0.5)), **kw)
+
+
+def test_dcf_inverso_reproduce_el_precio():
+    from informes_warrants.calculo.dcf import crecimiento_implicito, dcf, wacc_implicito
+
+    kw = dict(ingresos_base=1000, dfn=200, deuda=300, minoritarios=0, acciones=100, capitalizacion=1700)
+    base = _est_prueba()
+    precio = dcf(_est_prueba(crecimiento_ventas=[0.15] * 3), **kw).valor_por_accion
+    implicito = crecimiento_implicito(base, precio=precio, **kw)
+    assert implicito.codigo == "resuelto" and implicito.valor == pytest.approx(0.15, abs=1e-4)
+    r = dcf(base, **kw)
+    w = wacc_implicito(base, kw["ingresos_base"], kw["dfn"], kw["minoritarios"], kw["acciones"], precio=r.valor_por_accion)
+    assert w.codigo == "resuelto" and w.valor == pytest.approx(r.wacc, abs=1e-4)
+    imposible = crecimiento_implicito(base, precio=r.valor_por_accion * 1000, **kw)
+    assert imposible.codigo == "por_encima" and imposible.valor is None
+
+
+def test_proyeccion_hasta_el_bpa_a_mano():
+    from informes_warrants.calculo.proyeccion import proyectar
+
+    est = _est_prueba(resultado_financiero_sobre_ventas=-0.01, cuota_minoritarios=0.05, variacion_acciones=-0.02, payout=0.4)
+    a1 = proyectar(est, ingresos_base=1000, acciones_base=100)[0]
+    # Ventas 1080; EBITDA 324; D&A 54; EBIT 270; financiero −10,8; BAI 259,2; impuestos 51,84; minoritarios 10,368
+    assert (a1.ventas, a1.ebit, a1.bai, a1.impuestos) == pytest.approx((1080, 270, 259.2, 51.84))
+    assert a1.beneficio_neto == pytest.approx(196.992) and a1.acciones == pytest.approx(98)
+    assert a1.bpa == pytest.approx(196.992 / 98) and a1.dpa == pytest.approx(0.4 * 196.992 / 98)
+    # FCFF = 270·0,8 + 54 − 64,8 − 8 = 197,2 ; FCF del accionista = 197,2 − 10,8·0,8 = 188,56
+    assert a1.fcff == pytest.approx(197.2) and a1.fcf_accionista == pytest.approx(188.56)
+    assert len(proyectar(est, 1000, 100)) == 3  # solo los años explícitos
+
+
+def test_valoracion_relativa_excluye_no_significativos():
+    from informes_warrants.calculo.valoracion_relativa import estadisticas, valor_implicito, valor_por_multiplos
+
+    comps = [{"multiplos": {"ev_ebitda": v, "per": p, "ev_ventas": 2.0, "p_fcf": 20.0}}
+             for v, p in ((10.0, 15.0), (12.0, 20.0), (14.0, 25.0), (80.0, -5.0), (None, 200.0))]
+    s = estadisticas(comps)
+    assert (s["ev_ebitda"]["mediana"], s["ev_ebitda"]["n"]) == (12.0, 3)  # 80x (> 50x) y n.d. fuera de la mediana
+    assert (s["per"]["mediana"], s["per"]["n"]) == (20.0, 3)  # PER negativo y 200x (> 75x) fuera
+    imp = valor_implicito(s, {"ebitda": 100.0, "beneficio_neto": 50.0, "ingresos": 500.0, "fcf_tras_sbc": 40.0},
+                          dfn=200.0, minoritarios=0.0, acciones=10.0)
+    assert imp["ev_ebitda"] == pytest.approx((12 * 100 - 200) / 10) and imp["per"] == pytest.approx(20 * 50 / 10)
+    assert valor_por_multiplos(imp) == pytest.approx((100 + 100) / 2)
+    pocos = estadisticas(comps[:2])
+    assert valor_implicito(pocos, {"ebitda": 100.0, "beneficio_neto": 50.0}, 0, 0, 10)["ev_ebitda"] is None
+
+
+def test_tipo_libre_riesgo_del_csv_de_fred():
+    from informes_warrants.ingesta.mercado import ultimo_dgs10
+
+    assert ultimo_dgs10("observation_date,DGS10\n2026-10-07,5.28\n2026-10-08,5.22\n2026-10-09,\n") == (pytest.approx(0.0522), "2026-10-08")
 
 
 def test_beta():
@@ -126,3 +217,98 @@ def test_etf_sectorial():
     casos = {3571: "XLK", 7372: "XLK", 3711: "XLY", 6021: "XLF", 2834: "XLV", 2836: "XLV", 2080: "XLP", 2911: "XLE",
              4911: "XLU", 6798: "XLRE", 4813: "XLC", 3721: "XLI", 2821: "XLB", None: "SPY", 9999: "SPY"}
     assert {s: etf_sectorial(s) for s in casos} == casos
+
+
+# ---------------------------------------------------------------------------
+# Partidas nuevas, puntuaciones, analítica, notas y metodología (10-K FY2023 de AAPL)
+# ---------------------------------------------------------------------------
+NUEVAS_GOLDEN = {  # balance publicado del 10-K FY2023 (USD mn): 2023, 2022
+    "clientes": (29508, 28184), "existencias": (6331, 4946), "inmovilizado": (43715, 42117), "reservas": (-214, -3068),
+}
+
+
+def test_partidas_nuevas_golden(aapl):
+    for partida, (v2023, v2022) in NUEVAS_GOLDEN.items():
+        assert (aapl.valor(partida, 2023), aapl.valor(partida, 2022)) == (v2023 * M, v2022 * M), partida
+
+
+def test_altman_a_mano(aapl):
+    from informes_warrants.calculo.puntuaciones import altman
+
+    cap = 3_000_000 * M
+    p = altman(aapl, 2023, cap)
+    # Rotación 383.285 / 352.583 = 1,087 > 0,5 → modelo de fabricación
+    a, b, c = (143566 - 145308) / 352583, -214 / 352583, 114301 / 352583
+    d, e = 3_000_000 / 290437, 383285 / 352583
+    assert p.modelo == "Z (fabricación)" and p.valor == pytest.approx(1.2 * a + 1.4 * b + 3.3 * c + 0.6 * d + 1.0 * e)
+    assert p.lectura == "segura"
+
+
+def test_beneish_a_mano(aapl):
+    from informes_warrants.calculo.puntuaciones import beneish
+
+    p = beneish(aapl, 2023, 2022)
+    v, v0 = 383285, 394328
+    dsri = (29508 / v) / (28184 / v0)
+    gmi = ((v0 - 223546) / v0) / ((v - 214137) / v)
+    aqi = (1 - (143566 + 43715) / 352583) / (1 - (135405 + 42117) / 352755)
+    sgi = v / v0
+    depi = (11104 / (11104 + 42117)) / (11519 / (11519 + 43715))
+    sgai = (24932 / v) / (25094 / v0)
+    lvgi = ((145308 + 95281) / 352583) / ((153982 + 98959) / 352755)
+    tata = (96995 - 110543) / 352583
+    m = -4.84 + 0.920 * dsri + 0.528 * gmi + 0.404 * aqi + 0.892 * sgi + 0.115 * depi - 0.172 * sgai + 4.679 * tata - 0.327 * lvgi
+    assert p.valor == pytest.approx(m) and p.lectura.startswith("sin indicios")
+
+
+def test_piotroski_a_mano(aapl):
+    from informes_warrants.calculo.puntuaciones import piotroski
+
+    p = piotroski(aapl, 2023, 2022)
+    # Fallan: ROA creciente (27,5 % < 28,3 %) y rotación creciente (1,087 < 1,118). Pasan las otras 7.
+    assert p.valor == 7 and p.detalle["ROA creciente"] is False and p.detalle["Rotación de activos creciente"] is False
+    assert p.detalle["Sin dilución"] and p.detalle["Liquidez creciente"] and p.detalle["Margen bruto creciente"]
+
+
+def test_puntuaciones_sin_datos_no_inventan():
+    from informes_warrants.calculo.normalizador import Dato, EstadosNormalizados
+    from informes_warrants.calculo.puntuaciones import altman, beneish
+
+    e = EstadosNormalizados("X", [2025])
+    e.datos["activos"] = {2025: Dato(100.0, "Assets", 2025, "")}
+    assert altman(e, 2025, 50.0).valor is None and "reservas" in altman(e, 2025, 50.0).faltan
+    assert beneish(e, 2025, 2024).valor is None
+
+
+def test_puente_de_margen_cuadra(aapl):
+    from informes_warrants.calculo.analitica import apalancamiento_operativo, puente_margen
+
+    f22, f23 = fundamentales(aapl, 2022), fundamentales(aapl, 2023)
+    gastos = {a: {"id": aapl.valor("id", a), "gastos_generales": aapl.valor("gastos_generales", a)} for a in (2022, 2023)}
+    p = puente_margen(f22, f23, gastos[2022], gastos[2023])
+    assert sum(p["contribuciones"].values()) == pytest.approx(p["total"])  # el puente cuadra siempre
+    assert p["contribuciones"]["margen bruto"] == pytest.approx(((383285 - 214137) / 383285 - (394328 - 223546) / 394328) * 1e4)
+    assert p["contribuciones"]["I+D"] == pytest.approx(-(29915 / 383285 - 26251 / 394328) * 1e4)
+    assert p["principal"] == "I+D"  # la I+D (−114 pb) pesa más que la mejora del margen bruto (+82 pb)
+    assert apalancamiento_operativo(f22, f23) == pytest.approx((114301 / 119437 - 1) / (383285 / 394328 - 1))
+
+
+def test_notas_de_ratios():
+    from informes_warrants.calculo.normalizador import Dato, EstadosNormalizados
+    from informes_warrants.calculo.notas import notas_de_ratios
+
+    e = EstadosNormalizados("X", [1])
+    for p, v in {"patrimonio": 60.0, "activos": 350.0}.items():
+        e.datos[p] = {1: Dato(v, p, 1, "")}
+    notas = dict(notas_de_ratios({"roe": 1.5, "roic": 0.9, "dfn": -10.0, "tipo_efectivo": 0.15}, e, 1, {"per": 40.0}, 500.0))
+    assert "recompras" in notas["ROE"] and "ROIC" in notas and "caja neta" in notas["Deuda neta / EBITDA"]
+    assert notas_de_ratios({"roe": 0.2, "roic": 0.1, "dfn": 5.0, "tipo_efectivo": 0.2}, e, 1, {"per": 20.0}, None) == []
+
+
+def test_metodologia_cubre_las_metricas_del_informe():
+    from informes_warrants.calculo.definiciones import DEFINICIONES
+
+    terminos = " ".join(t for _, t, _ in DEFINICIONES)
+    for clave in ("LTM", "EBITDA", "FCF tras SBC", "DFN", "ROE", "ROIC", "ROCE", "EV", "DCF", "WACC", "Escenarios", "DCF inverso",
+                  "Comparables", "Precio objetivo", "Altman Z", "Beneish M", "Piotroski F", "factores de riesgo"):
+        assert clave in terminos, clave

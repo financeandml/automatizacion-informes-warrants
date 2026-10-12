@@ -11,7 +11,7 @@ SaaS que genera informes de análisis (estilo *equity research*) sobre empresas 
 3. **No borrar nada** que pueda perjudicar el objetivo final; ante la duda, preguntar.
 4. **Ahorro de tokens:** leer solo lo necesario (inventario y docs primero), sin repetir información entre documentos.
 5. **Repo publicable en todo momento:** sin secretos (`.env` ignorado), sin código de terceros versionado (`repositorios-github/` ignorado), docs al día.
-6. **Licencias:** MIT/Apache se puede copiar con atribución; sec-edgar-toolkit (AGPL-3.0), automated-market-report y financial-ai-agent (sin licencia) solo como referencia.
+6. **Licencias:** MIT/Apache se puede copiar con atribución (p. ej. FinRobot, Apache-2.0); sec-edgar-toolkit (AGPL-3.0), automated-market-report y financial-ai-agent (sin licencia) solo como referencia; vectorbt (Commons Clause: prohíbe vender) no se usa.
 7. **Determinismo e IA mínima:** las cifras salen de código; lo que no, de plantilla; lo que no, lo marca el SaaS para el analista (`[[ANALISTA: …]]`). La IA solo elige y resume fragmentos literales del 10-K (2 bloques) y siempre la revisa un humano.
 8. **Datos fuera de OneDrive:** base de datos, cachés y entorno virtual en carpetas locales (`config.directorio_datos`).
 9. **Cero alucinaciones financieras:** toda cifra y ratio sale de código determinista; la IA nunca produce ni modifica números. Los tags XBRL equivalentes (`Revenues`, `SalesRevenueNet`, `RevenueFromContractWithCustomer…`) se traducen en **un único normalizador SEC** dentro de `calculo/`, sobre `SynonymGroups` y `gaap_mappings.json` de edgartools; ninguna fórmula fuera de ese módulo.
@@ -30,7 +30,7 @@ SaaS que genera informes de análisis (estilo *equity research*) sobre empresas 
 | Identidad corporativa (colores, tipografía, logo) | [docs/identidad-corporativa.md](docs/identidad-corporativa.md) |
 | Decisiones pendientes del usuario | [docs/requisitos-pendientes.md](docs/requisitos-pendientes.md) |
 | Carencias de contenido, soluciones y orden de trabajo | [docs/rigor-del-contenido.md](docs/rigor-del-contenido.md) |
-| Motor matemático y normalizador SEC | `src/informes_warrants/calculo/` (normalizador, métricas, DCF, calidad) · tests en `tests/test_calculo.py` |
+| Motor matemático y normalizador SEC | `src/informes_warrants/calculo/` (normalizador con LTM, métricas, DCF con escenarios y DCF inverso, proyección hasta el BPA, valoración relativa, puntuaciones, analítica, notas, definiciones, calidad) · tests en `tests/test_calculo.py` |
 | Plantilla y PDF del informe | `src/informes_warrants/plantillas/informe/` · `informe/render.py` · [ejemplo](docs/ejemplos/AAPL_FY2025_borrador.pdf) |
 | Configuración de EDGAR | [src/informes_warrants/config.py](src/informes_warrants/config.py), [.env.example](.env.example) |
 | Texto legal del informe | [src/informes_warrants/plantillas/legal/descargo.md](src/informes_warrants/plantillas/legal/descargo.md) |

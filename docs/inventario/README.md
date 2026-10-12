@@ -1,6 +1,6 @@
 # Inventario de los repositorios base
 
-Este inventario recoge, archivo por archivo, qué contienen los 9 repositorios de terceros de `repositorios-github/` y qué se puede reutilizar de cada uno. Sirve para aplicar el principio 5 del [plan](../plan.md), «reutilizar antes que construir», sin tener que releer cada vez unos 6.400 archivos.
+Este inventario recoge, archivo por archivo, qué contienen los 13 repositorios de terceros de `repositorios-github/` y qué se puede reutilizar de cada uno. Sirve para aplicar el principio 5 del [plan](../plan.md), «reutilizar antes que construir», sin tener que releer cada vez unos 6.400 archivos.
 
 **Cómo usarlo**
 
@@ -9,7 +9,7 @@ Este inventario recoge, archivo por archivo, qué contienen los 9 repositorios d
 3. **Respeta la licencia** que indica la columna «Modo»: MIT y Apache-2.0 se pueden copiar conservando el aviso de copyright. sec-edgar-toolkit (AGPL-3.0), automated-market-report y financial-ai-agent (sin licencia) son **solo idea**.
 4. **Actualiza el inventario si cambia un zip de `repositorios-github/`**: regenera la ficha afectada, revisa sus filas en la matriz y en «Discrepancias», y anota la versión nueva en la tabla de cobertura.
 
-**Abreviaturas de la matriz:** ET = edgartools, EA = edgar_analytics, FRAA = financial-research-analyst-agent, ERA = equity-research-agent, SS = stock-screener, SET = sec-edgar-toolkit, AMR = automated-market-report, FAA = financial-ai-agent, MTCB = mtcb. Las rutas son relativas a la raíz de cada repo.
+**Abreviaturas de la matriz:** ET = edgartools, EA = edgar_analytics, FRAA = financial-research-analyst-agent, ERA = equity-research-agent, SS = stock-screener, SET = sec-edgar-toolkit, AMR = automated-market-report, FAA = financial-ai-agent, MTCB = mtcb, FR = FinRobot, AHF = ai-hedge-fund. Las rutas son relativas a la raíz de cada repo.
 
 ## Cobertura
 
@@ -30,7 +30,9 @@ Este inventario recoge, archivo por archivo, qué contienen los 9 repositorios d
 | [mtcb](mtcb.md) | MTCB v0.1.0, todo el repo | Apache-2.0 | 46 | 42 | 1 | 3 |
 | [automated-market-report](automated-market-report.md) | AMR, todo el repo | **Sin licencia** | 18 | 16 | 0 | 2 |
 | [financial-ai-agent](financial-ai-agent.md) | FAA, todo el repo | **Sin licencia** | 25 | 21 | 0 | 4 |
-| **Total** | | | **6.406** | **613** | **1.789** | **4.004** |
+| [finrobot](finrobot.md) | FR, todo el repo (añadido el 2026-10-11) | Apache-2.0 | 1.235 | 7 | listado 100 % | resto |
+| [otros-backtesting](otros-backtesting.md) | ai-hedge-fund, vectorbt y Lean (añadidos el 2026-10-11) | MIT · Apache-2.0 + **Commons Clause** · Apache-2.0 | 7.405 | 2 | listado 100 % | búsqueda dirigida |
+| **Total** | | | **15.046** | **622** | **1.789** | **4.004** |
 
 «Solo firmas» significa docstring, clases, funciones y constantes extraídas de forma estática (AST o encabezados), más lectura dirigida de los cuerpos relevantes. «Muestreo» se aplica a datos, fixtures, cassettes y binarios.
 
@@ -88,6 +90,10 @@ Estado: **resuelto** (se puede usar tal cual o con un ajuste menor), **parcial**
 | C2 · Ciclo de circulante, DuPont, Piotroski, Altman, Beneish, BPA, valor contable por acción | EA `scores.py` `WorkingCapitalCycle`, `DuPontDecomposition`, `PiotroskiScore`, `AltmanZScore`, `BeneishMScore`, `PerShareMetrics`, `compute_all_scores(is_financial=...)` | — | pip | resuelto |
 | C2 · CAGR y crecimiento | EA `multi_period_analysis.py` `compute_cagr`, `compute_growth_series` | ET `TTMCalculator.calculate_ttm_trend` (`yoy_growth`) | pip | resuelto |
 | C2 · DCF (FCFF, WACC, escenarios, sensibilidad) | FRAA `src/tools/dcf_model.py` `run_dcf_analysis`, `sensitivity_analysis` (matriz 5×5), `calculate_wacc` | FRAA `config/agents.yaml` bloque `dcf` (valores iniciales, idea) | copiar las matemáticas con atribución y corregirlas | parcial: hay que restar la deuda neta, usar FCFF desde EBIT y quitar la recomendación |
+| C2 · DCF inverso (crecimiento y WACC implícitos) | FR `engine/compute/operators/dcf.py` `solve_for_implied_growth`, `solve_for_implied_wacc`, `ReverseSolveReason` | — | copiar con atribución (Apache-2.0) | resuelto |
+| C2 · Flujo terminal normalizado (capex de mantenimiento) | FR `dcf.py` `_terminal_fcf` (capex = min(D&A, capex) · (1+g); rechaza flujo ≤ 0) | — | copiar con atribución | resuelto |
+| C2 · Mediana de comparables sin múltiplos no significativos | FR `multiples.py` `PEER_PE_NM_CAP`, `PEER_EV_EBITDA_NM_CAP`, `calculate_peer_statistics` | FR `peer_screen.py` `_is_non_common_listing` | copiar las reglas | resuelto |
+| C2 · Comparables por SIC sin *bulk* | SEC `browse-edgar?action=getcompany&SIC=…&output=atom` (CIK por SIC) + ET `reference/tickers.py` `get_company_tickers` (cotizadas y bolsa) | ET `get_companies_by_industry` (necesita el *bulk* de *submissions*) | propio (verificado) | resuelto |
 | C2 · Comparables (selección y tabla) | Selección: ET `edgar/reference/company_subsets.py` `get_companies_by_industry(sic=..., sic_range=...)`; métricas: EA `TickerOrchestrator.analyze(ticker, peers=[...])`; agregados: FRAA `src/tools/peer_comparison.py` `compare_peers` (`peer_aggregates`, `percentile_rankings`) | FRAA `discover_peers` (puntuación por sector y market cap, idea); ET `edgar/xbrl/standardization/sic_industry.py` `sic_to_fama_french`; SET `endpoints/xbrl.py` `get_frames` (idea, AGPL) | pip + copiar con atribución | parcial: falta EV/Ventas y crecimiento del BPA de los peers; `MarketCapTier` no tiene datos |
 | C3 · Gráficos (ingresos vs EBITDA, FCF, vencimientos) | Ver «§3» | — | — | parcial |
 | C3 · Exportación vectorial SVG con kaleido | — | AMR `tools/us_plots.py` `fig.write_image` (PNG, idea) | solo idea | no existe |

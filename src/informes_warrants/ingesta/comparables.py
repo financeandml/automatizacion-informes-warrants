@@ -1,0 +1,133 @@
+"""Comparables: propuesta automática por código SIC (solo SEC, sin *bulk*) y sus datos LTM.
+
+La lista es una **propuesta**: el informe la marca «Revisar» y el analista puede sustituirla.
+Selección, determinista y trazable:
+  1. CIK con el mismo SIC (4 dígitos) que han presentado 10-K: SEC `browse-edgar?action=getcompany
+     &SIC=…&type=10-K&output=atom`. Si salen menos de MINIMO cotizadas, se amplía al SIC de 3 dígitos.
+     (edgartools `get_companies_by_industry` necesita descargar antes el *bulk* de *submissions*, de más
+     de 1 GB; esta vía no.)
+  2. Solo cotizadas en NYSE o Nasdaq, una por CIK (doble clase): lista oficial de tickers de la SEC
+     (edgartools `reference.tickers.get_company_tickers`). Fuera preferentes y *warrants* (regla de
+     FinRobot `peer_screen._is_non_common_listing`, Apache-2.0).
+  3. Las N más parecidas por tamaño: distancia logarítmica de los ingresos anuales, de la API *frames*
+     de la SEC (`api/xbrl/frames/us-gaap/<concepto>/USD/CY<año>.json`: un dato por empresa).
+Los múltiplos de cada comparable salen del mismo normalizador (LTM) y las mismas fórmulas que los de
+la empresa analizada (calculo/metricas.py), con su cotización de yfinance.
+"""
+
+import logging
+import math
+import re
+from datetime import date
+
+log = logging.getLogger(__name__)
+URL_SIC = "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&SIC={sic}&type=10-K&dateb=&owner=include&count=100&start={inicio}&output=atom"
+URL_FRAMES = "https://data.sec.gov/api/xbrl/frames/us-gaap/{concepto}/USD/CY{anio}.json"
+BOLSAS = {"NYSE", "Nasdaq"}
+MINIMO, NUMERO = 3, 6
+RATIO_TAMANO_MAX = 50  # fuera los comparables más de 50 veces mayores o menores por ingresos
+PAGINAS_MAX = 4  # hasta 400 empresas por código SIC
+NO_ORDINARIAS = re.compile(r"-P[A-Z]{0,3}$|-W[ST]?$|\.W[ST]?$")  # preferentes (-PA…) y warrants (-WT, .WS)
+CONCEPTOS_INGRESOS = ("RevenueFromContractWithCustomerExcludingAssessedTax", "Revenues")
+
+
+def ciks_por_sic(sic: int) -> list[int]:
+    from edgar.httprequests import download_file
+
+    ciks: list[int] = []
+    for pagina in range(PAGINAS_MAX):
+        atom = download_file(URL_SIC.format(sic=sic, inicio=pagina * 100), as_text=True)
+        nuevos = [int(c) for c in re.findall(r"<cik>(\d+)</cik>", atom)]
+        ciks += nuevos
+        if len(nuevos) < 100:
+            break
+    return ciks
+
+
+def cotizadas():
+    """Tabla cik → (ticker, nombre) de las cotizadas en NYSE/Nasdaq, una fila por CIK."""
+    from edgar.reference.tickers import get_company_tickers
+
+    t = get_company_tickers()
+    t = t[t["exchange"].isin(BOLSAS) & ~t["ticker"].astype(str).str.contains(NO_ORDINARIAS)]
+    return t.drop_duplicates("cik").set_index("cik")
+
+
+def ingresos_por_cik(anio: int) -> dict[int, float]:
+    from edgar.httprequests import download_json
+
+    salida: dict[int, float] = {}
+    for concepto in reversed(CONCEPTOS_INGRESOS):  # el concepto preferente sobrescribe al alternativo
+        try:
+            datos = download_json(URL_FRAMES.format(concepto=concepto, anio=anio))
+        except Exception as e:  # noqa: BLE001  (sin frames se ordena sin tamaño, con aviso)
+            log.warning("SEC frames %s CY%s no disponible: %s", concepto, anio, e)
+            continue
+        salida.update({int(d["cik"]): float(d["val"]) for d in datos.get("data", []) if d.get("val")})
+    return salida
+
+
+def ordenar_por_tamano(candidatos: list[int], tamano: dict[int, float], referencia: float | None) -> list[int]:
+    """Más parecidos primero (|log ingresos − log referencia|); fuera los de tamaño incomparable (más de
+    RATIO_TAMANO_MAX veces); los que no tienen dato de tamaño, al final."""
+    def distancia(cik):
+        valor = tamano.get(cik)
+        if not valor or not referencia or valor <= 0 or referencia <= 0:
+            return math.inf
+        return abs(math.log(valor) - math.log(referencia))
+
+    validos = [c for c in candidatos if distancia(c) == math.inf or distancia(c) <= math.log(RATIO_TAMANO_MAX)]
+    return sorted(validos, key=lambda c: (distancia(c), c))
+
+
+def proponer(sic: int | str | None, cik_propio: int, ingresos_propios: float | None, n: int = NUMERO) -> tuple[list[str], str]:
+    """(tickers propuestos, criterio usado). Lista vacía si no hay SIC, no hay candidatos cotizados o la SEC
+    no responde: el informe sale igual, con la valoración por múltiplos pendiente y el aviso «Revisar»."""
+    if not sic or not str(sic).isdigit():
+        return [], "sin código SIC"
+    try:
+        return _proponer(int(sic), cik_propio, ingresos_propios, n)
+    except Exception as e:  # noqa: BLE001  (sin red o SEC caída: el analista añade la lista)
+        log.warning("Comparables no disponibles (SIC %s): %s", sic, e)
+        return [], f"propuesta automática no disponible ({type(e).__name__}): añade la lista de comparables"
+
+
+def _proponer(sic: int, cik_propio: int, ingresos_propios: float | None, n: int) -> tuple[list[str], str]:
+    tabla = cotizadas()
+    tamano = ingresos_por_cik(date.today().year - 1)
+    criterio, codigos = f"SIC {sic}", [sic]
+    candidatos = [c for c in dict.fromkeys(ciks_por_sic(sic)) if c in tabla.index and c != int(cik_propio)]
+    if len(candidatos) < MINIMO:
+        codigos = list(range(sic // 10 * 10, sic // 10 * 10 + 10))
+        criterio = f"SIC {sic // 10 * 10}-{sic // 10 * 10 + 9} (ampliado: menos de {MINIMO} cotizadas con SIC {sic})"
+        candidatos = [c for s in codigos for c in ciks_por_sic(s)]
+        candidatos = [c for c in dict.fromkeys(candidatos) if c in tabla.index and c != int(cik_propio)]
+    elegidos = ordenar_por_tamano(candidatos, tamano, ingresos_propios)[:n]
+    return [str(tabla.loc[c, "ticker"]) for c in elegidos], f"{criterio}, cotizadas en NYSE/Nasdaq, las {n} más parecidas por ingresos"
+
+
+def datos(ticker: str) -> dict | None:
+    """Fundamentales y múltiplos LTM de un comparable (None si la SEC o el mercado no dan lo necesario)."""
+    from edgar import Company
+
+    from ..calculo.metricas import Mercado, fundamentales, valoracion
+    from ..calculo.normalizador import LTM, LTM_PREVIO, FuenteLTM, acciones_en_circulacion, normalizar
+    from .mercado import cotizacion
+
+    try:
+        empresa = Company(ticker)
+        ultimo = empresa.get_filings(form=["10-Q", "10-K"], amendments=False).latest()
+        facts = empresa.get_facts()
+        fecha = date.fromisoformat(str(ultimo.period_of_report))
+        estados = normalizar(FuenteLTM(facts, fecha), [LTM_PREVIO, LTM], ticker)
+        precio = cotizacion(ticker)
+        acciones, _ = acciones_en_circulacion(facts, fecha, estados.valor("acciones_diluidas", LTM))
+        if LTM in estados.faltan or not acciones:
+            log.warning("Comparable %s sin datos LTM completos: se omite", ticker)
+            return None
+        f = fundamentales(estados, LTM)
+        return {"ticker": ticker, "nombre": empresa.name, "fecha_ltm": str(ultimo.period_of_report), "fundamentales": f,
+                "multiplos": valoracion(estados, LTM, Mercado(precio.precio, acciones, precio.fecha))}
+    except Exception as e:  # noqa: BLE001  (un comparable que falla no rompe el informe: se omite con aviso)
+        log.warning("Comparable %s omitido: %s", ticker, e)
+        return None

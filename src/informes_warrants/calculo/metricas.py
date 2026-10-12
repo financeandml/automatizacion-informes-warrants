@@ -7,6 +7,8 @@ normalizador (calculo/normalizador.py). Definiciones (corrigen las de edgar_anal
   EBIT          = resultado operativo declarado (OperatingIncomeLoss)
   EBITDA        = EBIT + amortizaciones del estado de flujos
   FCF           = flujo de caja operativo − capex
+  FCF tras SBC  = FCF − remuneración en acciones (el flujo operativo la suma como gasto no monetario;
+                  aquí se trata como coste, criterio institucional habitual). Base de P/FCF y FCF yield.
   DFN           = deuda CP + deuda LP − caja − inversiones financieras CP   (negativa = caja neta)
   Capital empl. = activo total − pasivo corriente
   Capital inv.  = patrimonio + minoritarios + DFN
@@ -76,6 +78,7 @@ def fundamentales(e: EstadosNormalizados, ejercicio: int) -> dict[str, float | N
         "margen_neto": _div(v("beneficio_neto"), ingresos),
         "bpa_diluido": v("bpa_diluido"),
         "fcf": fcf,
+        "fcf_tras_sbc": _suma(fcf, -v("pagos_basados_acciones") if v("pagos_basados_acciones") is not None else None),
         "conversion_fcf": _div(fcf, v("beneficio_neto")),
         "fcf_sobre_ebitda": _div(fcf, ebitda),
         "deuda_bruta": deuda,
@@ -110,8 +113,8 @@ def valoracion(e: EstadosNormalizados, ejercicio: int, m: Mercado) -> dict[str, 
         "ev_ventas": _div(ev, f["ingresos"]),
         "ev_ebitda": _div(ev, f["ebitda"]),
         "ev_ebit": _div(ev, f["ebit"]),
-        "p_fcf": _div(mc, f["fcf"]),
-        "fcf_yield": _div(f["fcf"], mc),
+        "p_fcf": _div(mc, f["fcf_tras_sbc"]),
+        "fcf_yield": _div(f["fcf_tras_sbc"], mc),
         "rentabilidad_dividendo": _div(dividendos, mc) if dividendos is not None else None,
     }
 

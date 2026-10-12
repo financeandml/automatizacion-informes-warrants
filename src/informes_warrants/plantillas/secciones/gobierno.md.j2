@@ -1,3 +1,7 @@
-Auditor: {{ auditor }}.
+Auditor: {{ auditor }}{% if gobierno and gobierno.auditor %} ({{ gobierno.auditor_ubicacion }}; PCAOB {{ gobierno.auditor_pcaob }}){% if gobierno.certifica_control_interno %}, que también certifica el control interno sobre la información financiera{% endif %}{% endif %}.
+{% if gobierno and gobierno.retribucion_ceo is not none %}
+
+**Retribución** (proxy DEF 14A del {{ gobierno.proxy_fecha }}, ejercicio cerrado el {{ gobierno.ejercicio_retribucion }}): el primer ejecutivo percibió {{ (gobierno.retribucion_ceo / 1e6)|num(1) }} USD Mn de retribución total declarada{% if gobierno.retribucion_ceo_efectiva is not none %} ({{ (gobierno.retribucion_ceo_efectiva / 1e6)|num(1) }} USD Mn de retribución efectivamente devengada, que incluye la revalorización de sus acciones){% endif %}{% if gobierno.retribucion_media_directivos is not none %}; los demás consejeros ejecutivos, {{ (gobierno.retribucion_media_directivos / 1e6)|num(1) }} USD Mn de media{% endif %}.{% if gobierno.pay_ratio is not none %} La retribución del primer ejecutivo equivale a {{ gobierno.pay_ratio|num(0) }} veces la del empleado mediano ({{ gobierno.retribucion_mediana_empleado|num(0) }} USD).{% endif %}{% if gobierno.tsr is not none %} Según la tabla de retribución frente a resultados, 100 USD invertidos al inicio del periodo valían {{ gobierno.tsr|num(0) }} USD{% if gobierno.tsr_comparables is not none %}, frente a {{ gobierno.tsr_comparables|num(0) }} USD en su grupo de comparables{% endif %}.{% endif %}
+{% endif %}
 
 [[ANALISTA: composición del consejo, independencia y valoración del gobierno corporativo (la SEC no lo publica de forma estructurada)]]

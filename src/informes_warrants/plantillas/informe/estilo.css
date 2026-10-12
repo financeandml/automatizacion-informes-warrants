@@ -91,3 +91,7 @@ table.lateral-tabla td:first-child { width: 55%; }
 .legal { font-size: 6.2pt; columns: 2; column-gap: 6mm; }
 .legal h2 { column-span: all; }
 .legal p { text-align: justify; margin-bottom: 1.4mm; }
+
+/* Aviso «Revisar»: propuesta automática que el analista debe confirmar (comparables) */
+.revisar { display: inline-block; border: 0.6pt solid var(--burdeos); background: var(--burdeos); color: var(--blanco); padding: 0 1.2mm; margin-right: 1.5mm; font: 700 5.6pt "Montserrat"; letter-spacing: 0.08em; text-transform: uppercase; }
+tr.seccion-base td { font-weight: 600; }

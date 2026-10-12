@@ -28,22 +28,29 @@ Regla: **usar la IA lo menos posible**. Cada bloque se resuelve con la primera o
 
 ## Estimaciones que ajusta el analista
 
-Son los supuestos que mueven la proyección y el DCF ([estimaciones.py](../src/informes_warrants/informe/estimaciones.py)). Todo lo demás es histórico y no se toca.
+Son los supuestos que mueven la proyección, el BPA estimado y el DCF ([estimaciones.py](../src/informes_warrants/informe/estimaciones.py)). Todo lo demás es histórico y no se toca. Los valores por defecto son la media de los 3 últimos periodos de doce meses (los 2 últimos ejercicios y el LTM).
 
 | Estimación | Por defecto | Origen |
 |---|---|---|
-| Crecimiento de ventas (3 años) | Media histórica de 3-5 años | Capa 2 (edgar_analytics `multi_period_analysis`) |
-| Margen EBITDA (3 años) | Media histórica | Capa 2 |
-| D&A, capex y circulante sobre ventas | Media histórica | Capa 2 |
-| Tasa fiscal | 21 % | Tipo federal; financial-research-analyst-agent `dcf_model` |
-| Tipo libre de riesgo (Rf) | 4,5 % | financial-research-analyst-agent `_DEFAULT_RISK_FREE` |
+| Crecimiento de ventas (5 años explícitos) | Media de los 3 últimos periodos | Capa 2 |
+| Margen EBITDA (5 años) | Media de los 3 últimos periodos | Capa 2 |
+| Años de convergencia hacia g | 5 | financial-research-analyst-agent `dcf_model` (idea) |
+| D&A, capex y circulante sobre ventas | Media de los 3 últimos periodos | Capa 2 |
+| Tasa fiscal | Tipo efectivo medio (5-35 %) | Capa 2 |
+| Tipo libre de riesgo (Rf) | Bono a 10 años del día (FRED DGS10) | `ingesta/mercado.tipo_libre_riesgo` |
 | Prima de riesgo (ERP) | 5,5 % | financial-research-analyst-agent `_EQUITY_RISK_PREMIUM` |
-| Beta | Histórico de precios | Capa 1 (`provider.get_history`) |
+| Beta | Semanal a 5 años frente al S&P 500 | Capa 1 |
 | Coste de la deuda | Intereses / deuda | Capa 2 |
 | g (perpetuidad) | 2,5 % | Informe de referencia |
+| Resultado financiero / ventas, cuota de minoritarios, variación de acciones, pay-out | Medias de los 3 últimos ejercicios | Proyección hasta el BPA (`calculo/proyeccion.py`) |
 | Peso DCF frente a múltiplos | 50 % | Propuesta |
+| Precio objetivo del analista | Vacío (manda el del modelo) | Decisión del usuario |
 
-Los valores se validan: rangos razonables y g inferior al coste del capital.
+**Escenarios** (`Escenarios`): pesimista, base y optimista. Cada uno es un juego completo de estimaciones editable. Por defecto, el pesimista y el optimista son la base ∓ 1 desviación típica histórica del crecimiento (2-5 pp) y del margen (1-3 pp), con probabilidades 25/50/25. El valor DCF es la media ponderada.
+
+**Comparables:** el SaaS propone la lista por SIC y tamaño y la marca «Revisar»; el analista la sustituye (`construir(..., comparables=[...])`, o `--comparables` en la CLI).
+
+Los valores se validan: rangos razonables, g inferior al coste del capital y probabilidades que suman 100 %.
 
 ## Qué puede tocar el analista en el bloque fijo
 

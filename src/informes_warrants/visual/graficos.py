@@ -71,7 +71,8 @@ def barras_y_linea(etiquetas, barras, linea, nombre_barras, nombre_linea) -> str
     eje.yaxis.set_major_formatter(_pct)
     eje.spines["right"].set_visible(True)
     eje.spines["top"].set_visible(False)
-    eje.set_ylim(0, max(v for v in linea if v is not None) * 1.3)
+    validos = [v for v in linea if v is not None]
+    eje.set_ylim(0, max(max(validos, default=0.0), 0.01) * 1.3)  # sin datos de la línea (p. ej. EBITDA n.d.): eje vacío
     handles = ax.get_legend_handles_labels()[0] + eje.get_legend_handles_labels()[0]
     ax.legend(handles, [nombre_barras, nombre_linea], loc="upper left", ncol=2, bbox_to_anchor=(0, 1.16))
     return _svg(fig)

@@ -5,9 +5,17 @@ Fuente: yfinance, la misma que usan edgar_analytics `market_data` y financial-re
 sectorial) sigue la idea de financial-research-analyst-agent `performance_tracker.track_performance`.
 Las acciones en circulación salen de la portada del último filing (dei, SEC), no de Yahoo.
 El mapeo SIC → ETF sectorial SPDR no existía en ningún repo: se define aquí.
+
+Tipo libre de riesgo: bono del Tesoro de EEUU a 10 años (serie DGS10 de FRED). Se lee del CSV público,
+que no requiere clave (financial-research-analyst-agent `macro_data.get_treasury_yields` usa la API con
+clave); si falla, `^TNX` de yfinance; si también falla, el valor por defecto y un aviso.
 """
 
+import logging
 from dataclasses import dataclass
+
+log = logging.getLogger(__name__)
+URL_DGS10 = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS10"
 
 # (desde, hasta, ETF) por orden: el primer rango que contiene el SIC gana
 SIC_A_ETF: tuple[tuple[int, int, str], ...] = (
@@ -27,6 +35,46 @@ SIC_A_ETF: tuple[tuple[int, int, str], ...] = (
 )
 INDICE = "SPY"
 HORIZONTES = {"1m": 21, "3m": 63, "12m": 252, "3a": 756, "5a": 1260}  # sesiones bursátiles
+
+
+@dataclass(frozen=True)
+class TipoLibreRiesgo:
+    valor: float  # en tanto por uno
+    fecha: str
+    fuente: str
+
+
+def ultimo_dgs10(csv: str) -> tuple[float, str] | None:
+    """Último dato válido del CSV de FRED (las fechas sin dato vienen con «.» o vacías)."""
+    for linea in reversed(csv.strip().splitlines()[1:]):
+        fecha, _, valor = linea.partition(",")
+        try:
+            return float(valor) / 100, fecha
+        except ValueError:
+            continue
+    return None
+
+
+def tipo_libre_riesgo(por_defecto: float = 0.045) -> TipoLibreRiesgo:
+    import urllib.request
+
+    try:
+        with urllib.request.urlopen(URL_DGS10, timeout=20) as respuesta:
+            dato = ultimo_dgs10(respuesta.read().decode("utf-8"))
+        if dato:
+            return TipoLibreRiesgo(dato[0], dato[1], "FRED DGS10 (Tesoro de EEUU a 10 años)")
+    except OSError as e:
+        log.warning("FRED no disponible (%s): se usa ^TNX de yfinance", e)
+    try:
+        import yfinance as yf
+
+        cierre = yf.Ticker("^TNX").history(period="10d")["Close"].dropna()
+        if len(cierre):
+            return TipoLibreRiesgo(float(cierre.iloc[-1]) / 100, cierre.index[-1].date().isoformat(), "yfinance ^TNX")
+    except Exception as e:  # noqa: BLE001  (cualquier fallo de red o de datos lleva al valor por defecto)
+        log.warning("^TNX no disponible (%s)", e)
+    log.warning("Tipo libre de riesgo no disponible: se usa el valor por defecto %.2f %%", por_defecto * 100)
+    return TipoLibreRiesgo(por_defecto, "", "valor por defecto (sin conexión)")
 
 
 def etf_sectorial(sic: int | str | None) -> str:

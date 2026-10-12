@@ -45,6 +45,7 @@ ollama pull llama3.2:3b
 
 ```bash
 informes-warrants informe AAPL               # borrador del informe en PDF + vista previa HTML
+informes-warrants informe AAPL --comparables MSFT,GOOGL,DELL   # con la lista de comparables del analista
 informes-warrants datos AAPL                 # estados financieros del último 10-K
 informes-warrants cobertura JPM              # plantilla: general, sectorial o «pendiente de validar»
 informes-warrants metricas JPM               # métricas del perfil sectorial con su fuente XBRL

@@ -26,10 +26,10 @@
       {{ t["portada.titulares"] }}
       {{ t["portada.recomendacion"] }}
       <div class="kpis">
-        <div class="kpi"><div class="v">{{ (f.ingresos/1e9)|num(1) }}</div><div class="l">Ingresos FY{{ c.filing.ejercicio }} (USD bn)</div></div>
-        <div class="kpi"><div class="v">{{ f.margen_operativo|pct }}</div><div class="l">Margen operativo</div></div>
-        <div class="kpi"><div class="v">{{ f.roic|pct }}</div><div class="l">ROIC</div></div>
-        <div class="kpi"><div class="v">{{ f.conversion_fcf|pct(0) }}</div><div class="l">Conversión de FCF</div></div>
+        <div class="kpi"><div class="v">{{ (fl.ingresos/1e9)|num(1) }}</div><div class="l">Ingresos {{ etiqueta_ltm }} (USD bn)</div></div>
+        <div class="kpi"><div class="v">{{ fl.margen_operativo|pct }}</div><div class="l">Margen operativo {{ etiqueta_ltm }}</div></div>
+        <div class="kpi"><div class="v">{{ fl.roic|pct }}</div><div class="l">ROIC {{ etiqueta_ltm }}</div></div>
+        <div class="kpi"><div class="v">{{ fl.conversion_fcf|pct(0) }}</div><div class="l">Conversión de FCF</div></div>
       </div>
       <h3>Situación actual</h3>
       {{ t["conclusiones.situacion"] }}
@@ -43,8 +43,10 @@
         <div class="etiqueta">Recomendación</div>
         <div class="valor">{{ c.recomendacion }}</div>
         <table>
-          {% if c.precio_objetivo != c.dcf.valor_por_accion %}<tr><td>Precio objetivo (analista)</td><td class="n">{{ c.precio_objetivo|num(2) }} USD</td></tr>{% endif %}
-          <tr><td>Precio objetivo (DCF)</td><td class="n">{{ c.dcf.valor_por_accion|num(2) }} USD</td></tr>
+          <tr><td>Precio objetivo{% if c.estimaciones.precio_objetivo_analista %} (analista){% endif %}</td><td class="n">{{ c.precio_objetivo|num(2) }} USD</td></tr>
+          {% if c.estimaciones.precio_objetivo_analista %}<tr><td>Precio objetivo del modelo</td><td class="n">{{ c.precio_modelo|num(2) }} USD</td></tr>{% endif %}
+          {% if c.valor_dcf is not none %}<tr><td>Valor DCF (escenarios)</td><td class="n">{{ c.valor_dcf|num(2) }} USD</td></tr>{% endif %}
+          {% if c.valor_multiplos is not none %}<tr><td>Valor por múltiplos</td><td class="n">{{ c.valor_multiplos|num(2) }} USD</td></tr>{% endif %}
           <tr><td>Cotización</td><td class="n">{{ c.cotizacion.precio|num(2) }} USD</td></tr>
           <tr><td>Potencial</td><td class="n">{{ c.potencial|var }}</td></tr>
         </table>
@@ -62,19 +64,19 @@
 
       <h3>Datos financieros (USD mn)</h3>
       <table class="datos">
-        <tr><th></th>{% for a in c.ejercicios[-3:] %}<th>FY{{ a }}</th>{% endfor %}{% for a in anios_est %}<th class="e">FY{{ a }}e</th>{% endfor %}</tr>
+        <tr><th></th>{% for a in resumen_cabecera %}<th>{{ a }}</th>{% endfor %}{% for a in estimados_portada %}<th class="e">{{ a }}</th>{% endfor %}</tr>
         {% for fila in resumen %}<tr><td>{{ fila.nombre }}</td>{% for v in fila.valores %}<td{% if loop.index > 3 %} class="e"{% endif %}>{{ v }}</td>{% endfor %}</tr>{% endfor %}
       </table>
 
-      <h3>Múltiplos (FY{{ c.filing.ejercicio }})</h3>
+      <h3>Múltiplos ({{ etiqueta_ltm }})</h3>
       <table class="datos lateral-tabla">
         <tr><td>PER</td><td>{{ c.multiplos.per|num(1) }}x</td></tr>
         <tr><td>EV / Ventas</td><td>{{ c.multiplos.ev_ventas|num(1) }}x</td></tr>
         <tr><td>EV / EBITDA</td><td>{{ c.multiplos.ev_ebitda|num(1) }}x</td></tr>
         <tr><td>EV / EBIT</td><td>{{ c.multiplos.ev_ebit|num(1) }}x</td></tr>
-        <tr><td>P / FCF</td><td>{{ c.multiplos.p_fcf|num(1) }}x</td></tr>
+        <tr><td>P / FCF (tras SBC)</td><td>{{ c.multiplos.p_fcf|num(1) }}x</td></tr>
         <tr><td>P / Valor contable</td><td>{{ c.multiplos.p_bv|num(1) }}x</td></tr>
-        <tr><td>Rentabilidad FCF</td><td>{{ c.multiplos.fcf_yield|pct }}</td></tr>
+        <tr><td>Rentabilidad FCF (tras SBC)</td><td>{{ c.multiplos.fcf_yield|pct }}</td></tr>
         <tr><td>Rentabilidad por dividendo</td><td>{{ c.multiplos.rentabilidad_dividendo|pct }}</td></tr>
       </table>
 
@@ -117,44 +119,65 @@
   </div>
 
   {% for tabla in estados %}
-  <h3>{{ tabla.titulo }} (USD mn)</h3>
+  <h3>{{ tabla.titulo }}{% if tabla.titulo != "Ratios" %} (USD mn){% endif %}</h3>
   <table class="datos">
-    <tr><th></th>{% for a in c.ejercicios %}<th>FY{{ a }}</th>{% endfor %}</tr>
+    <tr><th></th>{% for a in c.ejercicios %}<th>FY{{ a }}</th>{% endfor %}<th>{{ etiqueta_ltm }}</th></tr>
     {% for fila in tabla.filas %}<tr class="{{ fila.clase }}"><td>{{ fila.nombre }}</td>{% for v in fila.valores %}<td>{{ v }}</td>{% endfor %}</tr>{% endfor %}
   </table>
   {% endfor %}
+  {% if c.notas %}<div class="fuente"><strong>Notas a los ratios ({{ etiqueta_ltm }}).</strong> {% for ratio, nota in c.notas %}{{ ratio }}: {{ nota }} {% endfor %}</div>{% endif %}
 </section>
 
 <!-- ============ 4. VALORACIÓN ============ -->
 <section class="salto">
   <h2><span class="num">05</span>Valoración</h2>
   {{ t["valoracion.comentario"] }}
+  {% for aviso in c.avisos_valoracion %}<p class="fuente">{{ aviso }}</p>{% endfor %}
+  {% if c.dcf %}
   <div class="rejilla">
     <div class="principal">
-      <h3>DCF: flujos proyectados (USD mn)</h3>
+      <h3>Escenarios del DCF (USD por acción)</h3>
       <table class="datos">
-        <tr><th></th>{% for a in anios_est %}<th class="e">FY{{ a }}e</th>{% endfor %}<th>Terminal</th></tr>
-        <tr><td>Ingresos</td>{% for v in c.dcf.ingresos %}<td class="e">{{ (v/1e6)|num(0) }}</td>{% endfor %}<td></td></tr>
-        <tr><td>FCFF</td>{% for v in c.dcf.flujos %}<td class="e">{{ (v/1e6)|num(0) }}</td>{% endfor %}<td>{{ (c.dcf.valor_terminal/1e6)|num(0) }}</td></tr>
+        <tr><th></th><th>Probabilidad</th><th>Crec. ventas (media)</th><th>Margen EBITDA (media)</th><th>Valor por acción</th><th>Potencial</th></tr>
+        {% for nombre, est_e, p in c.escenarios.items() %}{% set r = c.dcf_escenarios.resultados[nombre] %}<tr{% if nombre == "Base" %} class="seccion-base"{% endif %}><td>{{ nombre }}</td><td>{{ p|pct(0) }}</td><td>{{ (est_e.crecimiento_ventas|sum / est_e.crecimiento_ventas|length)|pct }}</td><td>{{ (est_e.margen_ebitda|sum / est_e.margen_ebitda|length)|pct }}</td><td>{{ r.valor_por_accion|num(2) }}</td><td>{{ (r.valor_por_accion / c.cotizacion.precio - 1)|var }}</td></tr>{% endfor %}
+        <tr class="total"><td>Valor ponderado</td><td>100 %</td><td></td><td></td><td>{{ c.valor_dcf|num(2) }}</td><td>{{ c.potencial_dcf|var }}</td></tr>
       </table>
+      <h3>DCF del escenario base (USD mn)</h3>
       <table class="datos">
-        <tr><td>Valor de empresa (EV)</td><td>{{ (c.dcf.ev/1e6)|num(0) }}</td></tr>
-        <tr><td>− Deuda financiera neta</td><td>{{ (f.dfn/1e6)|num(0) }}</td></tr>
+        <tr><th></th>{% for a in anios_est %}<th class="e">{{ a }}</th>{% endfor %}<th class="e">Convergencia ({{ c.estimaciones.anios_convergencia }} a)</th></tr>
+        {% set n = c.dcf.explicitos %}
+        <tr><td>Ingresos</td>{% for v in c.dcf.ingresos[:n] %}<td class="e">{{ (v/1e6)|num(0) }}</td>{% endfor %}<td class="e">{{ (c.dcf.ingresos[-1]/1e6)|num(0) }}</td></tr>
+        <tr><td>EBITDA</td>{% for v in c.dcf.ebitda[:n] %}<td class="e">{{ (v/1e6)|num(0) }}</td>{% endfor %}<td class="e">{{ (c.dcf.ebitda[-1]/1e6)|num(0) }}</td></tr>
+        <tr><td>FCFF</td>{% for v in c.dcf.flujos[:n] %}<td class="e">{{ (v/1e6)|num(0) }}</td>{% endfor %}<td class="e">{{ (c.dcf.flujos[n:]|sum/1e6)|num(0) }}</td></tr>
+      </table>
+      <div class="fuente">Convergencia: último año (ingresos y EBITDA) y suma de los FCFF. El EBIT ya resta la remuneración en acciones como gasto: el FCFF no la vuelve a sumar.</div>
+      <table class="datos">
+        <tr><td>Valor actual de los flujos (10 años)</td><td>{{ (c.dcf.va_flujos/1e6)|num(0) }}</td></tr>
+        <tr><td>Valor actual del valor terminal ({{ (c.dcf.va_terminal / c.dcf.ev)|pct(0) }} del EV)</td><td>{{ (c.dcf.va_terminal/1e6)|num(0) }}</td></tr>
+        <tr class="total"><td>Valor de empresa (EV)</td><td>{{ (c.dcf.ev/1e6)|num(0) }}</td></tr>
+        <tr><td>− Deuda financiera neta ({{ etiqueta_ltm }})</td><td>{{ ((fl.dfn or 0)/1e6)|num(0) }}</td></tr>
         <tr class="total"><td>Valor del patrimonio</td><td>{{ (c.dcf.equity/1e6)|num(0) }}</td></tr>
         <tr><td>Acciones (mn)</td><td>{{ (c.mercado.acciones/1e6)|num(0) }}</td></tr>
-        <tr class="total"><td>Valor por acción (USD)</td><td>{{ c.dcf.valor_por_accion|num(2) }}</td></tr>
+        <tr class="total"><td>Valor por acción, escenario base (USD)</td><td>{{ c.dcf.valor_por_accion|num(2) }}</td></tr>
       </table>
       <h3>Sensibilidad del valor por acción (USD): WACC × g</h3>
       <table class="datos">
         <tr><th>WACC \ g</th>{% for g_ in sens_g %}<th>{{ g_|pct(1) }}</th>{% endfor %}</tr>
         {% for w in sens_w %}<tr><td>{{ w|pct(1) }}</td>{% for g_ in sens_g %}<td>{{ c.dcf.sensibilidad.get((w, g_))|num(1) }}</td>{% endfor %}</tr>{% endfor %}
       </table>
+      <h3>Sensibilidad: crecimiento de ventas × margen EBITDA</h3>
+      <table class="datos">
+        <tr><th>Δ crecimiento \ Δ margen</th>{% for m in sens_m %}<th>{{ "%+.0f"|format(m * 100)|replace("-", "−") }} pp</th>{% endfor %}</tr>
+        {% for x in sens_c %}<tr><td>{{ "%+.0f"|format(x * 100)|replace("-", "−") }} pp</td>{% for m in sens_m %}<td>{{ c.dcf.sensibilidad_operativa.get((x, m))|num(1) }}</td>{% endfor %}</tr>{% endfor %}
+      </table>
     </div>
     <div class="lateral">
-      <h3>Supuestos (editables por el analista)</h3>
+      <h3>Supuestos del escenario base (editables)</h3>
       <table class="datos lateral-tabla">
-        <tr><td>Crecimiento de ventas</td><td>{{ c.estimaciones.crecimiento_ventas|map("pct")|join(" · ") }}</td></tr>
-        <tr><td>Margen EBITDA</td><td>{{ c.estimaciones.margen_ebitda[0]|pct }}</td></tr>
+        {% set cv = c.estimaciones.crecimiento_ventas %}{% set me = c.estimaciones.margen_ebitda %}
+        <tr><td>Crecimiento de ventas</td><td>{% if cv|unique|list|length == 1 %}{{ cv[0]|pct }} anual{% else %}{{ cv|map("pct")|join(" · ") }}{% endif %}</td></tr>
+        <tr><td>Margen EBITDA</td><td>{% if me|unique|list|length == 1 %}{{ me[0]|pct }}{% else %}{{ me|map("pct")|join(" · ") }}{% endif %}</td></tr>
+        <tr><td>Años explícitos + convergencia</td><td>{{ c.estimaciones.crecimiento_ventas|length }} + {{ c.estimaciones.anios_convergencia }}</td></tr>
         <tr><td>D&amp;A / ventas</td><td>{{ c.estimaciones.da_sobre_ventas|pct }}</td></tr>
         <tr><td>Capex / ventas</td><td>{{ c.estimaciones.capex_sobre_ventas|pct }}</td></tr>
         <tr><td>Tasa fiscal</td><td>{{ c.estimaciones.tasa_fiscal|pct }}</td></tr>
@@ -165,9 +188,42 @@
         <tr><td>Coste de la deuda (antes de imp.)</td><td>{{ c.estimaciones.coste_deuda|pct }}</td></tr>
         <tr class="total"><td>WACC</td><td>{{ c.dcf.wacc|pct }}</td></tr>
         <tr><td>Crecimiento a perpetuidad (g)</td><td>{{ c.estimaciones.g|pct }}</td></tr>
+        <tr><td>Resultado financiero / ventas</td><td>{{ c.estimaciones.resultado_financiero_sobre_ventas|pct }}</td></tr>
+        <tr><td>Variación anual de acciones</td><td>{{ c.estimaciones.variacion_acciones|pct }}</td></tr>
+        <tr><td>Pay-out</td><td>{{ c.estimaciones.payout|pct }}</td></tr>
+        <tr><td>Peso del DCF en el precio objetivo</td><td>{{ c.estimaciones.peso_dcf|pct(0) }}</td></tr>
       </table>
-      <div class="fuente">Por defecto: medias de los tres últimos ejercicios; Rf, ERP y tasa fiscal de referencia. Fórmulas en calculo/dcf.py.</div>
+      <div class="fuente">Por defecto: medias de los tres últimos ejercicios. Tipo libre de riesgo: {{ c.rf.fuente if c.rf else "valor por defecto" }}{% if c.rf and c.rf.fecha %} a {{ c.rf.fecha }}{% endif %}. Escenarios: base ∓ 1 desviación típica histórica del crecimiento y del margen.</div>
+      <h3>DCF inverso (escenario base)</h3>
+      <table class="datos lateral-tabla">
+        <tr><td>Crecimiento implícito de ventas</td><td>{% if c.inverso.crecimiento and c.inverso.crecimiento.codigo == "resuelto" %}{{ c.inverso.crecimiento.valor|pct }}{% elif c.inverso.crecimiento and c.inverso.crecimiento.codigo == "por_encima" %}&gt; {{ c.inverso.crecimiento.intervalo[1]|pct(0) }}{% else %}n.d.{% endif %}</td></tr>
+        <tr><td>Rentabilidad anual implícita</td><td>{% if c.inverso.wacc and c.inverso.wacc.codigo == "resuelto" %}{{ c.inverso.wacc.valor|pct }}{% else %}n.d.{% endif %}</td></tr>
+      </table>
+      <div class="fuente">Crecimiento constante en los años explícitos (resto de supuestos iguales) y tasa de descuento que igualan el valor a la cotización.</div>
     </div>
+  </div>
+  {% endif %}
+
+  <h3>Proyección hasta el BPA (USD mn)</h3>
+  <table class="datos">
+    <tr><th></th><th>{{ etiqueta_ltm }}</th>{% for a in anios_est %}<th class="e">{{ a }}</th>{% endfor %}</tr>
+    {% for fila in proyeccion %}<tr class="{{ fila.clase }}"><td>{{ fila.nombre }}</td><td>{{ fila.ltm }}</td>{% for v in fila.valores %}<td class="e">{{ v }}</td>{% endfor %}</tr>{% endfor %}
+  </table>
+  <div class="fuente">Las mismas ventas, EBITDA y EBIT que el DCF del escenario base. Periodos de doce meses a partir del LTM.</div>
+
+  <div style="break-inside: avoid">
+  <h3>Comparables ({{ etiqueta_ltm }} de cada empresa)</h3>
+  {% if not c.comparables_del_analista %}<p class="fuente"><span class="revisar">Revisar</span> Selección automática: {{ c.comparables_criterio }}. El analista puede sustituir la lista.</p>{% else %}<p class="fuente">Lista de comparables del analista.</p>{% endif %}
+  {% if comparables %}
+  <table class="datos">
+    <tr><th>Empresa</th><th>Cap. (USD bn)</th><th>Crec. ventas</th><th>Margen EBITDA</th>{% for _, nombre, _, _, _ in multiplos_def %}<th>{{ nombre }}</th>{% endfor %}</tr>
+    {% for p in comparables %}<tr><td>{{ p.nombre }} ({{ p.ticker }})</td><td>{{ p.capitalizacion }}</td><td>{{ p.crecimiento }}</td><td>{{ p.margen }}</td>{% for v in p.multiplos %}<td>{{ v }}</td>{% endfor %}</tr>{% endfor %}
+    <tr class="total"><td>Mediana (n.º de comparables)</td><td></td><td></td><td></td>{% for clave, _, _, _, _ in multiplos_def %}<td>{{ c.comparables_stats[clave].mediana|num(1) }}x ({{ c.comparables_stats[clave].n }})</td>{% endfor %}</tr>
+    <tr><td>{{ c.empresa }} ({{ c.ticker }})</td><td>{{ (c.multiplos.capitalizacion/1e9)|num(1) }}</td><td>{{ fl.crecimiento_ingresos|pct }}</td><td>{{ fl.margen_ebitda|pct }}</td>{% for clave, _, _, _, _ in multiplos_def %}<td>{{ c.multiplos[clave]|num(1) }}x</td>{% endfor %}</tr>
+    <tr class="total"><td>Valor implícito por acción (USD)</td><td></td><td></td><td></td>{% for clave, _, _, _, _ in multiplos_def %}<td>{{ c.comparables_implicitos[clave]|num(2) }}</td>{% endfor %}</tr>
+  </table>
+  <div class="fuente">Múltiplos LTM con el mismo normalizador SEC. La mediana excluye valores negativos y no significativos (n.s.: PER &gt; 75x, EV/EBITDA o P/FCF por encima del límite) y exige al menos 3 comparables. Valor por múltiplos (media de EV/EBITDA y PER): {{ c.valor_multiplos|num(2) }} USD.</div>
+  {% else %}<p><span class="pendiente">no hay comparables cotizados con datos LTM completos: añade la lista</span></p>{% endif %}
   </div>
 </section>
 
@@ -178,6 +234,21 @@
   {% if c.riesgos %}<ul>{% for r in c.riesgos %}<li><strong>{{ r.resumen }}</strong><br><span class="cita">«{{ r.cita }}»</span></li>{% endfor %}</ul>
   <div class="fuente">Selección y resumen: {{ c.riesgos[0].modelo }}, entre los títulos literales del Item 1A. Cada cita se ha verificado en el texto del 10-K.</div>
   {% else %}<p><span class="pendiente">resume los riesgos principales del Item 1A</span></p>{% endif %}
+  {% if c.riesgos_cambios %}{% set rc = c.riesgos_cambios %}
+  <h3>Cambios frente al informe anual anterior</h3>
+  <p>Factores nuevos o reformulados: {{ rc.nuevos|length }} · eliminados: {{ rc.eliminados|length }} · modificados: {{ rc.modificados|length }} · sin cambios: {{ rc.sin_cambios }}.</p>
+  {% if rc.nuevos %}<p><strong>Nuevos o reformulados:</strong></p><ul>{% for r in rc.nuevos %}<li>{{ r.titulo }}{% if r.posible_origen %} <span class="fuente">(posible reformulación de: «{{ r.posible_origen }}»)</span>{% endif %}</li>{% endfor %}</ul>{% endif %}
+  {% if rc.eliminados %}<p><strong>Eliminados:</strong></p><ul>{% for r in rc.eliminados %}<li>{{ r }}</li>{% endfor %}</ul>{% endif %}
+  <div class="fuente">Comparación por similitud de texto de los títulos del Item 1A (sin IA). Las reformulaciones las confirma el analista.</div>
+  {% endif %}
+  {% if c.puntuaciones %}
+  <h3>Puntuaciones de riesgo contable (FY{{ c.filing.ejercicio }})</h3>
+  <table class="datos">
+    <tr><th>Puntuación</th><th>Valor</th><th style="text-align:left">Lectura</th><th style="text-align:left">Modelo</th></tr>
+    {% for p in c.puntuaciones %}<tr><td>{{ p.nombre }}</td><td>{% if p.nombre == "Piotroski F" and p.valor is not none %}{{ p.valor|num(0) }} / 9{% elif p.valor is not none %}{{ "%.2f"|format(p.valor)|replace(".", ",")|replace("-", "−") }}{% else %}n.d.{% endif %}</td><td style="text-align:left">{{ p.lectura }}{% if p.faltan and p.valor is none %} (faltan: {{ p.faltan|join(", ") }}){% endif %}</td><td style="text-align:left">{{ p.modelo }}</td></tr>{% endfor %}
+  </table>
+  <div class="fuente">Altman Z (insolvencia), Beneish M (calidad del beneficio) y Piotroski F (solidez financiera), con las partidas del normalizador SEC. Definiciones en el anexo B.</div>
+  {% endif %}
   <h3>Factores de riesgo declarados en el 10-K ({{ c.riesgos_lista|length }})</h3>
   <div class="dos-col" style="font-size:6.2pt"><ol>{% for r in c.riesgos_lista %}<li>{{ r }}</li>{% endfor %}</ol></div>
 
@@ -199,6 +270,24 @@
     {% for fila in trazas %}<tr><td>{{ fila.nombre }}</td><td style="text-align:left">{{ fila.concepto }}</td><td>{{ fila.valor }}</td><td>{{ fila.origen }}</td></tr>{% endfor %}
   </table>
   <div class="fuente">Todas las cifras proceden de la SEC (EDGAR, companyfacts y XBRL del 10-K) y se calculan de forma determinista. La IA no genera ni modifica cifras.</div>
+</section>
+
+<section class="salto">
+  <h2><span class="num">B</span>Anexo: metodología y fuentes</h2>
+  <table class="datos">
+    <tr><th>Ámbito</th><th style="text-align:left">Concepto</th><th style="text-align:left">Definición</th></tr>
+    {% for grupo, termino, definicion in definiciones %}<tr><td>{{ grupo }}</td><td style="text-align:left; white-space:nowrap">{{ termino }}</td><td style="text-align:left">{{ definicion }}</td></tr>{% endfor %}
+  </table>
+  <h3>Documentos y datos utilizados</h3>
+  <table class="datos">
+    <tr><td>Último 10-K (FY{{ c.filing.ejercicio }})</td><td>{{ c.filing.accession }} · {{ c.filing.fecha }}</td></tr>
+    {% if c.filing.get("ultimo_periodico") %}<tr><td>Último informe periódico ({{ c.filing.get("ultimo_periodico_formulario") }}) · LTM</td><td>{{ c.filing.get("ultimo_periodico") }}{% if c.fecha_ltm %} · cierre {{ c.fecha_ltm }}{% endif %}</td></tr>{% endif %}
+    {% if c.gobierno and c.gobierno.proxy_accession %}<tr><td>Proxy (DEF 14A)</td><td>{{ c.gobierno.proxy_accession }} · {{ c.gobierno.proxy_fecha }}</td></tr>{% endif %}
+    <tr><td>Acciones en circulación</td><td>{{ c.acciones_origen or "portada del último filing" }}</td></tr>
+    <tr><td>Cotización e índices</td><td>yfinance · {{ c.cotizacion.fecha }}</td></tr>
+    <tr><td>Tipo libre de riesgo</td><td>{{ c.rf.fuente if c.rf else "valor por defecto" }}{% if c.rf and c.rf.fecha %} · {{ c.rf.fecha }}{% endif %}</td></tr>
+    <tr><td>Comparables</td><td>{{ c.comparables_criterio or "sin comparables" }}</td></tr>
+  </table>
 </section>
 
 <section class="salto legal">{{ legal }}</section>

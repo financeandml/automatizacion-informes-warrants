@@ -9,7 +9,37 @@ Análisis del borrador de AAPL FY2025 (commit 11905b3) frente a un estándar ins
 
 Cobertura en los repos: **Total** (se usa tal cual), **Parcial** (hay piezas; hay que construir el resto), **Ninguna**.
 
-## Resumen
+## Estado de las carencias (2026-10-12)
+
+Implementado y verificado contra la SEC (97 tests, 23 contra la SEC real; ejemplo en [AAPL_FY2025_borrador.pdf](ejemplos/AAPL_FY2025_borrador.pdf), 10 páginas). Se probó de punta a punta con AAPL, MSFT, JNJ, XOM, TSLA, RIVN y KO; los bancos y demás perfiles sectoriales paran con un mensaje claro (su PDF está pendiente).
+
+| # | Carencia | Estado | Dónde está |
+|---|---|---|---|
+| 1 | Valoración | ✅ Escenarios pesimista/base/optimista editables (25/50/25), 5 + 5 años, flujo terminal normalizado, DCF inverso (crecimiento y rentabilidad implícitos), segunda sensibilidad, Rf de FRED, comparables con aviso «Revisar» | `calculo/dcf.py`, `calculo/valoracion_relativa.py`, `ingesta/comparables.py`, `informe/estimaciones.py` |
+| 1 | Remuneración en acciones (SBC) | ✅ Coste: el FCFF parte del EBIT (que ya la resta) y no la suma; P/FCF y FCF yield sobre el FCF tras SBC | `calculo/metricas.py`, `calculo/dcf.py` |
+| 2 | Datos desfasados | ✅ LTM (cuatro últimos trimestres) en el normalizador; múltiplos, DCF y proyección sobre el LTM; periodos estimados de doce meses («jun-27e») | `calculo/normalizador.py` `FuenteLTM` |
+| 3 | Estimaciones hasta el BPA | ✅ Proyección línea a línea (resultado financiero, impuestos, minoritarios, acciones, BPA, DPA, FCF por acción) coherente con el DCF. El contraste con el consenso queda aparcado (fuente externa) | `calculo/proyeccion.py` |
+| 4 | Segmentos y geografía | ⏳ Tarea pendiente con plan cerrado (abajo) | — |
+| 5 | Texto analítico | ✅ Puente del margen operativo por partidas (pb), apalancamiento operativo y uso del capital, redactados por reglas; la contribución por segmento llegará con la carencia 4 | `calculo/analitica.py`, `plantillas/secciones/financiero.md.j2` |
+| 6 | Gobierno | ✅ Auditor (dei), retribución del CEO y de los directivos, retribución efectiva, *pay ratio* y rentabilidad para el accionista frente a sus comparables (proxy). El consejo sigue siendo tarea del analista | `ingesta/gobierno.py`, `plantillas/secciones/gobierno.md.j2` |
+| 7 | Riesgos cuantitativos | ✅ Altman Z, Beneish M y Piotroski F (golden con el 10-K FY2023 de AAPL); comparación del Item 1A con el año anterior (calibrada: AAPL 2025 vs 2024 = 1 nuevo, 2 eliminados, 5 modificados, 21 iguales) | `calculo/puntuaciones.py`, `ingesta/riesgos.py` `comparar_riesgos` |
+| 8 | Ratios sin contexto | ✅ Notas por reglas (ROE, ROIC, caja neta, tipo fiscal, PER) y anexo B de metodología y fuentes | `calculo/notas.py`, `calculo/definiciones.py` |
+
+**Reutilización (regla 1).** FinRobot (Apache-2.0, nuevo en el inventario): DCF inverso, flujo terminal normalizado y reglas de la mediana de comparables. edgar_analytics (MIT): fórmulas y umbrales de Altman, Beneish y Piotroski. financial-research-analyst-agent: convergencia lineal y escenarios (idea). edgartools: TTM, proxy, auditor y lista de tickers. Propio, porque no existía: proyección hasta el BPA, analítica de márgenes, notas y comparación del Item 1A.
+
+**Hallazgos de la prueba con varias empresas, ya corregidos en el normalizador.**
+- **Partidas que no se declaran como total**, calculadas con conceptos declarados y señaladas como aviso en el semáforo:
+  - El pasivo de KO.
+  - El patrimonio de JNJ y RIVN.
+  - El EBIT de JNJ y XOM, como BAI + intereses.
+- **Partidas declaradas por componentes**: la D&A y los gastos generales de MSFT y GOOGL.
+- **Acciones básicas como diluidas** cuando la empresa no declara dilución (XOM).
+- **Patrimonio temporal** en la identidad del balance (TSLA).
+- **Empresas recientes**: los años previos a la salida a bolsa no son errores (RIVN).
+- **Acciones en circulación desfasadas** (BRK-B, dato de 2011): se usa el respaldo.
+- **Beneficio antes de impuestos**: se quitó `…BeforeIncomeTaxesDomestic`, que es solo el beneficio en EEUU.
+
+## Resumen (análisis inicial)
 
 | # | Carencia | Solución en los repos | Cobertura | Verificado con datos reales |
 |---|---|---|---|---|
@@ -246,8 +276,23 @@ Cada paso termina con tests *golden* frente a la SEC, documentación, commit y u
 | **4.7 Fuentes y metodología** | Anexo automático y notas de contexto de los ratios | Carencia 8, apartado 26 |
 | **Al final** | Cambios en lo ya hecho: columnas LTM en los apartados 7-9, BPA estimado en la portada, DuPont en el 11 | Regla del usuario |
 
-## Decisiones del usuario pendientes
+## Tarea pendiente: segmentos y geografía (plan)
 
-1. **Universo de comparables:** ¿se descarga el *bulk* de *submissions* de la SEC (más de 1 GB, una vez, fuera de OneDrive) para proponer comparables por SIC al instante, o se consulta empresa a empresa con caché (más lento la primera vez)?
-2. **Remuneración en acciones:** se propone descontarla como coste en el FCFF (criterio institucional habitual, Damodaran). La alternativa es reflejarla solo como dilución en el número de acciones.
-3. **Escenarios:** probabilidades por defecto 25/50/25, editables por el analista.
+Verificado con AAPL, MSFT y JNJ (carencia 4). Pasos, cada uno con test *golden*:
+
+1. **Lectura completa de FinRobot `engine/compute/coordinators/segment_extractor.py`** (Apache-2.0), por si resuelve ya la jerarquía o la validación.
+2. **`calculo/normalizador.py` `segmentos(xbrl, eje)`.** Con `by_dimension` de edgartools y por orden de prioridad: segmentos declarados (aceptando el segundo eje solo si es `ConsolidationItemsAxis` = segmentos operativos), producto/servicio y geografía.
+3. **Validación determinista:**
+   - Los miembros deben sumar el total consolidado (±1 %).
+   - Se descartan los subtotales (miembro = suma de otros: «Products» en AAPL).
+   - Los nombres salen del identificador del miembro (`country:US` → «EE. UU.»), no de la etiqueta («U.S. Plans» en JNJ).
+   - Si no cuadra, el bloque pasa al analista; nunca se muestra un desglose que no cuadre.
+4. **Cinco años:** se cosen dos 10-K (cada uno trae tres años); el LTM por segmento sale de los 10-Q si lo declaran.
+5. **`calculo/analitica.py` `contribucion_segmentos`:** peso, crecimiento y puntos de crecimiento que aporta cada segmento; frase por reglas («Servicios aportó +X pp de los Y pp»).
+6. **Informe:** tabla y gráfico de barras apiladas en la sección 02 (negocio) y frase en el comentario financiero; concentración de clientes si se declara.
+
+## Decisiones del usuario
+
+1. **Universo de comparables:** ✅ resuelto sin descargar el *bulk*. La SEC da los CIK por SIC (`browse-edgar`, Atom), la lista oficial de tickers las cotizadas y la API *frames* el tamaño. La lista se marca «Revisar» y el analista la cambia con `--comparables`.
+2. **Remuneración en acciones:** ✅ como coste en el flujo de caja (decisión del usuario, 2026-10-12).
+3. **Escenarios:** ✅ 25/50/25 editables; dispersión acotada (crecimiento ±2-5 pp, margen ±1-3 pp).

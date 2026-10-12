@@ -29,14 +29,21 @@ def _informe(args) -> None:
     from .informe import render
     from .informe.construir import construir
 
-    c = construir(args.ticker, con_ia=not args.sin_ia)
+    lista = [x.strip().upper() for x in args.comparables.split(",") if x.strip()] if args.comparables else None
+    c = construir(args.ticker, con_ia=not args.sin_ia, comparables=lista)
     carpeta = Path(args.salida) if args.salida else directorio_datos() / "informes"
     carpeta.mkdir(parents=True, exist_ok=True)
     destino = render.pdf(c, carpeta / f"{c['ticker']}_FY{c['filing']['ejercicio']}_borrador.pdf")
     print(f"Borrador: {destino}")
     print(f"Calidad de los datos: {c['calidad'].nivel}" + (f" ({'; '.join(c['calidad'].errores + c['calidad'].avisos)})"
                                                              if c["calidad"].errores or c["calidad"].avisos else ""))
-    print(f"Propuesta: {c['recomendacion']} · precio objetivo {c['dcf'].valor_por_accion:,.2f} USD · potencial {c['potencial']:+.1%}")
+    if c["precio_objetivo"] is None:
+        print(f"Propuesta: {c['recomendacion']} (sin DCF ni comparables: valoración pendiente del analista)")
+    else:
+        print(f"Propuesta: {c['recomendacion']} · precio objetivo {c['precio_objetivo']:,.2f} USD · potencial {c['potencial']:+.1%}"
+              f" (DCF por escenarios {c['valor_dcf'] or 0:,.2f} · múltiplos "
+              + (f"{c['valor_multiplos']:,.2f}" if c["valor_multiplos"] is not None else "n.d.") + ")")
+    print(f"Comparables: {', '.join(x['ticker'] for x in c['comparables']) or 'ninguno'} ({c['comparables_criterio']})")
     print(f"Apartados pendientes del analista: {len(c['pendientes'])}")
 
 
@@ -121,6 +128,7 @@ def main() -> None:
     p.add_argument("ticker")
     p.add_argument("--sin-ia", action="store_true", help="Sin modelo de lenguaje (el bloque de riesgos queda para el analista)")
     p.add_argument("--salida", help="Carpeta de destino (por defecto, la carpeta de datos del usuario)")
+    p.add_argument("--comparables", help="Lista del analista separada por comas (p. ej. MSFT,GOOGL,DELL); sin ella, propuesta por SIC")
     p.set_defaults(func=_informe, sec=True)
 
     p = sub.add_parser("metricas", help="Métricas del perfil sectorial con su fuente XBRL")
@@ -143,7 +151,11 @@ def main() -> None:
     args = parser.parse_args()
     if args.sec:
         configurar_identidad()
-    args.func(args)
+    try:
+        args.func(args)
+    except ValueError as e:  # errores de datos o de uso con mensaje claro (p. ej. plantilla sectorial sin PDF)
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

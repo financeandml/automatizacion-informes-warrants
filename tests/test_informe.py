@@ -21,11 +21,18 @@ DATOS = {
     "margen_bruto": 0.47, "margen_operativo": 0.32, "roic": 0.55, "roe": 1.5, "fcf": 98000.0, "conversion_fcf": 0.88,
     "precio_objetivo_dcf": 240.0, "precio_objetivo_multiplos": 260.0, "wacc": 0.09, "g": 0.025,
     "auditor": "Ernst & Young LLP",
+    "gobierno": None, "puente": {"total": 120.0, "contribuciones": {"margen bruto": 150.0, "I+D": -40.0, "otros": 10.0},
+                                 "principal": "margen bruto"},
+    "apalancamiento": 1.4, "uso": {"anios": 5, "retribucion": 500000e6, "retribucion_sobre_fcf": 1.02, "variacion_acciones": -0.12,
+                                   "capex_sobre_da": 0.9, "fcf": 490000e6},
+    "fecha_ltm": "2026-06-27", "crecimiento_ltm": 0.142, "margen_operativo_ltm": 0.33, "margen_operativo_ini": 0.30,
+    "escenarios": {"Pesimista": 200.0, "Base": 240.0, "Optimista": 290.0}, "crecimiento_implicito": None, "wacc_implicito": None,
+    "crecimiento_base": 0.04,
 }
 
 
 def test_cubre_todas_las_secciones_del_indice():
-    assert {b.seccion for b in BLOQUES} == {"1", "2", "3", "4", "5", "6", "7", "8", "9", "A1", "A2", "A3", "A4", "A5", "L"}
+    assert {b.seccion for b in BLOQUES} == {"1", "2", "3", "4", "5", "6", "7", "8", "9", "A1", "A2", "A3", "A4", "A5", "A6", "L"}
     assert len({b.id for b in BLOQUES}) == len(BLOQUES)
 
 
@@ -139,3 +146,19 @@ def test_conversion_a_usd(monkeypatch):
 
 def test_variacion_con_signo_para_el_texto():
     assert (_var(-0.7253), _var(0.152), _var(0.0), _var(None)) == ("−72,5 %", "+15,2 %", "0,0 %", "n.d.")
+
+
+def test_comparar_riesgos_nuevos_eliminados_y_modificados():
+    from informes_warrants.ingesta.riesgos import comparar_riesgos
+
+    anterior = ["Investment in new business strategies and acquisitions could disrupt the Company's ongoing business.",
+                "The Company's retail stores are subject to numerous risks and uncertainties.",
+                "The price of the Company's stock is subject to volatility."]
+    actual = ["Investment in new business strategies, commercial relationships and acquisitions could disrupt the Company's "
+              "ongoing business.",
+              "The price of the Company's stock is subject to volatility.",
+              "Climate change and extreme weather events could disrupt the Company's supply chain."]
+    r = comparar_riesgos(actual, anterior)
+    assert [x["titulo"][:13] for x in r["nuevos"]] == ["Climate chang"]
+    assert r["eliminados"] == [anterior[1]] and r["sin_cambios"] == 1
+    assert r["modificados"][0]["anterior"] == anterior[0]  # ampliado, no nuevo
