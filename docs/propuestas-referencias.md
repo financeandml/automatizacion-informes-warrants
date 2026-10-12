@@ -6,7 +6,9 @@ Ideas de contenido tomadas de dos iniciaciones de cobertura que el usuario dejó
 
 Ambas son de terceros y no se publican (`Plantilla/*.pdf` está fuera de git). Solo se toman ideas de **contenido**: la maquetación y la identidad del informe no cambian ([maquetación aprobada](ejemplos/AAPL_FY2025_borrador.pdf)).
 
-**Regla del usuario:** nada de esto se implementa sin valoración previa. Estado de cada propuesta: «propuesta».
+**Regla del usuario:** nada de esto se implementa sin valoración previa.
+
+**Estado (2026-10-12):** valoradas por el usuario. Hechas e integradas en el PDF: R2, R3, R4, R6-R14, R16-R18 (plan y reutilización en [hoja-de-ruta.md](hoja-de-ruta.md#bloque-r-propuestas-aprobadas-2026-10-12--cerrado)). Aparcadas hasta terminar el SaaS: R1 y R5. En espera de los documentos del usuario: R15.
 
 Columnas:
 - **Fuente:** de dónde saldría el dato.

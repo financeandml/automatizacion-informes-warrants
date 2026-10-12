@@ -12,6 +12,10 @@ from enum import StrEnum
 from .normalizador import POR_ID, EstadosNormalizados
 
 TOLERANCIA = 0.01  # 1 %
+# Intereses / deuda declarada al cierre por encima de este tipo: casi seguro falta deuda por capturar (ORCL antes de
+# LongTermNotesAndLoans: 3.500 M de intereses sobre 7.200 M de deuda = 48 %). Aviso, no error: una amortización
+# grande a final de año también lo dispara.
+TIPO_IMPLICITO_MAX = 0.20
 
 
 class Nivel(StrEnum):
@@ -45,10 +49,11 @@ def revisar(e: EstadosNormalizados, ejercicios: list[int] | None = None, etiquet
         v = lambda p, ej=ej: e.valor(p, ej)  # noqa: E731
         FY = etiqueta(ej)  # noqa: N806
         activos, pasivos, patrimonio = v("activos"), v("pasivos"), v("patrimonio")
-        for pid in ("resultado_operativo", "pasivos", "patrimonio"):  # partidas calculadas: el analista debe saberlo
+        for pid in (p for p, partida in POR_ID.items() if partida.derivadas):  # partidas calculadas: el analista debe saberlo
             dato = e.datos.get(pid, {}).get(ej)
-            if dato is not None and any(dato.concepto.startswith(d.base) for d in POR_ID[pid].derivadas):
-                r.avisos.append(f"{FY}: {POR_ID[pid].nombre.lower()} calculado (no declarado): {dato.concepto}")
+            if dato is not None and any(dato.concepto == d.base or dato.concepto.startswith(d.base + " ")
+                                       for d in POR_ID[pid].derivadas):  # concepto completo, no prefijo
+                r.avisos.append(f"{FY}: {POR_ID[pid].nombre.lower()}, valor calculado (no declarado): {dato.concepto}")
         if None not in (activos, pasivos, patrimonio):
             total = pasivos + patrimonio + (v("minoritarios") or 0.0) + (v("patrimonio_temporal") or 0.0)
             if not _cuadra(activos, total):
@@ -66,6 +71,10 @@ def revisar(e: EstadosNormalizados, ejercicios: list[int] | None = None, etiquet
             r.errores.append(f"{FY}: activo corriente mayor que el activo total")
         if patrimonio is not None and patrimonio < 0:
             r.avisos.append(f"{FY}: patrimonio negativo: ROE y P/BV no son interpretables")
+        intereses, deuda = v("gasto_intereses"), (v("deuda_cp") or 0.0) + (v("deuda_lp") or 0.0)
+        if intereses and intereses > 0 and (deuda <= 0 or intereses / deuda > TIPO_IMPLICITO_MAX):
+            r.avisos.append(f"{FY}: gasto por intereses ({intereses / 1e6:,.0f} M) alto para la deuda declarada "
+                            f"({deuda / 1e6:,.0f} M): revisar si falta deuda en el balance")
         if v("amortizacion") is None:
             r.avisos.append(f"{FY}: sin amortizaciones declaradas: EBITDA no disponible")
     return r

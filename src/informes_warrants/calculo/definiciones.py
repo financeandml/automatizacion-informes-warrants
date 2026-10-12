@@ -15,6 +15,11 @@ DEFINICIONES: tuple[tuple[str, str, str], ...] = (
      "meses); balance al cierre del último trimestre; BPA = beneficio neto LTM / acciones diluidas del trimestre."),
     ("Datos", "Control de calidad", "Activo = pasivo + patrimonio (±1 %), beneficio bruto declarado = ingresos − coste, contraste "
      "entre companyfacts y el XBRL del 10-K y partidas obligatorias presentes. Un error bloquea la emisión."),
+    ("Datos", "Trimestres", "Trimestres discretos de los 10-Q; el cuarto = anual − nueve meses. BPA declarado del trimestre "
+     "(el del cuarto, derivado). Variación frente al mismo trimestre del año anterior."),
+    ("Datos", "Segmentos y geografía", "Desgloses del XBRL de los 10-K (segmento, producto o servicio y geografía). Solo se "
+     "publica un ejercicio si los miembros declarados por la empresa suman los ingresos consolidados (±1 %); los "
+     "subtotales no se cuentan dos veces."),
     ("Márgenes", "EBITDA", "Resultado operativo (EBIT) declarado + amortizaciones del estado de flujos."),
     ("Márgenes", "Margen bruto, EBITDA, operativo y neto", "Cada partida sobre los ingresos."),
     ("Caja", "FCF", "Flujo de caja operativo − capex."),
@@ -25,11 +30,19 @@ DEFINICIONES: tuple[tuple[str, str, str], ...] = (
     ("Rentabilidad", "ROE", "Beneficio neto / patrimonio neto atribuible."),
     ("Rentabilidad", "ROIC", "EBIT · (1 − tipo efectivo) / (patrimonio + minoritarios + DFN)."),
     ("Rentabilidad", "ROCE", "EBIT / (activo total − pasivo corriente)."),
-    ("Múltiplos", "EV", "Capitalización + deuda + minoritarios − caja − inversiones a corto plazo."),
+    ("Múltiplos", "EV", "Capitalización + deuda + minoritarios − caja − inversiones a corto plazo + acciones preferentes + "
+     "pasivo neto por pensiones + patrimonio temporal + arrendamientos financieros (si la deuda no los incluye). Los "
+     "arrendamientos operativos no se suman: su coste ya está dentro del EBITDA (US GAAP)."),
     ("Múltiplos", "PER, EV/EBITDA, EV/Ventas, P/FCF", "Sobre las cifras LTM y la cotización de la fecha del informe."),
+    ("Múltiplos", "Múltiplos históricos", "Precio semanal sin ajustar por dividendos sobre las cifras del último 10-K ya "
+     "presentado en cada fecha (sin sesgo de anticipación) y las acciones de ese ejercicio. Mediana y cuartiles de 5 años; "
+     "valor implícito = mediana × cifra LTM."),
     ("Valoración", "DCF", "FCFF = EBIT · (1 − t) + D&A − capex − Δcirculante. El EBIT ya resta la remuneración en acciones, "
      "que no se vuelve a sumar. 5 años explícitos + 5 de convergencia lineal hacia g; valor terminal de Gordon sobre un flujo "
      "normalizado (capex de mantenimiento)."),
+    ("Valoración", "Proyección de flujo y balance", "Flujo operativo = beneficio + D&A + remuneración en acciones − "
+     "Δcirculante; recompras = FCF tras SBC × % del analista; Δcaja = flujo operativo − capex − dividendos − recompras. "
+     "La deuda se mantiene; caja + activos operativos netos = deuda + patrimonio + minoritarios cada año."),
     ("Valoración", "WACC", "Ke = Rf + β · prima de riesgo; Kd después de impuestos; pesos a valor de mercado. β semanal a 5 años "
      "frente al S&P 500."),
     ("Valoración", "Escenarios", "Pesimista y optimista: base ∓ 1 desviación típica histórica del crecimiento y del margen "
@@ -38,12 +51,16 @@ DEFINICIONES: tuple[tuple[str, str, str], ...] = (
      "escenario base a la cotización, por bisección."),
     ("Valoración", "Comparables", "Propuesta por código SIC y tamaño (ingresos), revisable por el analista. Múltiplos LTM con el "
      "mismo normalizador; la mediana excluye valores negativos y no significativos (PER > 75x, EV/EBITDA > 50x)."),
-    ("Valoración", "Precio objetivo", "Media ponderada del DCF de escenarios y de la valoración por múltiplos (EV/EBITDA y PER) "
-     "según el peso del DCF; el analista puede fijar el suyo. Recomendación: comprar ≥ +15 %, vender ≤ −10 %."),
+    ("Valoración", "Suma de partes", "Resultado operativo de cada segmento declarado × su múltiplo EV/EBIT (del analista o "
+     "mediana de sus comparables); los costes no asignados se valoran al mismo múltiplo."),
+    ("Valoración", "Precio objetivo", "Media ponderada de los métodos con valor (DCF de escenarios, comparables, múltiplos "
+     "históricos, suma de partes) con los pesos del analista, repartidos entre los que tienen valor; el analista puede "
+     "fijar el suyo. Recomendación: comprar ≥ +15 %, vender ≤ −10 %."),
     ("Riesgos", "Altman Z", "Probabilidad de insolvencia: Z (empresas con rotación de activos > 0,5) o Z'' (resto). "
      "Zonas: segura, gris, riesgo."),
     ("Riesgos", "Beneish M", "Ocho índices de calidad del beneficio; M > −1,78 indica manipulación probable."),
     ("Riesgos", "Piotroski F", "Nueve pruebas de rentabilidad, apalancamiento y eficiencia (0-9)."),
+    ("Riesgos", "Autonomía de caja", "Solo si el FCF LTM es negativo: meses = (caja + inversiones a corto plazo) / −FCF × 12."),
     ("Riesgos", "Cambios en los factores de riesgo", "Comparación de los títulos del Item 1A con los del informe anual "
      "anterior por similitud de texto: nuevos, eliminados y modificados."),
 )

@@ -16,11 +16,13 @@ doce meses (`FuenteLTM`). Todas pasan por las mismas partidas y prioridades.
 """
 
 import logging
+import re
 import warnings
 from collections import defaultdict
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, timedelta
+from statistics import median
 
 
 @dataclass(frozen=True)
@@ -73,7 +75,11 @@ PARTIDAS: tuple[Partida, ...] = (
     Partida("bai", "Beneficio antes de impuestos", BAI,
             # ORCL solo declara los dos componentes: EEUU + extranjero (exige los dos; uno solo sería parcial)
             suma=(("IncomeLossFromContinuingOperationsBeforeIncomeTaxesDomestic",),
-                  ("IncomeLossFromContinuingOperationsBeforeIncomeTaxesForeign",)), suma_completa=True),
+                  ("IncomeLossFromContinuingOperationsBeforeIncomeTaxesForeign",)), suma_completa=True,
+            # ORCL no los declara en los 10-Q: BAI = resultado + impuesto (identidad contable; en FY2026 da exactamente
+            # EEUU + extranjero). Primero el de operaciones continuadas, que no arrastra las discontinuadas.
+            derivadas=tuple(Derivada(base, ((1, "IncomeTaxExpenseBenefit"),), ("IncomeTaxExpenseBenefit",))
+                            for base in ("IncomeLossFromContinuingOperations", "NetIncomeLoss"))),
     Partida("impuestos", "Impuesto sobre beneficios", ("IncomeTaxExpenseBenefit",)),
     Partida("beneficio_neto", "Beneficio neto atribuible", ("NetIncomeLoss", "NetIncomeLossAvailableToCommonStockholdersBasic",
                                                             "ProfitLoss")),
@@ -108,10 +114,21 @@ PARTIDAS: tuple[Partida, ...] = (
                  ("StockholdersEquity",)),
     )),
     Partida("deuda_cp", "Deuda financiera a corto plazo", ("DebtCurrent",),
-            suma=(("CommercialPaper",), ("ShortTermBorrowings",), ("LongTermDebtCurrent", "LongTermDebtAndCapitalLeaseObligationsCurrent")),
+            # ORCL en los 10-Q: NotesPayableCurrent (en el 10-K FY2026 = DebtCurrent = 7.199 M); solo si no hay las anteriores
+            suma=(("CommercialPaper",), ("ShortTermBorrowings",),
+                  ("LongTermDebtCurrent", "LongTermDebtAndCapitalLeaseObligationsCurrent", "NotesPayableCurrent")),
             opcional=True),
-    Partida("deuda_lp", "Deuda financiera a largo plazo", ("LongTermDebtNoncurrent", "LongTermDebtAndCapitalLeaseObligations"),
-            opcional=True),
+    # ORCL: LongTermNotesAndLoans (no corriente; FY2026: 122.342 + 7.199 corriente = 129.541 = DebtLongtermAndShorttermCombinedAmount).
+    # Sin LongTermNotesPayable: incluye la parte corriente. Derivadas: total − corriente (la corriente ya está en deuda_cp).
+    Partida("deuda_lp", "Deuda financiera a largo plazo", ("LongTermDebtNoncurrent", "LongTermDebtAndCapitalLeaseObligations",
+                                                          "LongTermNotesAndLoans"),
+            opcional=True, derivadas=(
+                Derivada("LongTermDebt", ((-1, "LongTermDebtCurrent"),), ("LongTermDebtCurrent",)),
+                Derivada("DebtLongtermAndShorttermCombinedAmount", ((-1, "DebtCurrent"),), ("DebtCurrent",)),
+                # TSLA: el balance usa un concepto propio; LongTermDebt (nota de deuda, total) − DebtCurrent. Si DebtCurrent
+                # incluyera papel comercial, la deuda total quedaría corta en ese importe (nunca inflada); queda avisado.
+                Derivada("LongTermDebt", ((-1, "DebtCurrent"),), ("DebtCurrent",)),
+            )),
     Partida("patrimonio", "Patrimonio neto atribuible", ("StockholdersEquity",), derivadas=(
         # JNJ, RIVN solo declaran el patrimonio con minoritarios: se restan los minoritarios si los hay
         Derivada("StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest", ((-1, "MinorityInterest"),)),
@@ -122,6 +139,15 @@ PARTIDAS: tuple[Partida, ...] = (
             opcional=True),  # TSLA 2020: necesario para que cuadre activo = pasivo + patrimonio
     Partida("reservas", "Beneficios retenidos (reservas)", ("RetainedEarningsAccumulatedDeficit",), opcional=True),
     Partida("minoritarios", "Intereses minoritarios", ("MinorityInterest",), opcional=True),
+    # Otros componentes del EV (calculo/metricas.py). Los arrendamientos OPERATIVOS no entran: en US GAAP su coste ya
+    # está dentro del EBITDA, y sumarlos al EV descuadraría el EV/EBITDA (error habitual).
+    Partida("preferentes", "Acciones preferentes", ("PreferredStockValue", "PreferredStockValueOutstanding",
+                                                    "PreferredStockIncludingAdditionalPaidInCapitalNetOfDiscount"), opcional=True),
+    Partida("pensiones", "Pasivo neto por pensiones", (
+        "PensionAndOtherPostretirementDefinedBenefitPlansLiabilitiesNoncurrent", "DefinedBenefitPensionPlanLiabilitiesNoncurrent",
+        "PensionAndOtherPostretirementAndPostemploymentBenefitPlansLiabilitiesNoncurrent"), opcional=True),
+    Partida("arrendamientos_financieros", "Arrendamientos financieros", ("FinanceLeaseLiability",),
+            suma=(("FinanceLeaseLiabilityCurrent",), ("FinanceLeaseLiabilityNoncurrent",)), opcional=True),
     # Flujos de caja
     Partida("flujo_operativo", "Flujo de caja operativo", ("NetCashProvidedByUsedInOperatingActivities",
                                                           "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations")),
@@ -210,6 +236,47 @@ def desdoblamientos(facts) -> list[dict]:
         return detect_splits(facts.get_all_facts())
 
 
+ACCIONES_MEDIAS = ("WeightedAverageNumberOfDilutedSharesOutstanding", "WeightedAverageNumberOfShareOutstandingBasicAndDiluted",
+                   "WeightedAverageNumberOfSharesOutstandingBasic")
+ESCALA_MILES = (900.0, 1100.0)  # BN / BPA / acciones declaradas en este rango: acciones etiquetadas en miles
+
+
+def escalas_acciones(facts) -> dict[str, float]:
+    """Filings (accession) que declaran las acciones medias en miles por error de etiquetado: {accession: 1000}.
+
+    IOVA etiqueta 328.721 acciones en lugar de 328,7 millones desde 2019 (el BPA y el beneficio sí son
+    correctos). Comprobación determinista con cifras del mismo filing y periodo: beneficio neto / BPA = acciones;
+    si las declaradas son ~1.000 veces menores (mediana del filing), se multiplican por 1.000.
+    """
+    if not hasattr(facts, "get_all_facts"):
+        return {}
+    grupos = defaultdict(dict)
+    for h in facts.get_all_facts():
+        c = h.concept.split(":")[-1]
+        if h.numeric_value is not None and h.period_start is not None and (
+                c == "NetIncomeLoss" or c in ACCIONES_MEDIAS or c in ("EarningsPerShareDiluted", "EarningsPerShareBasicAndDiluted")):
+            grupos[(h.accession, h.period_start, h.period_end)].setdefault(c, float(h.numeric_value))
+    ratios = defaultdict(list)
+    for (accession, _, _), v in grupos.items():
+        bpa = v.get("EarningsPerShareDiluted", v.get("EarningsPerShareBasicAndDiluted"))
+        acciones = next((v[c] for c in ACCIONES_MEDIAS if v.get(c)), None)
+        if v.get("NetIncomeLoss") and bpa and abs(bpa) >= 0.01 and acciones:
+            ratios[accession].append(v["NetIncomeLoss"] / bpa / acciones)
+    return {a: 1000.0 for a, r in ratios.items() if ESCALA_MILES[0] <= median(r) <= ESCALA_MILES[1]}
+
+
+def corregir_escala(hechos: list, escalas: dict[str, float]) -> list:
+    """Aplica `escalas_acciones` a una lista de FinancialFact de edgartools (solo acciones medias)."""
+    if not escalas:
+        return hechos
+    return [replace(h, value=h.numeric_value * escalas[h.accession], numeric_value=h.numeric_value * escalas[h.accession])
+            if h.accession in escalas and h.concept.split(":")[-1] in ACCIONES_MEDIAS and h.numeric_value is not None else h
+            for h in hechos]
+
+
+NOTA_ESCALA = " (declarado en miles en el XBRL: ×1000, comprobado con beneficio neto / BPA)"
+
+
 def factor_split(hecho, splits: list[dict]) -> float:
     """Ratio acumulado de los desdoblamientos posteriores al dato que no estaban en el filing que lo declaró
     (misma regla que edgartools `apply_split_adjustments`). 1 = sin ajuste."""
@@ -239,6 +306,10 @@ class FuenteEntityFacts:
     def __init__(self, facts):
         self._facts, self._cache = facts, {}
         self._splits = desdoblamientos(facts)
+        self._escalas = escalas_acciones(facts)
+
+    def _escala(self, concepto: str, h) -> float:
+        return self._escalas.get(getattr(h, "accession", None), 1.0) if concepto in ACCIONES_MEDIAS else 1.0
 
     def fact(self, concepto: str, ejercicio: int | None):
         """FinancialFact anual de edgartools (con fiscal_year y accession); None = el último ejercicio."""
@@ -252,19 +323,26 @@ class FuenteEntityFacts:
         h = self.fact(concepto, ejercicio)
         if h is None or getattr(h, "numeric_value", None) is None:
             return None
-        return _ajustar_split(concepto, h, self._splits)[0]
+        return _ajustar_split(concepto, h, self._splits)[0] * self._escala(concepto, h)
+
+    def presentacion(self, concepto: str, ejercicio: int):
+        """(cierre del periodo, fecha de presentación) del dato anual: desde cuándo era público."""
+        h = self.fact(concepto, ejercicio)
+        return (None, None) if h is None else (getattr(h, "period_end", None), getattr(h, "filing_date", None))
 
     def origen(self, concepto: str, ejercicio: int) -> str:
         h = self.fact(concepto, ejercicio)
         if h is None:
             return ""
         nota = _ajustar_split(concepto, h, self._splits)[1] if getattr(h, "numeric_value", None) is not None else ""
+        nota += NOTA_ESCALA if self._escala(concepto, h) != 1.0 else ""
         return str(getattr(h, "accession", "") or "") + nota
 
 
 LTM, LTM_PREVIO = 1, 0  # claves de los últimos doce meses y de los doce anteriores en EstadosNormalizados
 TOLERANCIA_DIAS = 10  # margen entre la fecha pedida y el cierre declarado (semanas fiscales de 52/53)
-PROMEDIOS = {"WeightedAverageNumberOfDilutedSharesOutstanding"}  # no se suman: se toma el último trimestre
+# Acciones medias: no se suman, se toma el último trimestre. Las mismas alternativas que el anual (XOM solo declara básicas).
+PROMEDIOS = set(POR_ID["acciones_diluidas"].conceptos)
 POR_ACCION = {"EarningsPerShareDiluted", "EarningsPerShareBasicAndDiluted"}  # LTM = BN LTM / acciones diluidas del trimestre
 
 
@@ -285,7 +363,8 @@ class FuenteLTM:
 
         self._por_concepto = defaultdict(list)
         splits = desdoblamientos(facts)
-        todos = facts.get_all_facts()
+        self._escalas = escalas_acciones(facts)
+        todos = corregir_escala(facts.get_all_facts(), self._escalas)
         if splits:  # acciones y BPA comparables a lo largo del tiempo (edgartools `apply_split_adjustments`)
             todos = apply_split_adjustments(todos, splits)
         for h in todos:
@@ -310,7 +389,7 @@ class FuenteLTM:
 
         if concepto in POR_ACCION:  # el BPA no se suma por trimestres (cada uno usa sus acciones): se recalcula
             bn = self._valor("NetIncomeLoss", clave)
-            acciones = self._valor("WeightedAverageNumberOfDilutedSharesOutstanding", clave)
+            acciones = next((r for r in (self._valor(c, clave) for c in POR_ID["acciones_diluidas"].conceptos) if r), None)
             if bn is None or acciones is None or not acciones[0]:
                 return None
             return bn[0] / acciones[0], f"{bn[1]}; BN LTM / acciones diluidas"
@@ -324,7 +403,7 @@ class FuenteLTM:
             anual = [h for h in hechos if cerca(h.period_end) and 350 <= dias(h) <= 380]
             if trimestre or anual:
                 h = ultimo(trimestre or anual)
-                return h.numeric_value, h.accession
+                return h.numeric_value, h.accession + (NOTA_ESCALA if h.accession in self._escalas else "")
             return None
         flujos = [h for h in hechos if str(h.period_type) != "instant"]
         if not flujos:
@@ -401,7 +480,7 @@ def _resolver(fuente, partida: Partida, ejercicio: int) -> Dato | None:
                 componentes.append((concepto, valor))
                 break
     if partida.suma_completa and len(componentes) < len(partida.suma):
-        return None
+        componentes = []  # suma parcial: no vale, pero aún puede valer una derivada
     if componentes:
         return Dato(sum(v for _, v in componentes), " + ".join(c for c, _ in componentes), ejercicio,
                     fuente.origen(componentes[0][0], ejercicio))
@@ -430,3 +509,260 @@ def normalizar(fuente, ejercicios: list[int], empresa: str = "") -> EstadosNorma
             elif dato is not None:
                 estados.datos.setdefault(partida.id, {})[ejercicio] = dato
     return estados
+
+
+# ---------------------------------------------------------------------------
+# Trimestres (R3): las mismas partidas y prioridades, trimestre a trimestre
+# ---------------------------------------------------------------------------
+PARTIDAS_TRIMESTRALES = ("ingresos", "resultado_operativo", "beneficio_neto", "acciones_diluidas")
+
+
+def trimestres(facts, fecha_ltm: date, n: int = 8) -> list[dict]:
+    """Últimos `n` trimestres discretos hasta `fecha_ltm` (ingresos, EBIT, beneficio, acciones y BPA).
+
+    Flujos: edgartools `TTMCalculator.quarterize()` (deriva Q2-Q4 de los acumulados y del anual), con las
+    mismas partidas derivadas que el anual (p. ej. EBIT = BAI + intereses en JNJ).
+    BPA: el diluido declarado del trimestre; el del Q4 (que no se declara) con edgartools
+    `derive_eps_for_quarter` (resta exacta si las acciones son estables; si no, BN / acciones).
+    Todo ajustado por desdoblamientos. Variación interanual frente al mismo trimestre del año anterior.
+    Un concepto solo vale si llega hasta `fecha_ltm` (sin tags abandonados).
+    """
+    from edgar.ttm import TTMCalculator
+    from edgar.ttm.splits import apply_split_adjustments
+
+    splits = desdoblamientos(facts)
+    todos = corregir_escala(facts.get_all_facts(), escalas_acciones(facts))
+    if splits:
+        todos = apply_split_adjustments(todos, splits)
+    por_concepto = defaultdict(list)
+    for h in todos:
+        if h.numeric_value is not None and h.period_end is not None:
+            por_concepto[h.concept.split(":")[-1]].append(h)
+
+    def trimestral(concepto: str) -> dict[date, float]:
+        hechos = por_concepto.get(concepto, [])
+        if concepto in PROMEDIOS or concepto.startswith("EarningsPerShare"):  # no se suman: el declarado del trimestre
+            trimestrales = [h for h in hechos if h.period_start and 80 <= (h.period_end - h.period_start).days <= 100]
+        else:
+            try:
+                with _silencio():
+                    trimestrales = TTMCalculator([h for h in hechos if str(h.period_type) != "instant"]).quarterize()
+            except (ValueError, KeyError, TypeError, ZeroDivisionError):
+                return {}
+        valores = {}
+        for h in sorted(trimestrales, key=lambda x: x.filing_date or date.min):  # el último presentado manda
+            valores[h.period_end] = float(h.numeric_value)
+        return valores
+
+    def al_dia(valores: dict) -> bool:
+        return bool(valores) and abs((max(valores) - fecha_ltm).days) <= TOLERANCIA_DIAS
+
+    def serie(partida: Partida) -> dict[date, float]:
+        for concepto in partida.conceptos:
+            valores = trimestral(concepto)
+            if al_dia(valores):
+                return valores
+        for d in partida.derivadas:  # misma fórmula que el anual (trazada en el semáforo del anual)
+            base = trimestral(d.base)
+            if not al_dia(base) or any(not al_dia(trimestral(c)) for c in d.obligatorios):
+                continue
+            terminos = [(signo, trimestral(c)) for signo, c in d.terminos]
+            return {f: v + sum(signo * t.get(f, 0.0) for signo, t in terminos) for f, v in base.items()}
+        return {}
+
+    series = {pid: serie(POR_ID[pid]) for pid in PARTIDAS_TRIMESTRALES}
+    bpa = {}
+    for concepto in POR_ID["bpa_diluido"].conceptos:
+        bpa = trimestral(concepto)
+        if bpa:
+            try:  # Q4: no se declara; edgartools lo deriva (resta exacta o BN / acciones)
+                with _silencio():
+                    derivados = TTMCalculator(por_concepto.get(concepto, [])).derive_eps_for_quarter(
+                        por_concepto.get("NetIncomeLoss", []), por_concepto.get("WeightedAverageNumberOfDilutedSharesOutstanding", []),
+                        eps_concept=f"us-gaap:{concepto}")
+                for h in derivados:
+                    bpa.setdefault(h.period_end, float(h.numeric_value))
+            except (ValueError, KeyError, TypeError, ZeroDivisionError, AttributeError):
+                pass
+            break
+    fines = sorted(series["ingresos"])[-(n + 4):]
+    filas = []
+    for fin in fines:
+        def v(pid, f=fin):
+            cercanos = [d for d in series[pid] if abs((d - f).days) <= TOLERANCIA_DIAS]
+            return series[pid][cercanos[0]] if cercanos else None
+
+        anterior = next((d for d in fines if 350 <= (fin - d).days <= 380), None)
+        bpa_trimestre = next((b for d, b in bpa.items() if abs((d - fin).days) <= TOLERANCIA_DIAS), None)
+        if bpa_trimestre is None and v("beneficio_neto") is not None and v("acciones_diluidas"):
+            bpa_trimestre = v("beneficio_neto") / v("acciones_diluidas")  # como el LTM: BN / acciones diluidas
+        filas.append({
+            "fin": fin, "ingresos": v("ingresos"), "ebit": v("resultado_operativo"), "beneficio_neto": v("beneficio_neto"),
+            "acciones": v("acciones_diluidas"), "bpa": bpa_trimestre,
+            "ingresos_anio_anterior": v("ingresos", anterior) if anterior else None,
+        })
+    for f in filas:
+        f["crecimiento_interanual"] = (f["ingresos"] / f["ingresos_anio_anterior"] - 1
+                                       if f["ingresos"] and f["ingresos_anio_anterior"] else None)
+        f["margen_operativo"] = f["ebit"] / f["ingresos"] if f["ebit"] is not None and f["ingresos"] else None
+    return filas[-n:]
+
+
+# ---------------------------------------------------------------------------
+# Segmentos (R14 y tarea A1): desgloses validados de negocio, producto y geografía
+# ---------------------------------------------------------------------------
+EJES_SEGMENTOS = {"negocio": "StatementBusinessSegmentsAxis", "producto": "ProductOrServiceAxis",
+                  "geografia": "StatementGeographicalAxis"}
+EJE_CONSOLIDACION, MIEMBRO_SEGMENTOS = "ConsolidationItemsAxis", "OperatingSegmentsMember"
+TOLERANCIA_SEGMENTOS = 0.01  # los miembros deben sumar el total consolidado (±1 %)
+PAISES = {"US": "EE. UU.", "CN": "China", "JP": "Japón", "GB": "Reino Unido", "DE": "Alemania", "FR": "Francia", "IN": "India",
+          "CA": "Canadá", "MX": "México", "BR": "Brasil", "KR": "Corea del Sur", "TW": "Taiwán", "IE": "Irlanda", "NL": "Países Bajos",
+          "CH": "Suiza", "IT": "Italia", "ES": "España", "AU": "Australia", "SG": "Singapur", "IL": "Israel"}
+
+
+@dataclass
+class Desglose:
+    eje: str  # "negocio", "producto" o "geografia"
+    concepto: str  # tag de ingresos usado
+    miembros: dict[str, dict[int, float]] = field(default_factory=dict)  # nombre → ejercicio → ingresos
+    resultado_operativo: dict[str, dict[int, float]] = field(default_factory=dict)  # solo negocio
+    ejercicios: list[int] = field(default_factory=list)  # ejercicios que cuadran con el total
+    rechazados: dict[int, str] = field(default_factory=dict)  # ejercicio → motivo
+    origen: str = ""
+
+
+def _nombre_miembro(miembro: str, etiqueta: str | None) -> str:
+    """Nombre legible: los países por su código ISO (evita etiquetas erróneas como «U.S. Plans» en JNJ)."""
+    if miembro and miembro.startswith("country:"):
+        return PAISES.get(miembro.split(":")[1], miembro.split(":")[1])
+    if etiqueta:
+        return re.sub(r"\s*\[Member\]$", "", str(etiqueta)).strip()
+    base = re.sub(r"Member$", "", (miembro or "").split(":")[-1])
+    return re.sub(r"(?<=[a-z])(?=[A-Z])", " ", base).strip()
+
+
+def _local(miembro: str) -> str:
+    """Nombre local de un miembro: «aapl:IPhoneMember» y «aapl_IPhoneMember» → «IPhoneMember»."""
+    return re.split(r"[:_]", miembro, maxsplit=1)[-1] if miembro else ""
+
+
+def dominios_declarados(xbrl) -> list[set[str]]:
+    """Agrupaciones de miembros que la propia empresa declara (dominio → miembros, linkbase de definición)."""
+    try:
+        roles = xbrl.parser.domains_by_role
+    except AttributeError:
+        return []
+    grupos = []
+    for dominios in roles.values():
+        for d in dominios.values():
+            miembros = {_local(m) for m in getattr(d, "members", []) or []}
+            if len(miembros) >= 2 and miembros not in grupos:
+                grupos.append(miembros)
+    return grupos
+
+
+def seleccion_validada(valores: dict[str, float], total: float, grupos: list[set[str]]) -> dict[str, float] | None:
+    """Los miembros que forman el desglose: una agrupación DECLARADA por la empresa (o todos los miembros) cuyos
+    valores suman el total consolidado (±1 %). Si cuadran varias, la más detallada; si empatan dos distintas, es
+    ambiguo y se devuelve None. Nunca se combinan miembros por coincidencia numérica: las empresas declaran a la
+    vez subtotales y detalle en el mismo eje (AAPL: «Products» = iPhone + Mac + iPad + Wearables; ORCL:
+    «Software Revenues» = licencias + soporte), y una búsqueda combinatoria puede cuadrar por casualidad.
+    `valores`: nombre local del miembro → importe.
+    """
+    if not total or len(valores) < 2:
+        return None
+    candidatos = [set(valores)] + [g & set(valores) for g in grupos]
+    validos = []
+    for c in candidatos:
+        if len(c) >= 2 and abs(sum(valores[k] for k in c) - total) <= TOLERANCIA_SEGMENTOS * abs(total) and c not in validos:
+            validos.append(c)
+    if not validos:
+        return None
+    mayor = max(len(c) for c in validos)
+    mejores = [c for c in validos if len(c) == mayor]
+    return {k: valores[k] for k in mejores[0]} if len(mejores) == 1 else None
+
+
+def _hechos_eje(xbrl, concepto: str, eje: str) -> list[dict]:
+    """Hechos anuales de `concepto` desglosados SOLO por `eje` (o por eje + segmentos operativos de consolidación)."""
+    try:
+        with _silencio():
+            df = xbrl.facts.query().by_concept(concepto).by_dimension(eje).to_dataframe()
+    except Exception:  # noqa: BLE001  (consultas dimensionales que edgartools no resuelve: sin desglose)
+        return []
+    if df is None or df.empty or "concept" not in df:
+        return []
+    df = df[df["concept"] == f"us-gaap:{concepto}"]
+    columnas = [c for c in df.columns if c.startswith("dim_")]
+    filas = []
+    for _, r in df.iterrows():
+        dims = {c: r[c] for c in columnas if isinstance(r[c], str) and r[c]}
+        propio = [c for c in dims if c.endswith(eje)]
+        resto = [c for c in dims if not c.endswith(eje)]
+        valido_resto = all(c.endswith(EJE_CONSOLIDACION) and str(dims[c]).endswith(MIEMBRO_SEGMENTOS) for c in resto)
+        if len(propio) != 1 or not valido_resto or not r.get("period_start") or not r.get("period_end"):
+            continue
+        inicio, fin = (date.fromisoformat(str(r[c])[:10]) for c in ("period_start", "period_end"))
+        if not 350 <= (fin - inicio).days <= 380 or r.get("numeric_value") is None:
+            continue
+        filas.append({"miembro": dims[propio[0]], "etiqueta": r.get("dimension_member_label"), "fin": fin,
+                      "valor": float(r["numeric_value"])})
+    return filas
+
+
+def segmentos(xbrls: list[tuple], totales: dict[int, float], fines: dict[int, date]) -> dict[str, Desglose]:
+    """Desgloses de ingresos por eje para los ejercicios de `totales`, solo con los años que cuadran.
+
+    `xbrls`: [(xbrl, accession), …] del 10-K más reciente al más antiguo (los años solapados los da el más
+    reciente, que recoge las reexpresiones). `fines`: cierre de cada ejercicio, para fechar cada hecho.
+    Nunca se muestra un desglose que no sume el total: ese año queda en `rechazados` con el motivo.
+    """
+    def ejercicio_de(fin) -> int | None:
+        fin = fin if isinstance(fin, date) else date.fromisoformat(str(fin)[:10])
+        return next((ej for ej, f in fines.items() if f and abs((fin - f).days) <= TOLERANCIA_DIAS), None)
+
+    salida = {}
+    for clave, eje in EJES_SEGMENTOS.items():
+        d = Desglose(clave, "")
+        crudo: dict[int, dict[str, tuple[str, float]]] = {}
+        grupos_de: dict[int, list[set[str]]] = {}
+        for xbrl, accession in xbrls:
+            for concepto in POR_ID["ingresos"].conceptos:
+                filas = _hechos_eje(xbrl, concepto, eje)
+                if filas:
+                    d.concepto = d.concepto or concepto
+                    grupos = dominios_declarados(xbrl)
+                    nuevos = {}
+                    for f in filas:
+                        ej = ejercicio_de(f["fin"])
+                        if ej in totales and ej not in crudo:  # cada año, del 10-K más reciente que lo trae
+                            nuevos.setdefault(ej, {}).setdefault(_local(f["miembro"]),
+                                                                 (_nombre_miembro(f["miembro"], f["etiqueta"]), f["valor"]))
+                    for ej, miembros in nuevos.items():
+                        crudo[ej], grupos_de[ej] = miembros, grupos
+                    d.origen = d.origen or accession
+                    break
+            if clave == "negocio":
+                for f in _hechos_eje(xbrl, "OperatingIncomeLoss", eje):
+                    ej = ejercicio_de(f["fin"])
+                    if ej in totales:
+                        nombre = _nombre_miembro(f["miembro"], f["etiqueta"])
+                        d.resultado_operativo.setdefault(nombre, {}).setdefault(ej, f["valor"])
+        for ej, miembros in sorted(crudo.items()):
+            valores = {local: valor for local, (_, valor) in miembros.items()}
+            elegidos = seleccion_validada(valores, totales[ej], grupos_de.get(ej, []))
+            if elegidos:
+                d.ejercicios.append(ej)
+                for local in elegidos:
+                    nombre, valor = miembros[local]
+                    d.miembros.setdefault(nombre, {})[ej] = valor
+            else:
+                d.rechazados[ej] = (f"ninguna agrupación declarada suma los ingresos ({totales[ej] / 1e6:,.0f} USD mn; "
+                                    f"suma de todos los miembros: {sum(valores.values()) / 1e6:,.0f})")
+        # Resultado por segmento solo donde sus ingresos están validados ese año (evita mezclar nombres antiguos y nuevos)
+        d.resultado_operativo = {k: {ej: x for ej, x in v.items() if ej in d.miembros.get(k, {})}
+                                 for k, v in d.resultado_operativo.items() if k in d.miembros}
+        d.resultado_operativo = {k: v for k, v in d.resultado_operativo.items() if v}
+        if d.ejercicios:
+            salida[clave] = d
+    return salida

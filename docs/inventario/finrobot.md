@@ -27,8 +27,14 @@
 | Mediana de comparables | `multiples.py` `PEER_PE_NM_CAP` = 75, `PEER_EV_EBITDA_NM_CAP` = 50, `_sanity`, `calculate_peer_statistics` | Copiar las reglas | El comparable sigue en la tabla, pero su múltiplo «no significativo» queda fuera de la mediana. Rechaza NaN e infinitos |
 | Filtro de comparables | `peer_screen.py` `_is_non_common_listing` (preferentes, *warrants*, cupón en el nombre), `_same_issuer` (doble clase) | Idea | Nosotros quitamos los duplicados por CIK, que es exacto |
 | Sensibilidad crecimiento × margen | `finrobot_equity/.../sensitivity_analyzer.py` `generate_sensitivity_table` | Idea | Segunda tabla de sensibilidad |
-| *Football field* | `finrobot_equity/.../valuation_engine.py` `generate_football_field_data` | Idea | Pendiente (gráfico) |
-| Segmentos | `engine/compute/coordinators/segment_extractor.py` | Pendiente de lectura completa | Para la tarea de segmentos |
+| *Football field* | `finrobot_equity/.../valuation_engine.py` `generate_football_field_data`; `valuation_aggregator.py` | Idea | Hecho: gráfico de rangos por método (`visual/graficos.rangos_valoracion`) |
+| Segmentos | `engine/compute/coordinators/segment_extractor.py` `extract_segment_facts` | Idea | Hecho a nuestra manera: validación con los dominios declarados (`domains_by_role` de edgartools) y el total consolidado (`calculo/normalizador.segmentos`) |
+| Múltiplos históricos | `engine/compute/primitives/historical_valuation.py` `compute_historical_band`, `_quantile` | Copiar con atribución, corregido | Acciones de cada ejercicio y dato disponible desde la presentación del 10-K (`calculo/historico.py`) |
+| Síntesis del precio objetivo | `engine/compute/operators/valuation_synthesis.py` `synthesize_valuations` | Patrón | Pesos del analista renormalizados (`calculo/sintesis.py`) |
+| Suma de partes | `engine/compute/operators/sotp.py` `value_segment`, `compute_sotp_breakdown` | Patrón | Con costes no asignados (`valoracion_relativa.suma_de_partes`) |
+| Cambios entre versiones | `artifact/semantic_diff.py` `build_semantic_delta` | Patrón | Atribución secuencial que cuadra con el total (`dcf.atribucion_secuencial`) |
+| Señal de la recomendación | `engine/compute/operators/signal.py` `compute_signal` | Reglas con atribución | Horizonte de 12 meses (`calculo/historial.py`) |
+| EV con ajustes | `multiples.py` `calculate_ev`; `audit/ev_bridge` | Idea | Preferentes, pensiones, patrimonio temporal y arrendamientos financieros (`metricas.componentes_ev`) |
 | Auditoría del TTM | `engine/compute/operators/audit/ttm_period.py` | Idea | Contraste del periodo LTM |
 
 ## Qué no se usa

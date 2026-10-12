@@ -62,3 +62,59 @@ def valor_implicito(stats: dict[str, dict], fundamentales_ltm: dict, dfn: float,
 def valor_por_multiplos(implicitos: dict[str, float | None]) -> float | None:
     usados = [implicitos[k] for k in PARA_EL_PRECIO if implicitos.get(k) is not None and implicitos[k] > 0]
     return statistics.fmean(usados) if usados else None
+
+
+def rango_por_multiplos(comparables: list[dict], fundamentales_ltm: dict, dfn: float, minoritarios: float,
+                        acciones: float) -> tuple[float | None, float | None]:
+    """Rango del valor por múltiplos: cuartiles inferior y superior de EV/EBITDA y PER de los comparables."""
+    from .historico import cuantil
+
+    bajos, altos = [], []
+    for clave, _, limite, metrica, de_ev in MULTIPLOS:
+        if clave not in PARA_EL_PRECIO:
+            continue
+        validos = [c["multiplos"][clave] for c in comparables if significativo(c["multiplos"].get(clave), limite)]
+        valor = fundamentales_ltm.get(metrica)
+        if len(validos) < MINIMO_COMPARABLES or not valor or valor <= 0:
+            continue
+        for q, destino in ((0.25, bajos), (0.75, altos)):
+            m = cuantil(validos, q)
+            destino.append((m * valor - dfn - minoritarios) / acciones if de_ev else m * valor / acciones)
+    return (statistics.fmean(bajos) if bajos else None, statistics.fmean(altos) if altos else None)
+
+
+def suma_de_partes(resultado_por_segmento: dict[str, float], ebit_consolidado: float | None, multiplos: dict[str, float],
+                   multiplo_defecto: float | None, deuda_neta_ajustada: float, minoritarios: float, acciones: float) -> dict | None:
+    """Suma de partes (R14) sobre el resultado operativo de cada segmento declarado (ASC 280).
+
+    Patrón de FinRobot `engine/compute/operators/sotp.py` (`value_segment`, `compute_sotp_breakdown`: suelo por
+    segmentos × múltiplo − deuda neta; Apache-2.0). Cambios: múltiplo EV/EBIT por segmento (el del analista o, por
+    defecto, la mediana EV/EBIT de sus comparables) y una línea de **costes no asignados** = EBIT consolidado − Σ
+    resultado de los segmentos, valorada al múltiplo por defecto (como el «Group Holding» de los informes de
+    referencia): sin ella, la suma de partes sobrevaloraría a las empresas con costes corporativos.
+    """
+    if not resultado_por_segmento or not acciones:
+        return None
+    filas, ev = [], 0.0
+    for nombre, resultado in resultado_por_segmento.items():
+        m = multiplos.get(nombre, multiplo_defecto)
+        if m is None:
+            return None
+        filas.append({"nombre": nombre, "resultado": resultado, "multiplo": m, "ev": resultado * m})
+        ev += resultado * m
+    no_asignado = None
+    if ebit_consolidado is not None:
+        no_asignado = ebit_consolidado - sum(resultado_por_segmento.values())
+        m = multiplos.get("Costes no asignados", multiplo_defecto)
+        if m is None:
+            return None
+        filas.append({"nombre": "Costes no asignados", "resultado": no_asignado, "multiplo": m, "ev": no_asignado * m})
+        ev += no_asignado * m
+    equity = ev - deuda_neta_ajustada - minoritarios
+    return {"filas": filas, "ev": ev, "equity": equity, "por_accion": equity / acciones, "no_asignado": no_asignado}
+
+
+def mediana_comparables(comparables: list[dict], clave: str, limite: float | None) -> float | None:
+    """Mediana de un múltiplo de los comparables con las mismas reglas (sin negativos ni no significativos)."""
+    validos = [c["multiplos"].get(clave) for c in comparables if significativo(c["multiplos"].get(clave), limite)]
+    return statistics.median(validos) if len(validos) >= MINIMO_COMPARABLES else None

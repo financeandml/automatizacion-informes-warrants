@@ -20,6 +20,8 @@ UMBRAL_COMPRAR = 0.15  # potencial mínimo para proponer «Comprar»
 UMBRAL_VENDER = -0.10  # potencial máximo para proponer «Vender»
 ANIOS_EXPLICITOS = 5
 PROBABILIDADES = (0.25, 0.50, 0.25)  # pesimista, base, optimista
+# Peso de cada método en el precio objetivo (calculo/sintesis.py); se renormalizan entre los que tienen valor.
+PESOS_POR_DEFECTO = {"DCF": 0.5, "Comparables": 0.5, "Múltiplos históricos": 0.0, "Suma de partes": 0.0}
 SIGMA_MIN_CRECIMIENTO, SIGMA_MIN_MARGEN = 0.02, 0.01
 SIGMA_MAX_CRECIMIENTO, SIGMA_MAX_MARGEN = 0.05, 0.03
 
@@ -37,7 +39,7 @@ class Estimaciones:
     beta: float = 1.0
     coste_deuda: float = 0.05
     g: float = 0.025
-    peso_dcf: float = 0.5  # peso del DCF frente a múltiplos en el precio objetivo
+    pesos: dict[str, float] = field(default_factory=lambda: dict(PESOS_POR_DEFECTO))  # métodos del precio objetivo
     precio_objetivo_analista: float | None = None  # si se fija, sustituye al calculado; el potencial lo recalcula el código
     anios_convergencia: int = 5  # años tras los explícitos en los que el crecimiento converge linealmente a g
     # Proyección hasta el BPA (calculo/proyeccion.py)
@@ -45,14 +47,18 @@ class Estimaciones:
     cuota_minoritarios: float = 0.0  # parte del beneficio después de impuestos que va a minoritarios
     variacion_acciones: float = 0.0  # variación anual de las acciones diluidas (negativa = recompras netas)
     payout: float = 0.0  # dividendos / beneficio neto
+    # Proyección del flujo de caja y del balance (R12)
+    sbc_sobre_ventas: float = 0.0  # remuneración en acciones / ventas
+    recompras_sobre_fcf: float = 0.0  # recompras / FCF tras remuneración en acciones (si el FCF es positivo)
+    multiplos_sotp: dict[str, float] = field(default_factory=dict)  # EV/EBIT por segmento (R14); vacío = mediana de comparables
 
     def validar(self) -> list[str]:
         """Errores de coherencia; una lista vacía significa que se pueden usar."""
         errores = []
         if len(self.crecimiento_ventas) != len(self.margen_ebitda) or not self.crecimiento_ventas:
             errores.append("Crecimiento de ventas y margen EBITDA deben cubrir los mismos años (al menos uno).")
-        for nombre in ("da_sobre_ventas", "capex_sobre_ventas", "tasa_fiscal", "rf", "erp", "coste_deuda", "peso_dcf",
-                       "cuota_minoritarios"):
+        for nombre in ("da_sobre_ventas", "capex_sobre_ventas", "tasa_fiscal", "rf", "erp", "coste_deuda", "cuota_minoritarios",
+                       "sbc_sobre_ventas"):
             if not 0 <= getattr(self, nombre) <= 1:
                 errores.append(f"{nombre} debe estar entre 0 y 1.")
         if any(not -0.5 <= c <= 1 for c in self.crecimiento_ventas):
@@ -69,6 +75,12 @@ class Estimaciones:
             errores.append("La variación anual de acciones debe estar entre -20 % y 20 %.")
         if not 0 <= self.payout <= 3:
             errores.append("El pay-out debe estar entre 0 y 300 %.")
+        if not 0 <= self.recompras_sobre_fcf <= 3:
+            errores.append("Las recompras sobre el FCF deben estar entre 0 y 300 %.")
+        if any(p < 0 for p in self.pesos.values()) or not sum(self.pesos.values()):
+            errores.append("Los pesos de los métodos deben ser positivos y no sumar cero.")
+        if any(m <= 0 for m in self.multiplos_sotp.values()):
+            errores.append("Los múltiplos de la suma de partes deben ser positivos.")
         if self.precio_objetivo_analista is not None and self.precio_objetivo_analista <= 0:
             errores.append("El precio objetivo del analista debe ser positivo.")
         if self.g >= self.coste_equity():
@@ -87,6 +99,8 @@ class Escenarios:
     base: Estimaciones
     optimista: Estimaciones
     probabilidades: tuple[float, float, float] = PROBABILIDADES
+    # Qué tendría que pasar en cada escenario (R9): texto del analista; vacío = descripción automática de sus supuestos
+    desencadenantes: dict[str, str] = field(default_factory=dict)
 
     def items(self) -> tuple[tuple[str, Estimaciones, float], ...]:
         p = self.probabilidades

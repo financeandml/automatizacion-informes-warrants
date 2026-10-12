@@ -300,8 +300,13 @@ def test_notas_de_ratios():
     e = EstadosNormalizados("X", [1])
     for p, v in {"patrimonio": 60.0, "activos": 350.0}.items():
         e.datos[p] = {1: Dato(v, p, 1, "")}
-    notas = dict(notas_de_ratios({"roe": 1.5, "roic": 0.9, "dfn": -10.0, "tipo_efectivo": 0.15}, e, 1, {"per": 40.0}, 500.0))
+    notas = dict(notas_de_ratios({"roe": 1.5, "roic": 0.9, "dfn": -10.0, "dfn_ebitda": -0.1, "tipo_efectivo": 0.15}, e, 1,
+                                 {"per": 40.0}, 500.0))
     assert "recompras" in notas["ROE"] and "ROIC" in notas and "caja neta" in notas["Deuda neta / EBITDA"]
+    # con EBITDA ≤ 0 el ratio no se calcula (None) y no hay nota que explicar
+    sin_ratio = dict(notas_de_ratios({"roe": 0.2, "roic": 0.1, "dfn": -10.0, "dfn_ebitda": None, "tipo_efectivo": 0.2}, e, 1,
+                                     {"per": 20.0}, None))
+    assert "Deuda neta / EBITDA" not in sin_ratio
     assert notas_de_ratios({"roe": 0.2, "roic": 0.1, "dfn": 5.0, "tipo_efectivo": 0.2}, e, 1, {"per": 20.0}, None) == []
 
 

@@ -106,12 +106,23 @@ def _proponer(sic: int, cik_propio: int, ingresos_propios: float | None, n: int)
     return [str(tabla.loc[c, "ticker"]) for c in elegidos], f"{criterio}, cotizadas en NYSE/Nasdaq, las {n} más parecidas por ingresos"
 
 
+def crecimiento_3_anios(fuente, por_id, normalizar, cagr, ticker: str) -> dict:
+    """Crecimiento anual compuesto de ventas y BPA en los 3 últimos ejercicios fiscales (R10), con el normalizador."""
+    ultimos = [h.fiscal_year for c in por_id["ingresos"].conceptos if (h := fuente.fact(c, None)) is not None and h.fiscal_year]
+    if not ultimos:
+        return {"tacc_ventas_3a": None, "tacc_bpa_3a": None}
+    fin = max(ultimos)
+    e = normalizar(fuente, [fin - 3, fin], ticker)
+    return {"tacc_ventas_3a": cagr(e.valor("ingresos", fin - 3), e.valor("ingresos", fin), 3),
+            "tacc_bpa_3a": cagr(e.valor("bpa_diluido", fin - 3), e.valor("bpa_diluido", fin), 3), "ejercicio_crecimiento": fin}
+
+
 def datos(ticker: str) -> dict | None:
     """Fundamentales y múltiplos LTM de un comparable (None si la SEC o el mercado no dan lo necesario)."""
     from edgar import Company
 
-    from ..calculo.metricas import Mercado, fundamentales, valoracion
-    from ..calculo.normalizador import LTM, LTM_PREVIO, FuenteLTM, acciones_en_circulacion, normalizar
+    from ..calculo.metricas import Mercado, cagr, fundamentales, valoracion
+    from ..calculo.normalizador import LTM, LTM_PREVIO, POR_ID, FuenteEntityFacts, FuenteLTM, acciones_en_circulacion, normalizar
     from .mercado import cotizacion
 
     try:
@@ -126,8 +137,9 @@ def datos(ticker: str) -> dict | None:
             log.warning("Comparable %s sin datos LTM completos: se omite", ticker)
             return None
         f = fundamentales(estados, LTM)
+        crecimiento = crecimiento_3_anios(FuenteEntityFacts(facts), POR_ID, normalizar, cagr, ticker)
         return {"ticker": ticker, "nombre": empresa.name, "fecha_ltm": str(ultimo.period_of_report), "fundamentales": f,
-                "multiplos": valoracion(estados, LTM, Mercado(precio.precio, acciones, precio.fecha))}
+                "multiplos": valoracion(estados, LTM, Mercado(precio.precio, acciones, precio.fecha)), **crecimiento}
     except Exception as e:  # noqa: BLE001  (un comparable que falla no rompe el informe: se omite con aviso)
         log.warning("Comparable %s omitido: %s", ticker, e)
         return None

@@ -102,3 +102,19 @@ def test_comparables_automaticos_avisan_sin_bloquear(contexto):
     assert "El analista debe introducir su lista de comparables" in html  # la sección de comparables se mantiene
     for interno in ("informes-warrants", "--comparables", "pendiente*", AVISO_COMPARABLES):  # nada interno en el informe
         assert interno not in html, interno
+
+
+def test_historial_y_multiplos_historicos_en_el_informe():
+    """R11 y R17 con datos de prueba: bandas sobre cierres sin ajustar y precio objetivo de cada versión emitida."""
+    from datetime import date, timedelta
+
+    from informes_warrants.informe import render
+
+    semanas = [(date(2021, 1, 1) + timedelta(weeks=i), 120.0 + i * 0.5) for i in range(156)]
+    emitidas = [{"fecha": "2023-03-01", "precio_objetivo": 170.0, "cotizacion": 150.0, "recomendacion": "Comprar"}]
+    c = _componer(precios_semanales=semanas, fechas_disponibles={2022: date(2022, 10, 28), 2023: date(2023, 11, 3)},
+                  historial_resumenes=emitidas)
+    assert c["bandas"]["per"].n and c["bandas"]["per"].actual == c["bandas"]["per"].serie[-1][1]
+    assert [h["senal"] for h in c["historial"]] == ["acertada"]  # cotización actual 190 frente a objetivo 170
+    html = render.html(c)
+    assert "Múltiplos frente a su propia historia" in html and "Comprar" in html

@@ -27,7 +27,9 @@ DATOS = {
                                    "capex_sobre_da": 0.9, "fcf": 490000e6},
     "fecha_ltm": "2026-06-27", "crecimiento_ltm": 0.142, "margen_operativo_ltm": 0.33, "margen_operativo_ini": 0.30,
     "escenarios": {"Pesimista": 200.0, "Base": 240.0, "Optimista": 290.0}, "crecimiento_implicito": None, "wacc_implicito": None,
-    "crecimiento_base": 0.04,
+    "crecimiento_base": 0.04, "es_biotecnologia": True,
+    "contribucion": {"inicio": 2024, "fin": 2025, "total": 0.064, "principal": "Services",
+                     "contribuciones": {"iPhone": 0.022, "Services": 0.033, "Mac": 0.009}},
 }
 
 

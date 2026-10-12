@@ -23,7 +23,7 @@ Regla: **usar la IA lo menos posible**. Cada bloque se resuelve con la primera o
 - Markdown, con vista previa en tiempo real.
   - La vista HTML se regenera en cada cambio con la misma plantilla que el PDF (milisegundos).
   - El PDF se recompila en segundo plano: WeasyPrint tarda unos 2 s por documento.
-- Recomendación: el SaaS propone el precio objetivo (DCF y múltiplos, ponderados por `peso_dcf`) y una recomendación mecánica por potencial: **Comprar ≥ +15 %**, **Vender ≤ −10 %**, Mantener entre ambos. El analista la confirma o la cambia en el bloque `portada.recomendacion`. El informe muestra siempre el precio objetivo y el potencial calculados; si el analista fija su propio precio objetivo (`Estimaciones.precio_objetivo_analista`), prevalece en la portada junto al del DCF, y el potencial y la propuesta los recalcula el código (decisión del usuario, 2026-10-11).
+- Recomendación: el SaaS propone el precio objetivo (media ponderada de los métodos con valor, con `pesos`: tabla «Derivación del precio objetivo») y una recomendación mecánica por potencial: **Comprar ≥ +15 %**, **Vender ≤ −10 %**, Mantener entre ambos. El analista la confirma o la cambia en el bloque `portada.recomendacion`. El informe muestra siempre el precio objetivo y el potencial calculados; si el analista fija su propio precio objetivo (`Estimaciones.precio_objetivo_analista`), prevalece en la portada junto al del DCF, y el potencial y la propuesta los recalcula el código (decisión del usuario, 2026-10-11).
 - Emisión: un apartado **«Confirmar emisión del informe»** con un botón. Solo se activa cuando no quedan marcadores y las estimaciones son válidas. Al pulsarlo, la versión pasa a `emitida` y queda inmutable.
 
 ## Estimaciones que ajusta el analista
@@ -42,15 +42,21 @@ Son los supuestos que mueven la proyección, el BPA estimado y el DCF ([estimaci
 | Beta | Semanal a 5 años frente al S&P 500 | Capa 1 |
 | Coste de la deuda | Intereses / deuda | Capa 2 |
 | g (perpetuidad) | 2,5 % | Informe de referencia |
-| Resultado financiero / ventas, cuota de minoritarios, variación de acciones, pay-out | Medias de los 3 últimos ejercicios | Proyección hasta el BPA (`calculo/proyeccion.py`) |
-| Peso DCF frente a múltiplos | 50 % | Propuesta |
+| Resultado financiero / ventas, cuota de minoritarios, variación de acciones, pay-out | Medias de los 3 últimos ejercicios (las de ventas, como suma / suma) | Proyección hasta el BPA (`calculo/proyeccion.py`) |
+| Remuneración en acciones / ventas, recompras / FCF tras SBC | Suma / suma y media de los 3 últimos ejercicios | Proyección del flujo y del balance (R12) |
+| Pesos del precio objetivo (`pesos`) | DCF 50 %, comparables 50 %, múltiplos históricos 0 %, suma de partes 0 % | Se reparten entre los métodos con valor (R8) |
+| Múltiplos de la suma de partes (`multiplos_sotp`) | Vacío: mediana EV/EBIT de los comparables del analista | EV/EBIT por segmento (R14) |
 | Precio objetivo del analista | Vacío (manda el del modelo) | Decisión del usuario |
 
-**Escenarios** (`Escenarios`): pesimista, base y optimista. Cada uno es un juego completo de estimaciones editable. Por defecto, el pesimista y el optimista son la base ∓ 1 desviación típica histórica del crecimiento (2-5 pp) y del margen (1-3 pp), con probabilidades 25/50/25. El valor DCF es la media ponderada.
+**Escenarios** (`Escenarios`): pesimista, base y optimista. Cada uno es un juego completo de estimaciones editable, con su desencadenante (`desencadenantes`; por defecto, sus supuestos en una frase). Por defecto, el pesimista y el optimista son la base ∓ 1 desviación típica histórica del crecimiento (2-5 pp) y del margen (1-3 pp), con probabilidades 25/50/25. El valor DCF es la media ponderada.
 
 **Comparables:** el SaaS propone una lista por SIC y tamaño, marcada «Revisar», **solo orientativa**: no entra en el precio objetivo (que queda por DCF) y genera un **aviso antes de emitir**, que no bloquea la emisión ni aparece en el informe (`Version.avisos()`). El analista introduce su lista (`construir(..., comparables=[...])`, o `--comparables` en la CLI) para que la valoración por múltiplos entre en el precio objetivo.
 
 Los valores se validan: rangos razonables, g inferior al coste del capital y probabilidades que suman 100 %.
+
+**Autoría** (R6): nombre, correo y teléfono del analista, empresa y su contacto. Los introduce cada usuario (`informes-warrants autoria`; en la interfaz, la pantalla de configuración) y se guardan en `autoria.json` de la carpeta de datos, nunca en el repositorio. Vacíos, la portada no muestra el bloque.
+
+**Cambios frente al informe anterior** (R16): cada informe guarda su resumen JSON junto al PDF; `--comparar-con <resumen.json>` muestra qué cambió y cuánto explica cada grupo de supuestos del cambio del valor DCF (atribución secuencial, que cuadra con el total). El historial de recomendaciones (R17) sale de las versiones emitidas.
 
 ## Qué puede tocar el analista en el bloque fijo
 

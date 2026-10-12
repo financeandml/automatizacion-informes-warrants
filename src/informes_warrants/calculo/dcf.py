@@ -205,3 +205,25 @@ def beta(rent_activo, rent_indice) -> float:
     if len(a) != len(i) or len(a) < 20:
         raise ValueError("Se necesitan al menos 20 rentabilidades alineadas")
     return float(np.cov(a, i, ddof=1)[0, 1] / np.var(i, ddof=1))
+
+
+def atribucion_secuencial(anterior: Estimaciones, actual: Estimaciones, datos: dict, valor_anterior: float,
+                          grupos: tuple[tuple[str, tuple[str, ...]], ...]) -> dict:
+    """Cuánto explica cada grupo de supuestos el cambio del valor por acción del DCF (R16).
+
+    Se cambian por orden: los datos de partida (`datos` actuales con las estimaciones anteriores), cada grupo y,
+    al final, el resto de supuestos. Cada impacto es el valor tras el paso menos el anterior, así que la suma
+    cuadra exactamente con el cambio total (la atribución de un factor cada vez deja un residuo de interacción).
+    """
+    pasos, previo = [], valor_anterior
+    valor = dcf(anterior, **datos).valor_por_accion
+    pasos.append({"grupo": "Datos de partida (LTM, balance, acciones, cotización)", "impacto": valor - previo})
+    previo, est = valor, anterior
+    for nombre, claves in grupos:
+        est = replace(est, **{k: getattr(actual, k) for k in claves})
+        valor = dcf(est, **datos).valor_por_accion
+        pasos.append({"grupo": nombre, "impacto": valor - previo})
+        previo = valor
+    valor = dcf(actual, **datos).valor_por_accion
+    pasos.append({"grupo": "Resto de supuestos", "impacto": valor - previo})
+    return {"pasos": pasos, "total": valor - valor_anterior}

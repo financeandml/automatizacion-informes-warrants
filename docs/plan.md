@@ -42,13 +42,16 @@ Toda cifra sale de aquí (regla 9). Las fórmulas de edgar_analytics y FinRobot 
 
 | Bloque | Módulo | Origen |
 |---|---|---|
-| Normalizador SEC (anual y LTM, partidas derivadas trazables) | `normalizador.py` | Propio; jerarquía de ingresos de edgartools `RevenueDeduplicator` |
-| Márgenes, FCF (y tras SBC), DFN, ROE, ROIC, ROCE, múltiplos | `metricas.py` | Propio (edgar_analytics como contraste) |
+| Normalizador SEC (anual, LTM, 8 trimestres, segmentos validados; partidas derivadas trazables; desdoblamientos y acciones declaradas en miles) | `normalizador.py` | Propio; jerarquía de ingresos de edgartools `RevenueDeduplicator`; `TTMCalculator`, `domains_by_role` |
+| Márgenes, FCF (y tras SBC), DFN, ROE, ROIC, ROCE, múltiplos, componentes del EV | `metricas.py` | Propio (edgar_analytics como contraste); EV de FinRobot `multiples.calculate_ev` |
 | Semáforo de calidad | `calidad.py` | stock-screener `DataQualityChecker`, edgartools `validate_balance_sheet` (ideas) |
-| DCF por escenarios, sensibilidades, DCF inverso, beta | `dcf.py` | financial-research-analyst-agent `dcf_model` (patrón) + FinRobot `dcf.py` (DCF inverso, flujo terminal) |
-| Proyección hasta el BPA | `proyeccion.py` | Propio (no existía) |
-| Comparables (medianas y valor implícito) | `valoracion_relativa.py` | FinRobot `multiples.py` (reglas de la mediana) |
-| Analítica de márgenes y uso del capital | `analitica.py` | Propio (no existía) |
+| DCF por escenarios, sensibilidades, DCF inverso, beta, atribución de cambios | `dcf.py` | financial-research-analyst-agent `dcf_model` (patrón) + FinRobot `dcf.py` (DCF inverso, flujo terminal) y `semantic_diff` (atribución) |
+| Proyección hasta el BPA, del flujo de caja y del balance | `proyeccion.py` | Propio (no existía) |
+| Comparables (medianas, rango, valor implícito) y suma de partes | `valoracion_relativa.py` | FinRobot `multiples.py` (reglas de la mediana) y `sotp.py` |
+| Múltiplos frente a su propia historia | `historico.py` | FinRobot `historical_valuation` (corregido: acciones de cada año, sin anticipación) |
+| Derivación del precio objetivo | `sintesis.py` | FinRobot `valuation_synthesis` |
+| Historial de recomendación (señal) | `historial.py` | FinRobot `signal.compute_signal` |
+| Analítica de márgenes, uso del capital, autonomía de caja, origen del crecimiento | `analitica.py` | Propio (no existía) |
 | Altman, Beneish, Piotroski | `puntuaciones.py` | edgar_analytics `scores.py` (fórmulas y umbrales) |
 | Notas de los ratios y metodología | `notas.py`, `definiciones.py` | Propio |
 | Métricas sectoriales | `sectoriales.py` | Propio sobre `informe/perfiles.py` |

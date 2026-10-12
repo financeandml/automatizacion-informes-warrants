@@ -78,7 +78,13 @@ def barras_y_linea(etiquetas, barras, linea, nombre_barras, nombre_linea) -> str
     return _svg(fig)
 
 
-def barras_pareadas(etiquetas, serie_a, serie_b, nombre_a, nombre_b) -> str:
+def _separador(ax, posicion: int | None) -> None:
+    """Línea discontinua entre datos reales y estimados (etiquetas «e» a la derecha)."""
+    if posicion:
+        ax.axvline(posicion - 0.5, color=NEGRO, linewidth=0.5, linestyle=(0, (3, 2)))
+
+
+def barras_pareadas(etiquetas, serie_a, serie_b, nombre_a, nombre_b, separar_en: int | None = None) -> str:
     """Dos series en barras: A sólida burdeos, B blanca con trama burdeos (p. ej. beneficio neto vs FCF)."""
     import numpy as np
 
@@ -88,7 +94,83 @@ def barras_pareadas(etiquetas, serie_a, serie_b, nombre_a, nombre_b) -> str:
     ax.bar(x + ancho / 2, serie_b, ancho, color=BLANCO, edgecolor=BURDEOS, hatch="//////", linewidth=0.5, label=nombre_b)
     ax.set_xticks(x, etiquetas)
     ax.yaxis.set_major_formatter(_miles)
+    ax.axhline(0, color=NEGRO, linewidth=0.4)
+    _separador(ax, separar_en)
     ax.legend(loc="upper left", ncol=2, bbox_to_anchor=(0, 1.16))
+    return _svg(fig)
+
+
+# Rellenos para series apiladas: solo los tres colores de la marca (sólidos y tramas)
+RELLENOS = [dict(color=BURDEOS), dict(color=NEGRO), dict(color=BLANCO, edgecolor=BURDEOS, hatch="//////"),
+            dict(color=BLANCO, edgecolor=NEGRO, hatch="......"), dict(color=BLANCO, edgecolor=BURDEOS, hatch="xxxx"),
+            dict(color=BLANCO, edgecolor=NEGRO, hatch="\\\\\\")]
+
+
+def barras_apiladas(etiquetas, series: dict[str, list], ancho_relativo: float = 0.6) -> str:
+    """Barras apiladas (p. ej. ingresos por segmento, USD mn); como máximo 6 series (el resto, agrupado antes)."""
+    import numpy as np
+
+    fig, ax = _figura()
+    x = np.arange(len(etiquetas))
+    base = np.zeros(len(etiquetas))
+    for (nombre, valores), relleno in zip(series.items(), RELLENOS, strict=False):
+        v = np.array([0.0 if x_ is None else x_ for x_ in valores])
+        ax.bar(x, v, ancho_relativo, bottom=base, linewidth=0.4, label=nombre, **{"edgecolor": BLANCO, **relleno})
+        base += v
+    ax.set_xticks(x, etiquetas)
+    ax.yaxis.set_major_formatter(_miles)
+    ax.legend(loc="upper left", ncol=3, bbox_to_anchor=(0, 1.22), fontsize=5.5)
+    return _svg(fig)
+
+
+def rangos_valoracion(metodos: list[tuple[str, float | None, float | None, float | None]], cotizacion: float,
+                      objetivo: float | None) -> str:
+    """Rangos por método (barra bajo-alto y punto central) frente a la cotización y al precio objetivo (USD)."""
+    validos = [m for m in metodos if m[1] is not None or (m[2] is not None and m[3] is not None)]
+    fig, ax = plt.subplots(figsize=(ANCHO_CM * 2 / 2.54, (1.2 + 0.55 * len(validos)) / 2.54 * 1.6), dpi=100)
+    ax.xaxis.grid(True, color=NEGRO, linewidth=0.15)
+    ax.set_axisbelow(True)
+    for i, (_nombre, central, bajo, alto) in enumerate(reversed(validos)):
+        if bajo is not None and alto is not None:
+            ax.barh(i, alto - bajo, left=bajo, height=0.45, color=BLANCO, edgecolor=BURDEOS, hatch="//////", linewidth=0.6)
+        if central is not None:
+            ax.plot([central], [i], marker="D", markersize=3.2, color=BURDEOS)
+    ax.set_yticks(range(len(validos)), [m[0] for m in reversed(validos)])
+    ax.axvline(cotizacion, color=NEGRO, linewidth=0.9, label="Cotización")
+    if objetivo is not None:
+        ax.axvline(objetivo, color=BURDEOS, linewidth=1.2, linestyle=(0, (4, 2)), label="Precio objetivo")
+    ax.spines["left"].set_visible(False)
+    ax.tick_params(axis="y", length=0)
+    ax.legend(loc="upper left", ncol=2, bbox_to_anchor=(0, 1.0 + 0.9 / max(len(validos), 1)))
+    return _svg(fig)
+
+
+def serie_multiplo(serie: list[tuple], mediana: float, p25: float, p75: float, actual: float | None, nombre: str) -> str:
+    """Múltiplo histórico (línea burdeos) con su mediana (negra) y sus cuartiles (discontinuas)."""
+    fig, ax = _figura()
+    fechas, valores = [f for f, _ in serie], [v for _, v in serie]
+    ax.plot(fechas, valores, color=BURDEOS, linewidth=1.2, label=nombre)
+    ax.axhline(mediana, color=NEGRO, linewidth=0.9, label="Mediana")
+    for q in (p25, p75):
+        ax.axhline(q, color=NEGRO, linewidth=0.6, linestyle=(0, (3, 2)))
+    if actual is not None:
+        ax.plot([fechas[-1]], [actual], marker="o", markersize=3, color=NEGRO)
+    ax.yaxis.set_major_formatter(lambda x, _=None: f"{x:.0f}x")
+    ax.legend(loc="upper left", ncol=2, bbox_to_anchor=(0, 1.16))
+    fig.autofmt_xdate(rotation=0, ha="center")
+    return _svg(fig)
+
+
+def historial_recomendacion(precios, puntos: list[tuple]) -> str:
+    """Cotización (línea negra) y precio objetivo de cada informe emitido (escalones burdeos)."""
+    fig, ax = _figura()
+    ax.plot(precios.index, precios.values, color=NEGRO, linewidth=0.9, label="Cotización")
+    if puntos:
+        fechas = [p[0] for p in puntos] + [precios.index[-1]]
+        objetivos = [p[1] for p in puntos] + [puntos[-1][1]]
+        ax.step(fechas, objetivos, where="post", color=BURDEOS, linewidth=1.2, label="Precio objetivo")
+    ax.legend(loc="upper left", ncol=2, bbox_to_anchor=(0, 1.16))
+    fig.autofmt_xdate(rotation=0, ha="center")
     return _svg(fig)
 
 

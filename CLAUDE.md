@@ -32,7 +32,7 @@ SaaS que genera informes de análisis (estilo *equity research*) sobre empresas 
 | Decisiones pendientes del usuario | [docs/requisitos-pendientes.md](docs/requisitos-pendientes.md) |
 | Tareas que faltan (3 fases) y propuestas pendientes de valoración | [docs/hoja-de-ruta.md](docs/hoja-de-ruta.md) · [docs/propuestas-referencias.md](docs/propuestas-referencias.md) |
 | Carencias de contenido, soluciones y orden de trabajo | [docs/rigor-del-contenido.md](docs/rigor-del-contenido.md) |
-| Motor matemático y normalizador SEC | `src/informes_warrants/calculo/` (normalizador con LTM, métricas, DCF con escenarios y DCF inverso, proyección hasta el BPA, valoración relativa, puntuaciones, analítica, notas, definiciones, calidad) · tests en `tests/test_calculo.py` |
+| Motor matemático y normalizador SEC | `src/informes_warrants/calculo/` (normalizador con LTM, trimestres y segmentos; métricas; DCF con escenarios, DCF inverso y atribución; proyección del BPA, flujo y balance; valoración relativa y suma de partes; múltiplos históricos; síntesis del precio objetivo; historial; puntuaciones; analítica; notas; definiciones; calidad) · tests en `tests/test_calculo.py` y `tests/test_bloque_r.py` |
 | Plantilla y PDF del informe | `src/informes_warrants/plantillas/informe/` · `informe/render.py` · [ejemplo](docs/ejemplos/AAPL_FY2025_borrador.pdf) |
 | Ingesta (SEC, mercado, comparables, gobierno, riesgos) | `src/informes_warrants/ingesta/` (índice en su `__init__.py`) |
 | Configuración de EDGAR | [src/informes_warrants/config.py](src/informes_warrants/config.py), [.env.example](.env.example) |

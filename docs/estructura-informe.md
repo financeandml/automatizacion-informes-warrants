@@ -16,18 +16,18 @@ La maquetación aprobada es la del [ejemplo](ejemplos/AAPL_FY2025_borrador.pdf).
 | Tabla de contenidos | Ejecutable | WeasyPrint numera páginas (`target-counter`) |
 | Descargo de responsabilidad | Hecho | Al final del PDF y una línea en cada pie (`plantillas/legal/descargo.md`) |
 | **A. Resumen ejecutivo y contexto de la tesis** | | |
-| 1. Ficha de empresa | Hecho | Portada: mercado, datos financieros (2 FY + LTM + 3 estimados), múltiplos LTM, comportamiento en bolsa |
+| 1. Ficha de empresa | Hecho | Portada: mercado (con valor contable por acción, capital flotante y volumen en acciones), datos financieros (2 FY + LTM + 3 estimados), múltiplos LTM, comportamiento en bolsa, rango pesimista-optimista y autoría |
 | 2. Resumen ejecutivo y contexto de la tesis | Parcial | Titular automático, recomendación e indicadores; faltan los «hechos clave» por reglas; la tesis es del analista |
 | **B. Perfil corporativo y modelo de negocio** | | |
-| 3. ¿Qué hace la empresa? | Parcial | Cita del Item 1; **segmentos y geografía pendientes** ([plan](rigor-del-contenido.md#tarea-pendiente-segmentos-y-geografía-plan)) |
+| 3. ¿Qué hace la empresa? | Parcial (avanzado) | Cita del Item 1; segmentos (con resultado operativo), producto y geografía de 5 años validados contra el total, gráfico y origen del crecimiento. Falta la concentración de clientes |
 | 4. Estructura corporativa | Ejecutable | Filiales (Exhibit 21), accionistas > 5 % (proxy, 13D/G): verificado en AAPL |
 | 5. Equipo directivo | Ejecutable | La retribución ya está en «Gobierno»; faltan cargos y trayectoria |
-| 6. Pipeline y catalizadores | Parcial | Bloque de catalizadores del MD&A hecho (`ia/bloques.py`), sin conectar; falta el calendario (vencimientos, junta, resultados) |
+| 6. Pipeline y catalizadores | Parcial | Bloque de catalizadores del MD&A hecho (`ia/bloques.py`), sin conectar; falta el calendario (vencimientos, junta, resultados). Pipeline de biotecnológicas: campo del analista (solo en SIC 2833-2836 y 8731) |
 | **C. Análisis fundamental y métricas financieras** | | |
-| 7. Estado de resultados | Hecho | 5 FY + LTM; proyección hasta el BPA (`calculo/proyeccion.py`) |
-| 8. Balance de situación | Hecho | 5 FY + LTM; DFN |
-| 9. Flujo de caja | Hecho | FCF y FCF tras remuneración en acciones; dividendos y recompras |
-| 10. Métricas de valoración | Parcial (avanzado) | Múltiplos LTM, DCF por escenarios, DCF inverso y comparables. Sin la lista del analista, precio solo por DCF y aviso antes de emitir (no bloquea). Pendiente: PEG y el **motor de valoración** con los modelos que aportará el usuario. El consenso es externo |
+| 7. Estado de resultados | Hecho | 5 FY + LTM; últimos 8 trimestres; proyección hasta el BPA (`calculo/proyeccion.py`) |
+| 8. Balance de situación | Hecho | 5 FY + LTM; DFN; balance resumido proyectado que cuadra cada año |
+| 9. Flujo de caja | Hecho | FCF y FCF tras remuneración en acciones; dividendos y recompras; flujo de caja proyectado y dos gráficos |
+| 10. Métricas de valoración | Parcial (avanzado) | Múltiplos LTM, DCF por escenarios con desencadenantes, DCF inverso, comparables (con crecimiento a 3 años), múltiplos frente a su historia, suma de partes, puente del EV con ajustes y derivación ponderada del precio objetivo con gráfico de rangos. Sin la lista del analista, comparables fuera del precio y aviso antes de emitir (no bloquea). Pendiente: PEG y el **motor de valoración** con los modelos del usuario. El consenso es externo |
 | 11. Rentabilidad y eficiencia | Hecho | ROE, ROIC, ROA, ROCE, márgenes y notas de contexto |
 | 12. Criterios de valoración personales | Ejecutable | Necesita los umbrales del fondo |
 | **D. Mercado objetivo y posicionamiento competitivo** | | |
@@ -41,7 +41,7 @@ La maquetación aprobada es la del [ejemplo](ejemplos/AAPL_FY2025_borrador.pdf).
 | 18. Accionistas institucionales e insiders | Parcial | Form 4 de 12 meses (compras y ventas en mercado, separadas de la retribución) y accionistas > 5 %, verificados en AAPL (faltan en el PDF); 13F por emisor: ejecutable (datos trimestrales de la SEC) |
 | 19. Posicionamiento en corto | Externo | FINRA / yfinance |
 | **G. Riesgos y *due diligence*** | | |
-| 20. Riesgos principales | Parcial (avanzado) | 5 principales con cita (IA), cambios frente al 10-K anterior y Altman, Beneish y Piotroski; la clasificación por tipo se decidirá sobre la propuesta R5 |
+| 20. Riesgos principales | Parcial (avanzado) | 5 principales con cita (IA), cambios frente al 10-K anterior, Altman, Beneish y Piotroski y autonomía de caja (si consume caja); la clasificación por tipo, aparcada (R5) |
 | 21. Historial de resultados anteriores | Parcial | Resultados de la empresa: alarmas SEC verificadas (8-K 4.01/4.02, 10-K/A), falta en el PDF; reacción bursátil a 5 sesiones tras cada publicación de resultados, sin comparar (idea: ai-hedge-fund `event_study`) |
 | **H. Tesis de inversión y gestión de la posición** | | |
 | 22. Tesis de inversión consolidada | Analista | Plantilla que ate cada asunción a una cifra del modelo |
@@ -49,7 +49,7 @@ La maquetación aprobada es la del [ejemplo](ejemplos/AAPL_FY2025_borrador.pdf).
 | 24. Gestión del riesgo | Ejecutable | Stop por volatilidad, tamaño por presupuesto de riesgo, liquidez (parámetros del fondo) |
 | 25. Seguimiento post-entrada | Ejecutable | Indicadores, fechas de revisión y criterios de salida, enlazados con las versiones |
 | **I. Apéndices** | | |
-| 26. Fuentes y referencias | Parcial (avanzado) | Anexo A (trazabilidad de cada partida) y anexo B (metodología y documentos usados) |
+| 26. Fuentes y referencias | Parcial (avanzado) | Anexo A (trazabilidad de cada partida) y anexo B (metodología, sistema de recomendación, historial de recomendaciones y documentos usados) |
 
 ## Bloques actuales del informe
 

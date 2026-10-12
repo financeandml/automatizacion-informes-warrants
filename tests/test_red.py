@@ -163,3 +163,74 @@ def test_orcl_bai_por_componentes():
     assert 2025 not in e.faltan
     assert e.datos["bai"][2025].concepto == ("IncomeLossFromContinuingOperationsBeforeIncomeTaxesDomestic + "
                                               "IncomeLossFromContinuingOperationsBeforeIncomeTaxesForeign")
+
+
+def test_trimestres_aapl_y_jnj():
+    """Q4 FY2025 de AAPL (cierre 2025-09-27) = anual − nueve meses: 102.466 USD Mn; BPA derivado 1,83."""
+    from datetime import date
+
+    from edgar import Company
+
+    from informes_warrants.calculo.normalizador import trimestres
+
+    t = trimestres(Company("AAPL").get_facts(), date(2026, 6, 27))
+    assert len(t) == 8
+    q4 = next(x for x in t if x["fin"] == date(2025, 9, 27))
+    assert q4["ingresos"] == 102_466e6 and q4["bpa"] == pytest.approx(1.83, abs=0.005)
+    assert all(x["ebit"] is not None for x in trimestres(Company("JNJ").get_facts(), date(2026, 6, 28)))  # EBIT derivado
+
+
+def test_segmentos_aapl_cinco_anios_sin_subtotales():
+    from edgar import Company
+
+    from informes_warrants.calculo.normalizador import FuenteEntityFacts, normalizar, segmentos
+
+    empresa = Company("AAPL")
+    anuales = empresa.get_filings(form="10-K", amendments=False).head(3)
+    fuente = FuenteEntityFacts(empresa.get_facts())
+    e = normalizar(fuente, list(range(2021, 2026)), "AAPL")
+    cierres = {a: fuente.presentacion(e.datos["ingresos"][a].concepto, a)[0] for a in e.ejercicios}
+    totales = {a: e.valor("ingresos", a) for a in range(2021, 2026)}
+    d = segmentos([(anuales[0].xbrl(), anuales[0].accession_no), (anuales[2].xbrl(), anuales[2].accession_no)], totales, cierres)
+    assert set(d) == {"negocio", "producto", "geografia"}
+    assert d["producto"].ejercicios == [2021, 2022, 2023, 2024, 2025] and "Products" not in d["producto"].miembros
+    for desglose in d.values():
+        for a in desglose.ejercicios:
+            assert sum(s[a] for s in desglose.miembros.values() if a in s) == pytest.approx(totales[a], rel=0.01)
+
+
+def test_orcl_deuda_y_ltm_sin_bai_trimestral():
+    """ORCL: deuda a largo como LongTermNotesAndLoans y, en los 10-Q, NotesPayableCurrent; sin BAI trimestral."""
+    from datetime import date
+
+    from edgar import Company
+
+    from informes_warrants.calculo.normalizador import LTM, LTM_PREVIO, FuenteEntityFacts, FuenteLTM, normalizar
+
+    facts = Company("ORCL").get_facts()
+    e = normalizar(FuenteEntityFacts(facts), [2026], "ORCL")
+    assert e.valor("deuda_lp", 2026) + e.valor("deuda_cp", 2026) == 129_541e6  # = DebtLongtermAndShorttermCombinedAmount
+    ltm = normalizar(FuenteLTM(facts, date(2026, 8, 31)), [LTM_PREVIO, LTM], "ORCL")
+    assert LTM not in ltm.faltan and ltm.datos["bai"][LTM].concepto == "NetIncomeLoss + IncomeTaxExpenseBenefit"
+    assert ltm.valor("deuda_cp", LTM) == 7_625e6
+
+
+def test_iova_acciones_declaradas_en_miles():
+    from edgar import Company
+
+    from informes_warrants.calculo.normalizador import FuenteEntityFacts, normalizar
+
+    e = normalizar(FuenteEntityFacts(Company("IOVA").get_facts()), [2025], "IOVA")
+    assert e.valor("acciones_diluidas", 2025) == 357_345_000.0
+    assert "miles" in e.datos["acciones_diluidas"][2025].origen
+
+
+def test_xom_ltm_con_acciones_basicas():
+    from datetime import date
+
+    from edgar import Company
+
+    from informes_warrants.calculo.normalizador import LTM, LTM_PREVIO, FuenteLTM, normalizar
+
+    e = normalizar(FuenteLTM(Company("XOM").get_facts(), date(2026, 3, 31)), [LTM_PREVIO, LTM], "XOM")
+    assert LTM not in e.faltan and e.valor("acciones_diluidas", LTM) == 4_202e6

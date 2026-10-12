@@ -23,18 +23,28 @@ def _cobertura(args) -> None:
 
 
 def _informe(args) -> None:
+    import json
     from pathlib import Path
 
+    from .almacenamiento.almacen import Almacen
+    from .almacenamiento.versiones import Estado
     from .config import directorio_datos
     from .informe import render
+    from .informe.cambios import resumen
     from .informe.construir import construir
 
     lista = [x.strip().upper() for x in args.comparables.split(",") if x.strip()] if args.comparables else None
-    c = construir(args.ticker, con_ia=not args.sin_ia, comparables=lista)
+    anterior = json.loads(Path(args.comparar_con).read_text(encoding="utf-8")) if args.comparar_con else None
+    emitidas = [v.contenido["resumen"] for v in Almacen().historial(args.ticker.upper())
+                if v.estado == Estado.EMITIDA and v.contenido.get("resumen")]  # R17: historial de las versiones emitidas
+    c = construir(args.ticker, con_ia=not args.sin_ia, comparables=lista, anterior=anterior, historial_resumenes=emitidas)
     carpeta = Path(args.salida) if args.salida else directorio_datos() / "informes"
     carpeta.mkdir(parents=True, exist_ok=True)
     destino = render.pdf(c, carpeta / f"{c['ticker']}_FY{c['filing']['ejercicio']}_borrador.pdf")
+    ruta_resumen = destino.with_name(destino.stem + "_resumen.json")  # R16: el siguiente informe se compara con este
+    ruta_resumen.write_text(json.dumps(resumen(c), ensure_ascii=False, indent=1, default=str), encoding="utf-8")
     print(f"Borrador: {destino}")
+    print(f"Resumen para comparar con el próximo informe: {ruta_resumen}")
     print(f"Calidad de los datos: {c['calidad'].nivel}" + (f" ({'; '.join(c['calidad'].errores + c['calidad'].avisos)})"
                                                              if c["calidad"].errores or c["calidad"].avisos else ""))
     if c["precio_objetivo"] is None:
@@ -105,6 +115,18 @@ def _versiones(args) -> None:
     print(f"Base de datos: {almacen.ruta}")
 
 
+def _autoria(args) -> None:
+    from .informe.autoria import Autoria, cargar, guardar
+
+    actual = cargar()
+    nuevos = {k: v for k, v in vars(args).items() if k in Autoria.__dataclass_fields__ and v is not None}
+    if nuevos:
+        guardar(Autoria(**{**vars(actual), **nuevos}))
+        actual = cargar()
+    for campo, valor in vars(actual).items():
+        print(f"{campo:18} {valor or '—'}")
+
+
 def _ia(args) -> None:
     from .ia.llm import completar
 
@@ -131,7 +153,13 @@ def main() -> None:
     p.add_argument("--sin-ia", action="store_true", help="Sin modelo de lenguaje (el bloque de riesgos queda para el analista)")
     p.add_argument("--salida", help="Carpeta de destino (por defecto, la carpeta de datos del usuario)")
     p.add_argument("--comparables", help="Lista del analista separada por comas (p. ej. MSFT,GOOGL,DELL); sin ella, propuesta por SIC")
+    p.add_argument("--comparar-con", help="Resumen JSON de un informe anterior: muestra qué cambió y por qué (R16)")
     p.set_defaults(func=_informe, sec=True)
+
+    p = sub.add_parser("autoria", help="Datos de autoría que salen en la portada (cada usuario los suyos)")
+    for campo in ("analista", "correo", "telefono", "empresa", "contacto_empresa"):
+        p.add_argument(f"--{campo.replace('_', '-')}", dest=campo)
+    p.set_defaults(func=_autoria, sec=False)
 
     p = sub.add_parser("metricas", help="Métricas del perfil sectorial con su fuente XBRL")
     p.add_argument("ticker")

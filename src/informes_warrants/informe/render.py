@@ -12,9 +12,11 @@ from jinja2 import Environment, FileSystemLoader, StrictUndefined
 from markupsafe import Markup
 
 from ..calculo.definiciones import DEFINICIONES
+from ..calculo.historico import METRICAS as METRICAS_HISTORICAS
 from ..calculo.normalizador import LTM, PARTIDAS
 from ..calculo.valoracion_relativa import MULTIPLOS, significativo
 from ..visual import graficos
+from .estimaciones import UMBRAL_COMPRAR, UMBRAL_VENDER
 from .plantillas import MARCADOR, _num, _pct, _var
 
 DIR = Path(__file__).resolve().parent.parent / "plantillas"
@@ -110,7 +112,7 @@ def _resumen(c):
     hist = lambda clave, fmt: [fmt(fund[a][clave]) for a in ej] + [fmt(f_ltm.get(clave))]  # noqa: E731
     filas = [
         ("Ingresos", hist("ingresos", _mn) + [_mn(a.ventas) for a in p]),
-        ("Crecimiento", hist("crecimiento_ingresos", _pct) + [_pct(g) for g in est.crecimiento_ventas[:len(p)]]),
+        ("Crecimiento", hist("crecimiento_ingresos", _crecimiento) + [_pct(g) for g in est.crecimiento_ventas[:len(p)]]),
         ("EBITDA", hist("ebitda", _mn) + [_mn(a.ebitda) for a in p]),
         ("Margen EBITDA", hist("margen_ebitda", _pct) + [_pct(m) for m in est.margen_ebitda[:len(p)]]),
         ("Beneficio neto", hist("beneficio_neto", _mn) + [_mn(a.beneficio_neto) for a in p]),
@@ -156,7 +158,102 @@ def _comparables(c):
             no_significativo = valor is not None and not significativo(valor, limite)
             celdas.append(_num(valor, 1) + ("x" if valor is not None else "") + (" n.s." if no_significativo else ""))
         filas.append({"ticker": comp["ticker"], "nombre": comp["nombre"], "capitalizacion": _num(m["capitalizacion"] / 1e9, 1),
-                      "crecimiento": _pct(f.get("crecimiento_ingresos")), "margen": _pct(f.get("margen_ebitda")), "multiplos": celdas})
+                      "crecimiento": _pct(f.get("crecimiento_ingresos")), "margen": _pct(f.get("margen_ebitda")), "multiplos": celdas,
+                      "tacc_ventas": _pct(comp.get("tacc_ventas_3a")), "tacc_bpa": _pct(comp.get("tacc_bpa_3a"))})
+    return filas
+
+
+TITULOS_SEGMENTOS = (("negocio", "Ingresos por segmento"), ("producto", "Ingresos por producto o servicio"),
+                     ("geografia", "Ingresos por geografía"))
+MAX_SERIES_GRAFICO = 5  # el resto se agrupa en «Resto» solo en el gráfico (la tabla los muestra todos)
+
+
+def _mes_anio(d) -> str:
+    return f"{MESES[d.month - 1][:3]}-{d.year % 100:02d}"
+
+
+def _crecimiento(v) -> str:
+    """Crecimiento ≥ 1.000 % (desde una base casi nula, p. ej. la primera venta de una biotecnológica): n.s."""
+    return "n.s." if v is not None and abs(v) >= 10 else _pct(v)
+
+
+def _segmentos(c) -> list[dict]:
+    """Tablas de los desgloses validados (R14): cada columna suma los ingresos consolidados del ejercicio."""
+    tablas = []
+    for clave, titulo in TITULOS_SEGMENTOS:
+        d = c["segmentos"].get(clave)
+        if not d:
+            continue
+        ultimo = d.ejercicios[-1]
+        total = {a: c["estados"].valor("ingresos", a) for a in d.ejercicios}
+        orden = sorted(d.miembros.items(), key=lambda kv: -(kv[1].get(ultimo) or 0))
+        filas = [{"nombre": n, "valores": [_mn(s.get(a)) for a in d.ejercicios],
+                  "peso": _pct(s[ultimo] / total[ultimo]) if ultimo in s and total[ultimo] else "—"} for n, s in orden]
+        resultado = []
+        if d.resultado_operativo:
+            for n, s in orden:
+                if n in d.resultado_operativo:
+                    r = d.resultado_operativo[n]
+                    resultado.append({"nombre": n, "valores": [_mn(r.get(a)) for a in d.ejercicios],
+                                      "margen": _pct(r[ultimo] / s[ultimo]) if ultimo in r and s.get(ultimo) else "—"})
+        rechazados = ", ".join(f"FY{a}" for a in sorted(d.rechazados))
+        tablas.append({"clave": clave, "titulo": titulo, "ejercicios": d.ejercicios, "filas": filas,
+                       "total": [_mn(total[a]) for a in d.ejercicios], "resultado": resultado, "rechazados": rechazados,
+                       "origen": d.origen})
+    return tablas
+
+
+def _trimestres(c) -> dict | None:
+    t = c["trimestres"]
+    if not t:
+        return None
+    filas = (("Ingresos", [_mn(x["ingresos"]) for x in t], "total"),
+             ("Variación interanual", [_var(x["crecimiento_interanual"]) for x in t], ""),
+             ("Resultado operativo (EBIT)", [_mn(x["ebit"]) for x in t], ""),
+             ("Margen operativo", [_pct(x["margen_operativo"]) for x in t], ""),
+             ("Beneficio neto", [_mn(x["beneficio_neto"]) for x in t], ""),
+             ("BPA diluido (USD)", [_num(x["bpa"], 2) for x in t], "total"))
+    return {"cabecera": [_mes_anio(x["fin"]) for x in t], "filas": [{"nombre": n, "valores": v, "clase": k} for n, v, k in filas]}
+
+
+def _flujo_balance(c) -> dict:
+    """Flujo de caja y balance proyectados (R12): LTM real + años explícitos, solo con datos del propio informe."""
+    p, ltm, f = c["proyeccion"], c["estados_ltm"], c["fund_ltm"]
+    v = lambda clave: ltm.valor(clave, LTM)  # noqa: E731
+    flujo = (
+        ("Flujo de caja operativo", _mn(v("flujo_operativo")), [_mn(a.flujo_operativo) for a in p], "total"),
+        ("Capex", _mn(v("capex")), [_mn(a.capex) for a in p], ""),
+        ("Remuneración en acciones (SBC)", _mn(v("pagos_basados_acciones")), [_mn(a.sbc) for a in p], ""),
+        ("FCF tras remuneración en acciones", _mn(f.get("fcf_tras_sbc")), [_mn(a.fcf_tras_sbc) for a in p], "total"),
+        ("Dividendos pagados", _mn(v("dividendos")), [_mn(a.dividendos) for a in p], ""),
+        ("Recompra de acciones", _mn(v("recompras")), [_mn(a.recompras) for a in p], ""),
+        ("Variación de caja", "—", [_mn(a.variacion_caja) for a in p], "total"),
+    )
+    b = c["balance_base"]  # el mismo balance del LTM del que parte la proyección (calculo/proyeccion.balance_inicial)
+    balance = ()
+    if b and p and p[0].caja is not None:
+        balance = (
+            ("Caja e inversiones a corto plazo", _mn(b["caja"]), [_mn(a.caja) for a in p], ""),
+            ("Activos operativos netos", _mn(b["activos_operativos_netos"]), [_mn(a.activos_operativos_netos) for a in p], ""),
+            ("Deuda financiera", _mn(f.get("deuda_bruta")), [_mn(a.deuda) for a in p], ""),
+            ("Patrimonio neto", _mn(v("patrimonio")), [_mn(a.patrimonio) for a in p], "total"),
+            ("Deuda financiera neta", _mn(f.get("dfn")), [_mn(a.dfn) for a in p], "total"),
+            ("Deuda neta / EBITDA", _num(f.get("dfn_ebitda"), 2), [_num(a.dfn_ebitda, 2) for a in p], ""),
+        )
+    serie = lambda filas: [{"nombre": n, "ltm": l_, "valores": e, "clase": k} for n, l_, e, k in filas]  # noqa: E731
+    return {"flujo": serie(flujo), "balance": serie(balance)}
+
+
+def _historicos(c) -> list[dict]:
+    filas = []
+    for clave, nombre in METRICAS_HISTORICAS.items():
+        b = c["bandas"].get(clave)
+        if not b or not b.n:
+            continue
+        implicito = c["historicos"].get(clave, {}).get("mediana")
+        filas.append({"nombre": nombre, "actual": _num(b.actual, 1), "mediana": _num(b.mediana, 1), "p25": _num(b.p25, 1),
+                      "p75": _num(b.p75, 1), "p90": _num(b.p90, 1), "percentil": _pct(b.percentil_actual, 0),
+                      "implicito": _num(implicito, 2), "n": b.n})
     return filas
 
 
@@ -173,7 +270,54 @@ def _graficos(c):
         "margenes": Markup(graficos.lineas(etiquetas, {"Bruto": serie("margen_bruto"), "Operativo": serie("margen_operativo"),
                                                        "Neto": serie("margen_neto")})),
         "base_100": Markup(graficos.base_100(c["series_bolsa"])),
+        **_graficos_extra(c),
     }
+
+
+def _graficos_extra(c) -> dict:
+    graficos_extra = {}
+    principal = next((c["segmentos"][k] for k in ("negocio", "producto") if k in c["segmentos"]), None)
+    if principal:
+        orden = sorted(principal.miembros.items(), key=lambda kv: -(kv[1].get(principal.ejercicios[-1]) or 0))
+        series = {n: [(s.get(a) or 0) / 1e6 for a in principal.ejercicios] for n, s in orden[:MAX_SERIES_GRAFICO]}
+        if len(orden) > MAX_SERIES_GRAFICO:
+            series["Resto"] = [sum((s.get(a) or 0) for _, s in orden[MAX_SERIES_GRAFICO:]) / 1e6 for a in principal.ejercicios]
+        graficos_extra["segmentos"] = Markup(graficos.barras_apiladas([f"FY{a % 100:02d}" for a in principal.ejercicios], series))
+    rangos = [(m.nombre, m.valor, m.bajo, m.alto) for m in c["metodos"]]
+    rangos.append(("Cotización 12 meses", c["cotizacion"].medio_12m, c["cotizacion"].minimo_12m, c["cotizacion"].maximo_12m))
+    if any(r[1] is not None for r in rangos[:-1]):
+        graficos_extra["rangos"] = Markup(graficos.rangos_valoracion(rangos, c["cotizacion"].precio, c["precio_objetivo"]))
+    clave_hist = next((k for k in ("ev_ebitda", "per") if c["bandas"].get(k) and c["bandas"][k].n), None)
+    if clave_hist:
+        b = c["bandas"][clave_hist]
+        graficos_extra["historico"] = Markup(graficos.serie_multiplo(b.serie, b.mediana, b.p25, b.p75, b.actual,
+                                                                     METRICAS_HISTORICAS[clave_hist]))
+        graficos_extra["historico_nombre"] = METRICAS_HISTORICAS[clave_hist]
+    p = c["proyeccion"]
+    if p:
+        ej = c["ejercicios"][-3:]
+        # Etiquetas cortas (8 barras en medio ancho): «LTM» y «27e» = doce meses hasta jun-27 (la tabla da el mes)
+        etiquetas = [f"FY{a % 100:02d}" for a in ej] + ["LTM"] + [e.split("-")[-1] for e in c["etiquetas_estimadas"]]
+        fund, fl, ltm = c["fundamentales"], c["fund_ltm"], c["estados_ltm"]
+        fcf = [(fund[a]["fcf_tras_sbc"] or 0) / 1e6 for a in ej] + [(fl.get("fcf_tras_sbc") or 0) / 1e6] + [x.fcf_tras_sbc / 1e6 for x in p]
+        retrib = ([(fund[a]["retribucion_accionista"] or 0) / 1e6 for a in ej] + [(fl.get("retribucion_accionista") or 0) / 1e6]
+                  + [x.retribucion / 1e6 for x in p])
+        graficos_extra["flujo"] = Markup(graficos.barras_pareadas(etiquetas, fcf, retrib, "FCF tras SBC", "Dividendos + recompras",
+                                                                  separar_en=len(ej) + 1))
+        if p[0].caja is not None:
+            dfn = [(fund[a]["dfn"] or 0) / 1e6 for a in ej] + [(fl.get("dfn") or 0) / 1e6] + [x.dfn / 1e6 for x in p]
+            pat = [(c["estados"].valor("patrimonio", a) or 0) / 1e6 for a in ej] + [(ltm.valor("patrimonio", LTM) or 0) / 1e6] + \
+                  [x.patrimonio / 1e6 for x in p]
+            graficos_extra["balance"] = Markup(graficos.barras_pareadas(etiquetas, dfn, pat, "Deuda financiera neta", "Patrimonio neto",
+                                                                        separar_en=len(ej) + 1))
+    if c.get("historial") and c.get("precios_semanales"):
+        import pandas as pd
+
+        # Cierres sin ajustar por dividendos: los precios objetivo de cada informe se fijaron sobre ellos
+        precios = pd.Series([p for _, p in c["precios_semanales"]], index=pd.to_datetime([f for f, _ in c["precios_semanales"]]))
+        puntos = [(pd.Timestamp(h["fecha"]), h["precio_objetivo"]) for h in c["historial"]]
+        graficos_extra["historial"] = Markup(graficos.historial_recomendacion(precios, puntos))
+    return graficos_extra
 
 
 def html(c: dict) -> str:
@@ -195,7 +339,9 @@ def html(c: dict) -> str:
         g=_graficos(c), fecha_larga=_fecha_larga(c["fecha"]), etiqueta_ltm=ltm,
         anios_est=c["etiquetas_estimadas"], resumen=_resumen(c), resumen_cabecera=[f"FY{a}" for a in c["ejercicios"][-2:]] + [ltm],
         estimados_portada=c["etiquetas_estimadas"][:ESTIMADOS_PORTADA], proyeccion=_proyeccion(c),
-        comparables=_comparables(c), multiplos_def=MULTIPLOS, definiciones=DEFINICIONES,
+        comparables=_comparables(c), multiplos_def=MULTIPLOS, definiciones=DEFINICIONES, segmentos=_segmentos(c),
+        trimestres=_trimestres(c), flujo_balance=_flujo_balance(c), historicos=_historicos(c),
+        umbral_comprar=UMBRAL_COMPRAR, umbral_vender=UMBRAL_VENDER,
         estados=[{"titulo": t, "filas": _filas(c, filas)} for t, filas in ESTADOS], trazas=trazas,
         horizontes=["1m", "3m", "12m", "YTD", "3a", "5a"], claves_horizonte=["1m", "3m", "12m", "ytd", "3a", "5a"],
         sens_w=sorted({w for w, _ in claves_sens}), sens_g=sorted({g for _, g in claves_sens}),

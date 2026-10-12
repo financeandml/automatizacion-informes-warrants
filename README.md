@@ -79,6 +79,8 @@ Flujo del analista:
 ```bash
 informes-warrants informe AAPL               # borrador del informe en PDF + vista previa HTML
 informes-warrants informe AAPL --comparables MSFT,GOOGL,DELL   # con la lista de comparables del analista
+informes-warrants informe AAPL --comparar-con ruta/AAPL_FY2025_borrador_resumen.json  # qué cambió y por qué
+informes-warrants autoria --analista "Nombre" --correo nombre@empresa.com   # autoría de la portada (fuera del repo)
 informes-warrants datos AAPL                 # estados financieros del último 10-K
 informes-warrants cobertura JPM              # plantilla: general, sectorial o «pendiente de validar»
 informes-warrants metricas JPM               # métricas del perfil sectorial con su fuente XBRL

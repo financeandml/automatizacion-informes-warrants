@@ -94,23 +94,36 @@ class Cotizacion:
     minimo_12m: float
     medio_12m: float
     volumen_medio_12m: float  # en USD
+    volumen_medio_acciones_12m: float | None = None
 
 
-def historico(ticker: str, anios: int = 6):  # 6 años para poder medir la rentabilidad a 5 años completos
-    """Cierres ajustados diarios (pandas.Series) de los últimos `anios` años."""
+def historico(ticker: str, anios: int = 6, ajustado: bool = True):  # 6 años: rentabilidad a 5 años completos
+    """Cotizaciones diarias de los últimos `anios` años.
+
+    `ajustado=True`: ajustadas por dividendos y desdoblamientos (rentabilidad total: base 100, beta, comportamiento).
+    `ajustado=False`: solo por desdoblamientos (precio de mercado real: rangos de 12 meses, volumen y múltiplos
+    históricos; ajustar por dividendos rebajaría los precios pasados).
+    """
     import yfinance as yf
 
-    datos = yf.Ticker(ticker).history(period=f"{anios}y", auto_adjust=True)
+    datos = yf.Ticker(ticker).history(period=f"{anios}y", auto_adjust=ajustado)
     if datos.empty:
         raise ValueError(f"yfinance no devuelve cotizaciones de {ticker}")
     return datos
 
 
 def cotizacion(ticker: str) -> Cotizacion:
-    h = historico(ticker, 1)
+    h = historico(ticker, 1, ajustado=False)
     cierre = h["Close"]
     return Cotizacion(ticker.upper(), float(cierre.iloc[-1]), str(cierre.index[-1].date()), float(cierre.max()),
-                      float(cierre.min()), float(cierre.mean()), float((h["Close"] * h["Volume"]).mean()))
+                      float(cierre.min()), float(cierre.mean()), float((h["Close"] * h["Volume"]).mean()),
+                      float(h["Volume"].mean()))
+
+
+def precios_semanales(ticker: str, anios: int = 6) -> list:
+    """(fecha, cierre del viernes sin ajustar por dividendos) para los múltiplos históricos."""
+    cierre = historico(ticker, anios, ajustado=False)["Close"].resample("W-FRI").last().dropna()
+    return [(i.date(), float(v)) for i, v in cierre.items()]
 
 
 def rentabilidades(cierres) -> dict[str, float | None]:

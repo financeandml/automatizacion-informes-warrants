@@ -62,3 +62,43 @@ def uso_del_capital(estados, ejercicios: list[int], fundamentales: dict[int, dic
         "variacion_acciones": acciones[1] / acciones[0] - 1 if None not in acciones and acciones[0] else None,
         "capex_sobre_da": capex / da if capex is not None and da else None,
     }
+
+
+def autonomia_de_caja(f_ltm: dict, estados_ltm, clave: int, acciones_inicio: float | None, anios: int) -> dict | None:
+    """Autonomía de caja (R2), solo si la empresa consume caja: meses que cubre su liquidez al ritmo del LTM.
+
+    meses = (caja + inversiones financieras a corto) / −(flujo operativo − capex del LTM) · 12
+    dilución = variación anual compuesta de las acciones diluidas en `anios` años (financiación con acciones).
+    """
+    fcf = f_ltm.get("fcf")
+    if fcf is None or fcf >= 0:
+        return None
+    caja = estados_ltm.valor("caja", clave)
+    if caja is None:
+        return None
+    liquidez = caja + (estados_ltm.valor("inversiones_cp", clave) or 0.0)
+    acciones = estados_ltm.valor("acciones_diluidas", clave)
+    dilucion = None
+    if acciones_inicio and acciones and anios > 0:
+        dilucion = (acciones / acciones_inicio) ** (1 / anios) - 1
+    return {"liquidez": liquidez, "consumo_anual": -fcf, "meses": liquidez / -fcf * 12, "dilucion_anual": dilucion,
+            "anios_dilucion": anios}
+
+
+def contribucion_segmentos(miembros: dict[str, dict[int, float]], inicio: int, fin: int) -> dict | None:
+    """Puntos de crecimiento de las ventas que aporta cada segmento entre dos ejercicios validados.
+
+    contribución_i = (ventas_i,fin − ventas_i,inicio) / ventas_totales,inicio ; suman el crecimiento total.
+    Solo con segmentos presentes en ambos años (si cambió la clasificación, None: no se mezclan definiciones).
+    """
+    comunes = [n for n, s in miembros.items() if inicio in s and fin in s]
+    en_inicio = [n for n, s in miembros.items() if inicio in s]
+    en_fin = [n for n, s in miembros.items() if fin in s]
+    if not comunes or len(comunes) != len(en_inicio) or len(comunes) != len(en_fin):  # misma clasificación en ambos años
+        return None
+    total_inicio = sum(miembros[n][inicio] for n in comunes)
+    if not total_inicio:
+        return None
+    contribucion = {n: (miembros[n][fin] - miembros[n][inicio]) / total_inicio for n in comunes}
+    principal = max(contribucion, key=lambda n: abs(contribucion[n]))
+    return {"contribuciones": contribucion, "total": sum(contribucion.values()), "principal": principal}

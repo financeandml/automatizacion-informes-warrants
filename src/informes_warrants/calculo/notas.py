@@ -29,7 +29,7 @@ def notas_de_ratios(f: dict, estados, clave: int, multiplos: dict, recompras_per
         reducido = patrimonio / activos < PATRIMONIO_REDUCIDO
         causa = f"patrimonio reducido ({peso} del activo)" if reducido else f"patrimonio del {peso} del activo"
         notas.append(("ROE", f"ROE elevado frente al patrimonio contable ({causa}).{motivo}"))
-    if f.get("dfn") is not None and f["dfn"] < 0:
+    if f.get("dfn") is not None and f["dfn"] < 0 and f.get("dfn_ebitda") is not None:
         notas.append(
             ("Deuda neta / EBITDA", "Valor negativo: la empresa tiene caja neta (más caja e inversiones a corto que deuda).")
         )

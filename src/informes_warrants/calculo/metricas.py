@@ -15,7 +15,12 @@ normalizador (calculo/normalizador.py). Definiciones (corrigen las de edgar_anal
   Tipo efectivo = impuestos / BAI
   ROIC          = EBIT · (1 − tipo efectivo) / capital invertido
   ROCE          = EBIT / capital empleado
-  EV            = market cap + deuda CP + deuda LP + minoritarios − caja − inversiones CP
+  Ajustes EV    = preferentes + pensiones (pasivo neto) + patrimonio temporal + arrendamientos financieros
+                  (estos, solo si la deuda declarada no los incluye ya). Sin arrendamientos OPERATIVOS: en US
+                  GAAP su coste está dentro del EBITDA (sumarlos descuadraría el EV/EBITDA). Idea de FinRobot
+                  `multiples.calculate_ev` y `audit/ev_bridge` (Apache-2.0).
+  DFN ajustada  = DFN + ajustes EV (lo que se resta al EV para llegar al valor del patrimonio)
+  EV            = market cap + DFN ajustada + minoritarios
 
 Ningún valor se inventa: si falta un dato, la métrica es None y el informe muestra «n.d.».
 """
@@ -27,6 +32,13 @@ from .normalizador import EstadosNormalizados
 
 def _div(a, b):
     return None if a is None or b in (None, 0) else a / b
+
+
+def ratio_de_sumas(pares: list[tuple[float, float]]) -> float | None:
+    """Σ numerador / Σ denominador (None sin datos o si el denominador suma ≤ 0). Para supuestos sobre ventas: con
+    ventas pequeñas en algún año, la media de ratios se dispara (IOVA: intereses de la caja > 20 % de las ventas)."""
+    denominador = sum(d for _, d in pares)
+    return sum(n for n, _ in pares) / denominador if pares and denominador > 0 else None
 
 
 def _suma(*valores):
@@ -65,6 +77,8 @@ def fundamentales(e: EstadosNormalizados, ejercicio: int) -> dict[str, float | N
     cap_empleado = _suma(v("activos"), -v("pasivo_corriente") if v("pasivo_corriente") is not None else None)
 
     return {
+        "ajustes_ev": ajustes_ev(e, ejercicio),
+        "deuda_neta_ajustada": None if dfn is None else dfn + ajustes_ev(e, ejercicio),
         "ingresos": ingresos,
         "crecimiento_ingresos": _div(_suma(ingresos, -e.valor("ingresos", previo)) if e.valor("ingresos", previo) else None,
                                      e.valor("ingresos", previo)),
@@ -83,7 +97,7 @@ def fundamentales(e: EstadosNormalizados, ejercicio: int) -> dict[str, float | N
         "fcf_sobre_ebitda": _div(fcf, ebitda),
         "deuda_bruta": deuda,
         "dfn": dfn,
-        "dfn_ebitda": _div(dfn, ebitda),
+        "dfn_ebitda": _div(dfn, ebitda) if ebitda is not None and ebitda > 0 else None,  # con EBITDA ≤ 0 no significa nada
         "cobertura_intereses": _div(ebit, v("gasto_intereses")) if v("gasto_intereses") else None,
         "liquidez": _div(v("activo_corriente"), v("pasivo_corriente")),
         "tipo_efectivo": tipo,
@@ -98,12 +112,31 @@ def fundamentales(e: EstadosNormalizados, ejercicio: int) -> dict[str, float | N
     }
 
 
+def componentes_ev(e: EstadosNormalizados, ejercicio: int) -> dict[str, float]:
+    """Componentes del EV además de la DFN (los no declarados cuentan 0: el informe lista cuáles se declararon)."""
+    v0 = lambda p: e.valor(p, ejercicio) or 0.0  # noqa: E731
+    conceptos_deuda = " ".join(e.datos.get(p, {}).get(ejercicio).concepto for p in ("deuda_cp", "deuda_lp")
+                               if e.datos.get(p, {}).get(ejercicio))
+    incluye_arrendamientos = "Lease" in conceptos_deuda  # p. ej. LongTermDebtAndCapitalLeaseObligations
+    return {
+        "Acciones preferentes": v0("preferentes"),
+        "Pensiones (pasivo neto)": v0("pensiones"),
+        "Patrimonio temporal": v0("patrimonio_temporal"),
+        "Arrendamientos financieros": 0.0 if incluye_arrendamientos else v0("arrendamientos_financieros"),
+    }
+
+
+def ajustes_ev(e: EstadosNormalizados, ejercicio: int) -> float:
+    return sum(componentes_ev(e, ejercicio).values())
+
+
 def valoracion(e: EstadosNormalizados, ejercicio: int, m: Mercado) -> dict[str, float | None]:
     """Múltiplos con la cotización del informe sobre las cifras de un ejercicio."""
     f = fundamentales(e, ejercicio)
     v0 = lambda p: e.valor(p, ejercicio) or 0.0  # noqa: E731
     mc = m.capitalizacion
-    ev = mc + v0("deuda_cp") + v0("deuda_lp") + v0("minoritarios") - v0("caja") - v0("inversiones_cp")
+    ev = (mc + v0("deuda_cp") + v0("deuda_lp") + v0("minoritarios") - v0("caja") - v0("inversiones_cp")
+          + ajustes_ev(e, ejercicio))
     dividendos = e.valor("dividendos", ejercicio)
     return {
         "capitalizacion": mc,

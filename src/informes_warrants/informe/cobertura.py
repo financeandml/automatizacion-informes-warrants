@@ -54,3 +54,15 @@ def cobertura_de(ticker: str) -> Cobertura:
 
     empresa = Company(ticker)
     return clasificar(str(empresa.business_category), bool(empresa.is_foreign))
+
+
+SIC_BIOTECNOLOGIA = ((2833, 2836), (8731, 8731))  # farmacia, biotecnología e investigación biológica
+
+
+def es_biotecnologia(sic) -> bool:
+    """Sector con pipeline de producto (ensayos, aprobaciones): el informe pide al analista su tabla (R4)."""
+    try:
+        s = int(sic)
+    except (TypeError, ValueError):
+        return False
+    return any(a <= s <= b for a, b in SIC_BIOTECNOLOGIA)

@@ -72,4 +72,4 @@ El estado de cada fase está en una sola tabla: [plan.md, «Fases»](plan.md#fas
 | ~~F3~~ | ~~Fuentes externas~~ | ✅ Aceptadas **solo** para opciones y posiciones en corto, etiquetadas «no auditadas» (2026-10-12) |
 | ~~F4~~ | ~~Alcance del apartado 21~~ | ✅ Resultados de la empresa; reacción bursátil a 5 sesiones, sin comparar (2026-10-12) |
 | ~~F5~~ | ~~Autoría~~ | ✅ Cada persona introduce sus datos en el SaaS (configuración de la interfaz) (2026-10-12) |
-| F6 | Valoración de las propuestas R1-R18 de los informes de referencia ([propuestas-referencias.md](propuestas-referencias.md)) | Pendiente |
+| F6 | Valoración de las propuestas R1-R18 de los informes de referencia ([propuestas-referencias.md](propuestas-referencias.md)) | ✅ Valoradas (2026-10-12): R2-R4, R6-R14 y R16-R18 hechas; R1 y R5 aparcadas hasta terminar el SaaS; R15 en espera de los documentos ([hoja-de-ruta.md](hoja-de-ruta.md#tareas-pendientes-fuera-de-las-fases)) |

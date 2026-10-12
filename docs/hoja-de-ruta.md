@@ -14,10 +14,47 @@ Las ideas de los informes de referencia (R1-R18) están en [propuestas-referenci
 - ~~Normalizador con las empresas de prueba~~ (2026-10-12):
   - BAI declarado por componentes (ORCL).
   - Ajuste de acciones y BPA por desdoblamientos (NFLX 10:1 en 2025).
+- ~~Bloque R: propuestas aprobadas R2-R4, R6-R14, R16-R18~~ (2026-10-12): plan y reutilización en la tabla de abajo; tests en `tests/test_bloque_r.py` y `tests/test_red.py`.
+- ~~Errores de datos encontrados al integrar el bloque R~~ (2026-10-12), corregidos en el normalizador y con test:
+  - ORCL: deuda a largo plazo como `LongTermNotesAndLoans` y, en los 10-Q, `NotesPayableCurrent`. Antes faltaban unos 120.000 M USD de deuda y salía con caja neta.
+  - ORCL: el BAI de los 10-Q es resultado + impuesto; una suma incompleta ya no impide usar una derivada.
+  - IOVA declara las acciones medias en miles desde 2019: se detecta con beneficio neto / BPA del mismo filing (×1.000).
+  - XOM: el LTM usa las acciones básicas cuando no declara diluidas.
+  - KO y XOM: si la API companyfacts aún no tiene el último 10-Q, se usa el trimestre anterior y no el anual.
+  - Aviso nuevo de calidad: intereses / deuda > 20 % indica que falta deuda. Deuda neta / EBITDA = n.s. con EBITDA ≤ 0.
 - ~~Decisiones del usuario F2-F4~~:
   - Parámetros del fondo: los pone el analista.
   - Fuentes externas: solo para opciones y posiciones en corto.
   - Apartado 21: resultados de la empresa.
+
+## Bloque R: propuestas aprobadas (2026-10-12) · cerrado
+
+Orden de desarrollo y por qué: primero los datos que usan los demás, luego la valoración, después las proyecciones y por último las versiones. Cada paso queda integrado en el PDF, probado y documentado antes del siguiente.
+
+| Paso | Propuesta | Plan | Reutiliza |
+|---|---|---|---|
+| R13 | EV con ajustes | Partidas nuevas en el normalizador: preferentes, pensiones (pasivo neto), arrendamientos financieros (solo si la deuda declarada no los incluye) y patrimonio temporal. EV y valor del patrimonio del DCF y de los comparables con esos ajustes; tabla del puente del EV. Los arrendamientos operativos **no** entran: en US GAAP su coste ya está dentro del EBITDA | FinRobot `multiples.calculate_ev`, `audit/ev_bridge` |
+| R18 | Más datos de mercado | Valor contable por acción, capital flotante (dei, con fecha), volumen medio en acciones; cotización de 12 meses sin ajustar por dividendos | edgartools `public_float`, edgar_analytics `book_value_per_share` |
+| R2 | Autonomía de caja y dilución | (Caja + inversiones a corto) / consumo de caja de los últimos 12 meses, solo si el FCF es negativo; variación anual de las acciones | — (fórmula sobre datos ya calculados) |
+| R3 | Últimos 8 trimestres | Trimestres de ingresos, EBIT, beneficio y BPA (BN / acciones del trimestre) con variación interanual | edgartools `TTMCalculator.quarterize` |
+| R11 | Múltiplos históricos | Bandas de PER, EV/EBITDA y P/FCF de 5 años (mediana, P25, P75, P90, actual), con las acciones de cada ejercicio, el dato disponible solo desde la presentación del 10-K (sin sesgo de anticipación) y precios sin ajustar por dividendos; gráfico | FinRobot `primitives/historical_valuation` |
+| R14 | Segmentos y suma de partes | Desgloses de negocio, producto y geografía (5 años) validados (suman el total, sin subtotales); resultado operativo por segmento y costes no asignados; suma de partes con múltiplo por segmento (por defecto, mediana EV/EBIT de los comparables del analista; editable) | FinRobot `extract_segment_facts`, `sotp.compute_sotp_breakdown` |
+| R8 + R9 | Derivación del precio objetivo y rangos | Síntesis ponderada de los métodos disponibles (pesos editables y renormalizados); tabla método · valor · rango · supuesto · peso; gráfico de rangos (*football field*); rango pesimista-optimista en la portada y desencadenante editable por escenario (por defecto, sus supuestos) | FinRobot `valuation_synthesis`, `valuation_aggregator` |
+| R10 | Comparables con crecimiento | Crecimiento anual compuesto de ventas y BPA a 3 años de cada comparable con el normalizador | — (normalizador) |
+| R7 | Sistema de recomendación | Definiciones en el anexo B a partir de los umbrales del código | FinRobot `verdict_from_upside` (idea) |
+| R12 | Proyección del balance y del flujo de caja | Flujo operativo, capex, FCF tras SBC, dividendos, recompras y variación de caja; balance resumido (caja, activos operativos netos, deuda, patrimonio, DFN) que cuadra por construcción; dos gráficos con el estilo del informe y solo datos del propio informe | — (no existía) |
+| R16 | Estimaciones anterior / nueva | Resumen de cada informe (JSON); comparación con el anterior y atribución del cambio del precio objetivo a cada grupo de supuestos (re-valoración de uno en uno) | FinRobot `artifact/semantic_diff` |
+| R17 | Historial de recomendación | Desde las versiones emitidas: recomendación, precio objetivo y señal (acertada, en curso, fallida); gráfico | FinRobot `signal.compute_signal` |
+| R4 | Pipeline (biotecnología y farmacia) | Campo del analista que solo aparece en esos sectores | — |
+| R6 | Autoría | Campos que rellena cada usuario (nombre, correo, teléfono; empresa y contacto) guardados fuera del repositorio; en la portada si están rellenos | — |
+
+## Tareas pendientes fuera de las fases
+
+| # | Tarea | Cuándo |
+|---|---|---|
+| P1 | R1: hechos clave con etiqueta temática (A2) | Aparcada hasta terminar el SaaS |
+| P2 | R5: taxonomía de riesgos para la clasificación del apartado 20 (A7) | Aparcada hasta terminar el SaaS |
+| P3 | R15: valoración de empresas sin beneficios | En espera de los documentos del usuario (con B1) |
 
 ## Fase A: primer uso real (un analista, en su ordenador)
 
@@ -25,34 +62,34 @@ Objetivo: que el analista genere, complete, emita (PDF descargable) y versione i
 
 | # | Tarea | Decisiones del usuario y detalle | Estado |
 |---|---|---|---|
-| A1 | Segmentos y geografía | Los tres desgloses solo si suman el total; 5 años; LTM solo si la empresa lo publica. Plan de 6 pasos en [rigor-del-contenido.md](rigor-del-contenido.md#tarea-pendiente-segmentos-y-geografía-plan) | Lista para empezar |
+| ~~A1~~ | ~~Segmentos y geografía~~ | Hecho con R14: los tres desgloses de 5 años, solo los ejercicios que suman el total. Las empresas no publican desgloses LTM en el XBRL: no hay columna LTM | Cerrado |
 | A2 | Apartado 2: resumen ejecutivo | 4 hechos clave por reglas (propuesta R1: etiquetas temáticas) | Lista para empezar |
-| A3 | Apartado 3: qué hace la empresa | Segmentos (A1) y concentración de clientes | Tras A1 |
+| A3 | Apartado 3: qué hace la empresa | Segmentos hechos (A1); falta la concentración de clientes | Lista para empezar |
 | A4 | Apartado 6: catalizadores | Bloque de IA del MD&A conectado; en el informe, la propuesta automática; editable en la interfaz (A12). Calendario: vencimientos de deuda (verificado), junta anual y próximos resultados estimados **siempre posteriores a la fecha de emisión**; hechos relevantes del 8-K de 12 meses. Pipeline de biotecnológicas: propuesta R4 | Lista para empezar |
-| A5 | Apartado 14: competencia | Párrafo «Competition» del Item 1 y cuotas entre los comparables del analista, en español; ROIC − WACC y estabilidad del margen frente a la mediana; crecimiento de los comparables: propuesta R10 | Lista para empezar |
+| A5 | Apartado 14: competencia | Párrafo «Competition» del Item 1 y cuotas entre los comparables del analista, en español; ROIC − WACC y estabilidad del margen frente a la mediana. Hecho: crecimiento de los comparables (R10) | Lista para empezar |
 | A6 | Apartado 18: insiders y accionistas | Form 4 de 12 meses: solo compras y ventas en mercado, separadas de la retribución en acciones; accionistas > 5 % (proxy y 13D/G) | Lista para empezar |
-| A7 | Apartado 20: clasificación de riesgos | **No se ejecuta.** Taxonomía a decidir sobre la propuesta R5. Autonomía de caja y dilución: propuesta R2 | Pendiente de decisión |
-| A8 | Apartado 21: historial de resultados | Resultados de la empresa; alarmas SEC (8-K 4.01/4.02, 10-K/A, NT 10-K/10-Q, debilidad material, *going concern*); reacción bursátil a 5 sesiones tras cada 8-K 2.02, sin comparar con índices; tabla de 8 trimestres: propuesta R3 | Lista para empezar |
+| A7 | Apartado 20: clasificación de riesgos | **No se ejecuta** (P2). Hecho: autonomía de caja y dilución (R2) | Pendiente de decisión |
+| A8 | Apartado 21: historial de resultados | Resultados de la empresa; alarmas SEC (8-K 4.01/4.02, 10-K/A, NT 10-K/10-Q, debilidad material, *going concern*); reacción bursátil a 5 sesiones tras cada 8-K 2.02, sin comparar con índices; hecho: tabla de 8 trimestres (R3) | Lista para empezar |
 | A9 | Gráficos pendientes | Cascada EBITDA → FCF y perfil de vencimientos de deuda | Lista para empezar |
 | A10 | Emisores extranjeros en el PDF | `construir` solo busca 10-K: añadir 20-F/40-F (textos del 20-F y cifras en USD, ya resueltos en `ingesta/divisas.py`) | Lista para empezar |
 | A11 | Versiones conectadas al informe | Detectar 10-Q/10-K → construir → guardar contenido, *snapshot* de datos (JSON) y PDF por versión; herencia de lo que aportó el analista | Lista para empezar |
 | A12 | Interfaz Streamlit (un analista, en su ordenador) | Panel con estados; editor híbrido (cifras de solo lectura, textos en Markdown, estimaciones, escenarios, comparables y catalizadores editables); vista previa en tiempo real; avisos antes de emitir; botón «Confirmar emisión»; descarga del PDF | Tras A1-A11 |
-| A13 | Autoría | Nombre y contacto del analista y contacto de la empresa en la portada (propuesta R6). **Los introduce cada persona en el SaaS** (pantalla de configuración de la interfaz, A12), no van en el código | Con A12 |
+| A13 | Autoría | Hecho: campos, portada y `informes-warrants autoria` (R6), guardados fuera del repositorio. Falta la pantalla de configuración de la interfaz (A12) | Con A12 |
 | A14 | Batería de regresión | IOVA, ORCL, NFLX, AAPL y una muestra de sectores (MSFT, JNJ, XOM, TSLA, RIVN, KO) generadas en cada cambio, comparando cifras clave | Lista para empezar |
 
 ## Fase B: perfeccionar el contenido y la valoración
 
 | # | Tarea | Detalle | Estado |
 |---|---|---|---|
-| B1 | Motor de valoración | Con los documentos del usuario (aviso pendiente); reutilizar FinRobot (SOTP, DDM, ingreso residual, agregador). Candidatas: R8, R11, R12, R14, R15 | Esperando documentos |
+| B1 | Motor de valoración | Con los documentos del usuario (aviso pendiente). Ya hechos: derivación ponderada (R8), múltiplos históricos (R11), proyección de flujo y balance (R12) y suma de partes (R14). Faltan DDM, ingreso residual y R15 (P3) | Esperando documentos |
 | B2 | Plantillas sectoriales en PDF | Banca, seguros, REIT y BDC (las métricas ya se calculan en `calculo/sectoriales.py`) | Lista para empezar |
 | B3 | Apartados 4 y 5 | Estructura corporativa (filiales) y equipo directivo (cargos, antigüedad, rentabilidad para el accionista en su mandato, cambios del 8-K 5.02) | Lista para empezar |
 | B4 | Apartados 12 y 23-25 | Criterios, checklist, gestión del riesgo y seguimiento con los parámetros que fija el analista bajo su responsabilidad; pruebas históricas internas con vectorbt | Lista para empezar |
 | B5 | Apartados 15-17 y 19 | Opciones, volatilidad implícita y posiciones en corto con fuentes externas etiquetadas «no auditadas» (aprobado **solo** para esto); 13F por emisor desde la SEC | Lista para empezar |
 | B6 | Reorganizar el PDF según el índice A-I | Más adelante, por decisión del usuario (hoy se mantienen las secciones 01-06); con tabla de contenidos | Aplazado |
-| B7 | Cambios sobre lo «hecho» | DuPont; propuestas R9, R13, R18 si se aprueban | Al final |
+| B7 | Cambios sobre lo «hecho» | DuPont (R9, R13 y R18 ya hechos) | Al final |
 | ~~B8~~ | ~~Historial de nuestras recomendaciones en el apartado 21~~ | Descartado: el apartado 21 es de la empresa. El historial de recomendaciones como aviso legal es la propuesta R17 | Descartado |
-| B9 | Comparación entre versiones en la interfaz | Diferencias de textos, estimaciones y recomendación (la lógica ya existe); propuesta R16 | Tras A11 y A12 |
+| B9 | Comparación entre versiones en la interfaz | Diferencias de textos, estimaciones y recomendación. Hecho: resumen por informe, comparación y atribución del cambio de valor (R16, `--comparar-con`) | Tras A11 y A12 |
 
 ## Fase C: lanzamiento del SaaS
 
@@ -64,5 +101,5 @@ Objetivo: que el analista genere, complete, emita (PDF descargable) y versione i
 | C4 | Avisos automáticos | Nuevo 10-Q/10-K → versión detectada → aviso al analista |
 | C5 | Rendimiento | Caché de companyfacts y de comparables; generación en segundo plano |
 | C6 | Migración a edgartools 6 | Fijado en `<6`: la 6.0 cambia la API |
-| C7 | Legal y licencias | Aviso legal (sistema de recomendación: propuesta R7), atribuciones (MIT/Apache) y licencias de datos |
+| C7 | Legal y licencias | Revisión legal del aviso (el sistema de recomendación R7 ya está en el anexo B), atribuciones (MIT/Apache) y licencias de datos |
 | C8 | Observabilidad | Registro de errores, tiempos y uso del modelo de lenguaje |
