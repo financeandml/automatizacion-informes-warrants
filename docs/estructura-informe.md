@@ -38,11 +38,11 @@ La maquetación aprobada es la del [ejemplo](ejemplos/AAPL_FY2025_borrador.pdf).
 | 16. Posicionamiento institucional en derivados | Externo | *Sweeps*: datos de pago; *dark pool*: FINRA, con retraso |
 | 17. Volatilidad implícita | Externo | yfinance; el ranking de volatilidad necesita historial propio |
 | **F. Posicionamiento institucional y fondos** | | |
-| 18. Accionistas institucionales e insiders | Parcial | Form 4 verificado en AAPL (falta en el PDF); 13F por emisor: ejecutable (datos trimestrales de la SEC) |
+| 18. Accionistas institucionales e insiders | Parcial | Form 4 de 12 meses (compras y ventas en mercado, separadas de la retribución) y accionistas > 5 %, verificados en AAPL (faltan en el PDF); 13F por emisor: ejecutable (datos trimestrales de la SEC) |
 | 19. Posicionamiento en corto | Externo | FINRA / yfinance |
 | **G. Riesgos y *due diligence*** | | |
-| 20. Riesgos principales | Parcial (avanzado) | 5 principales con cita (IA), cambios frente al 10-K anterior y Altman, Beneish y Piotroski; falta la clasificación por tipo |
-| 21. Historial de resultados anteriores | Parcial | Alarmas SEC verificadas (8-K 4.01/4.02, 10-K/A), falta en el PDF; reacción bursátil tras resultados (idea: ai-hedge-fund `event_study`) |
+| 20. Riesgos principales | Parcial (avanzado) | 5 principales con cita (IA), cambios frente al 10-K anterior y Altman, Beneish y Piotroski; la clasificación por tipo se decidirá sobre la propuesta R5 |
+| 21. Historial de resultados anteriores | Parcial | Resultados de la empresa: alarmas SEC verificadas (8-K 4.01/4.02, 10-K/A), falta en el PDF; reacción bursátil a 5 sesiones tras cada publicación de resultados, sin comparar (idea: ai-hedge-fund `event_study`) |
 | **H. Tesis de inversión y gestión de la posición** | | |
 | 22. Tesis de inversión consolidada | Analista | Plantilla que ate cada asunción a una cifra del modelo |
 | 23. Checklist de entrada | Ejecutable | Umbrales del apartado 12 + casillas del analista |

@@ -70,7 +70,10 @@ PARTIDAS: tuple[Partida, ...] = (
         for bai in BAI for interes in ("InterestExpense", "InterestExpenseNonoperating", None))),
     Partida("gasto_intereses", "Gasto por intereses", ("InterestExpense", "InterestExpenseNonoperating", "InterestExpenseDebt"),
             opcional=True),
-    Partida("bai", "Beneficio antes de impuestos", BAI),
+    Partida("bai", "Beneficio antes de impuestos", BAI,
+            # ORCL solo declara los dos componentes: EEUU + extranjero (exige los dos; uno solo sería parcial)
+            suma=(("IncomeLossFromContinuingOperationsBeforeIncomeTaxesDomestic",),
+                  ("IncomeLossFromContinuingOperationsBeforeIncomeTaxesForeign",)), suma_completa=True),
     Partida("impuestos", "Impuesto sobre beneficios", ("IncomeTaxExpenseBenefit",)),
     Partida("beneficio_neto", "Beneficio neto atribuible", ("NetIncomeLoss", "NetIncomeLossAvailableToCommonStockholdersBasic",
                                                             "ProfitLoss")),
@@ -193,11 +196,49 @@ def _silencio():
             logging.disable(previo)
 
 
+AJUSTABLES_SPLIT = {"WeightedAverageNumberOfDilutedSharesOutstanding", "WeightedAverageNumberOfShareOutstandingBasicAndDiluted",
+                    "WeightedAverageNumberOfSharesOutstandingBasic", "EarningsPerShareDiluted", "EarningsPerShareBasicAndDiluted"}
+
+
+def desdoblamientos(facts) -> list[dict]:
+    """Desdoblamientos de acciones declarados (edgartools `ttm.splits.detect_splits`: fecha y ratio)."""
+    from edgar.ttm.splits import detect_splits
+
+    if not hasattr(facts, "get_all_facts"):  # fuentes de prueba sin el histórico completo
+        return []
+    with _silencio():
+        return detect_splits(facts.get_all_facts())
+
+
+def factor_split(hecho, splits: list[dict]) -> float:
+    """Ratio acumulado de los desdoblamientos posteriores al dato que no estaban en el filing que lo declaró
+    (misma regla que edgartools `apply_split_adjustments`). 1 = sin ajuste."""
+    factor = 1.0
+    for s in splits:
+        if s["date"] > hecho.period_end and (not hecho.filing_date or hecho.filing_date <= s["date"]):
+            factor *= s["ratio"]
+    return factor
+
+
+def _ajustar_split(concepto: str, hecho, splits: list[dict]) -> tuple[float, str]:
+    """(valor ajustado, nota para la trazabilidad): acciones × ratio, BPA ÷ ratio."""
+    factor = factor_split(hecho, splits) if concepto in AJUSTABLES_SPLIT else 1.0
+    if factor == 1.0:
+        return float(hecho.numeric_value), ""
+    valor = hecho.numeric_value / factor if concepto.startswith("EarningsPerShare") else hecho.numeric_value * factor
+    return float(valor), f" (ajustado por desdoblamiento {factor:g}:1)"
+
+
 class FuenteEntityFacts:
-    """Histórico completo de la empresa (companyfacts de la SEC vía edgartools `Company.get_facts()`)."""
+    """Histórico completo de la empresa (companyfacts de la SEC vía edgartools `Company.get_facts()`).
+
+    Las acciones y el BPA se ajustan por los desdoblamientos posteriores (p. ej. NFLX 10:1 en noviembre
+    de 2025): sin el ajuste, la serie mezclaría cifras antes y después del desdoblamiento.
+    """
 
     def __init__(self, facts):
         self._facts, self._cache = facts, {}
+        self._splits = desdoblamientos(facts)
 
     def fact(self, concepto: str, ejercicio: int | None):
         """FinancialFact anual de edgartools (con fiscal_year y accession); None = el último ejercicio."""
@@ -209,10 +250,16 @@ class FuenteEntityFacts:
 
     def hecho(self, concepto: str, ejercicio: int) -> float | None:
         h = self.fact(concepto, ejercicio)
-        return None if h is None or getattr(h, "numeric_value", None) is None else float(h.numeric_value)
+        if h is None or getattr(h, "numeric_value", None) is None:
+            return None
+        return _ajustar_split(concepto, h, self._splits)[0]
 
     def origen(self, concepto: str, ejercicio: int) -> str:
-        return str(getattr(self.fact(concepto, ejercicio), "accession", "") or "")
+        h = self.fact(concepto, ejercicio)
+        if h is None:
+            return ""
+        nota = _ajustar_split(concepto, h, self._splits)[1] if getattr(h, "numeric_value", None) is not None else ""
+        return str(getattr(h, "accession", "") or "") + nota
 
 
 LTM, LTM_PREVIO = 1, 0  # claves de los últimos doce meses y de los doce anteriores en EstadosNormalizados
@@ -234,8 +281,14 @@ class FuenteLTM:
     """
 
     def __init__(self, facts, fecha: date):
+        from edgar.ttm.splits import apply_split_adjustments
+
         self._por_concepto = defaultdict(list)
-        for h in facts.get_all_facts():
+        splits = desdoblamientos(facts)
+        todos = facts.get_all_facts()
+        if splits:  # acciones y BPA comparables a lo largo del tiempo (edgartools `apply_split_adjustments`)
+            todos = apply_split_adjustments(todos, splits)
+        for h in todos:
             if h.numeric_value is not None and h.period_end is not None:
                 self._por_concepto[h.concept.split(":")[-1]].append(h)
         self.fechas = {LTM: fecha, LTM_PREVIO: fecha - timedelta(days=364)}

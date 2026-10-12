@@ -140,3 +140,26 @@ def test_cambios_en_los_riesgos_aapl_2025_frente_a_2024():
     assert (len(r["nuevos"]), len(r["eliminados"]), len(r["modificados"]), r["sin_cambios"]) == (1, 2, 5, 21)
     pares = {m["titulo"][:20]: m["anterior"][:20] for m in r["modificados"]}
     assert pares["Varied stakeholder e"] == "Expectations relatin"
+
+
+def test_nflx_serie_de_acciones_coherente_tras_el_desdoblamiento():
+    from edgar import Company
+
+    from informes_warrants.calculo.normalizador import FuenteEntityFacts, normalizar
+
+    e = normalizar(FuenteEntityFacts(Company("NFLX").get_facts()), [2024, 2025], "NFLX")
+    a24, a25 = e.valor("acciones_diluidas", 2024), e.valor("acciones_diluidas", 2025)
+    assert 0.9 < a25 / a24 < 1.1  # sin ajuste serían 10x
+    assert e.valor("bpa_diluido", 2024) == pytest.approx(e.valor("beneficio_neto", 2024) / a24, rel=0.01)
+    assert "desdoblamiento 10:1" in e.datos["acciones_diluidas"][2024].origen
+
+
+def test_orcl_bai_por_componentes():
+    from edgar import Company
+
+    from informes_warrants.calculo.normalizador import FuenteEntityFacts, normalizar
+
+    e = normalizar(FuenteEntityFacts(Company("ORCL").get_facts()), [2025], "ORCL")
+    assert 2025 not in e.faltan
+    assert e.datos["bai"][2025].concepto == ("IncomeLossFromContinuingOperationsBeforeIncomeTaxesDomestic + "
+                                              "IncomeLossFromContinuingOperationsBeforeIncomeTaxesForeign")

@@ -5,6 +5,7 @@ Por dónde empezar según lo que necesites. Las reglas del proyecto y el mapa de
 | Documento | Para qué sirve |
 |---|---|
 | [plan.md](plan.md) | Arquitectura en capas, qué hace cada módulo, fases y decisiones tomadas. **Empieza aquí.** |
+| [propuestas-referencias.md](propuestas-referencias.md) | Ideas de contenido de informes de referencia, pendientes de valoración del usuario |
 | [hoja-de-ruta.md](hoja-de-ruta.md) | Todo lo que falta, en 3 fases: primer uso real, perfeccionar el contenido y lanzamiento |
 | [estructura-informe.md](estructura-informe.md) | Índice del informe (apartados A-I) y estado de cada apartado |
 | [editor-y-versiones.md](editor-y-versiones.md) | Quién produce cada bloque, qué puede tocar el analista (estimaciones, escenarios, comparables) y versiones |

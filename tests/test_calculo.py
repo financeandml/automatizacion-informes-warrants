@@ -312,3 +312,21 @@ def test_metodologia_cubre_las_metricas_del_informe():
     for clave in ("LTM", "EBITDA", "FCF tras SBC", "DFN", "ROE", "ROIC", "ROCE", "EV", "DCF", "WACC", "Escenarios", "DCF inverso",
                   "Comparables", "Precio objetivo", "Altman Z", "Beneish M", "Piotroski F", "factores de riesgo"):
         assert clave in terminos, clave
+
+
+def test_ajuste_por_desdoblamiento():
+    """Regla de edgartools: solo se ajustan los datos presentados antes del desdoblamiento (NFLX 10:1, nov. 2025)."""
+    from datetime import date
+    from types import SimpleNamespace
+
+    from informes_warrants.calculo.normalizador import _ajustar_split, factor_split
+
+    splits = [{"date": date(2015, 6, 23), "ratio": 7.0}, {"date": date(2025, 11, 14), "ratio": 10.0}]
+    fy2024 = SimpleNamespace(numeric_value=439_261_000.0, period_end=date(2024, 12, 31), filing_date=date(2025, 1, 27))
+    fy2025 = SimpleNamespace(numeric_value=4_343_863_000.0, period_end=date(2025, 12, 31), filing_date=date(2026, 1, 26))
+    reexpresado = SimpleNamespace(numeric_value=4_392_610_000.0, period_end=date(2024, 12, 31), filing_date=date(2026, 1, 26))
+    assert (factor_split(fy2024, splits), factor_split(fy2025, splits), factor_split(reexpresado, splits)) == (10.0, 1.0, 1.0)
+    assert _ajustar_split("WeightedAverageNumberOfDilutedSharesOutstanding", fy2024, splits)[0] == 4_392_610_000.0
+    bpa = SimpleNamespace(numeric_value=19.83, period_end=date(2024, 12, 31), filing_date=date(2025, 1, 27))
+    assert _ajustar_split("EarningsPerShareDiluted", bpa, splits)[0] == pytest.approx(1.983)
+    assert _ajustar_split("NetIncomeLoss", fy2024, splits)[1] == ""  # las cifras en USD no se tocan
