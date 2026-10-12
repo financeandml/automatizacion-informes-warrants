@@ -86,11 +86,19 @@ def test_pdf_del_informe(contexto, tmp_path):
     assert destino.read_bytes().startswith(b"%PDF") and destino.with_suffix(".html").exists()
 
 
-def test_comparables_automaticos_no_entran_en_el_precio(contexto):
-    """Sin lista del analista, el precio objetivo es solo el DCF y el informe lo avisa."""
+def test_comparables_automaticos_avisan_sin_bloquear(contexto):
+    """Sin lista del analista: precio solo por DCF y un aviso interno antes de emitir, que no bloquea la emisión."""
+    from informes_warrants.almacenamiento.versiones import Version
     from informes_warrants.informe import render
+    from informes_warrants.informe.construir import AVISO_COMPARABLES
 
     assert not contexto["comparables_del_analista"] and contexto["valor_multiplos"] is None
     assert contexto["precio_objetivo"] == pytest.approx(contexto["valor_dcf"])
-    assert any("lista de comparables" in p for p in contexto["pendientes"])
-    assert "El analista debe introducir su lista de comparables" in render.html(contexto)
+    assert contexto["avisos_emision"] == [AVISO_COMPARABLES]
+    assert not any("lista de comparables" in p for p in contexto["pendientes"])  # no es un apartado pendiente
+    v = Version("AAPL", 2023, "FY", 1, "x", "2023-11-03", contenido={"textos": {}, "avisos_emision": contexto["avisos_emision"]})
+    assert v.avisos() == [AVISO_COMPARABLES] and v.confirmar().emitir().estado == "emitida"
+    html = render.html(contexto)
+    assert "El analista debe introducir su lista de comparables" in html  # la sección de comparables se mantiene
+    for interno in ("informes-warrants", "--comparables", "pendiente*", AVISO_COMPARABLES):  # nada interno en el informe
+        assert interno not in html, interno

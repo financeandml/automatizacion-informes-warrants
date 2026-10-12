@@ -19,14 +19,14 @@ Las copias locales viven en `repositorios-github/` (zips, ignorados por git). Pa
 | financial-ai-agent | (URL original desconocida) | **Sin licencia** | Agente LangGraph + Streamlit de análisis |
 | FinRobot | github.com/AI4Finance-Foundation/FinRobot | Apache-2.0 | Motor de valoración determinista (DCF inverso, comparables, SOTP, DDM, LBO) y generador de informes ([ficha](inventario/finrobot.md)) |
 | ai-hedge-fund | github.com/virattt/ai-hedge-fund | MIT | Fondo simulado con agentes; estudio de eventos ([ficha](inventario/otros-backtesting.md)) |
-| vectorbt | github.com/polakowo/vectorbt | Apache-2.0 **+ Commons Clause** | *Backtesting* vectorizado; no usable en un SaaS ([ficha](inventario/otros-backtesting.md)) |
+| vectorbt | github.com/polakowo/vectorbt | Apache-2.0 **+ Commons Clause** | *Backtesting* vectorizado; **solo uso interno hasta el lanzamiento** ([ficha](inventario/otros-backtesting.md)) |
 | Lean | github.com/QuantConnect/Lean | Apache-2.0 | Motor de *trading* algorítmico en C# ([ficha](inventario/otros-backtesting.md)) |
 
 **Restricciones legales:**
 - **AGPL-3.0 (sec-edgar-toolkit):** si se incorpora su código a un SaaS, hay que publicar el código fuente del servicio. Úsalo como referencia, no lo copies.
 - **Sin licencia (automated-market-report, financial-ai-agent):** todos los derechos están reservados. Solo se pueden tomar ideas, no código.
 - **MIT / Apache-2.0:** se puede reutilizar conservando el aviso de copyright.
-- **Commons Clause (vectorbt):** prohíbe vender el software o un servicio basado en él: no se usa.
+- **Commons Clause (vectorbt):** prohíbe vender el software o un servicio basado en él. Se permite usarlo internamente mientras el SaaS no se comercialice (decisión del usuario, 2026-10-12); antes del lanzamiento hay que sustituirlo y retirar cualquier código derivado.
 
 ## Detalle por repo
 

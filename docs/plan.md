@@ -137,7 +137,7 @@ La lógica (capas 1-4) no depende de la UI, así que la interfaz se puede cambia
 | Uso de la IA | Mínimo: 2 bloques, solo elige y resume fragmentos literales | Usuario |
 | Editor | Markdown, vista previa en tiempo real, emisión con confirmación del analista | Usuario |
 | Recomendación | Sí: el SaaS la propone por potencial y el analista la confirma; se muestra siempre el precio objetivo calculado y el analista puede fijar el suyo | Usuario |
-| Comparables | La propuesta automática por SIC es orientativa y no entra en el precio objetivo; la valoración por múltiplos exige la lista del analista (marcador pendiente hasta entonces). Motor de valoración completo: con los modelos que aportará el usuario | Usuario (2026-10-12) |
+| Comparables | La propuesta automática por SIC es orientativa y no entra en el precio objetivo; la valoración por múltiplos exige la lista del analista; sin ella, aviso antes de emitir (no bloquea ni sale en el informe). Motor de valoración completo: con los modelos que aportará el usuario | Usuario (2026-10-12) |
 | Contenido | Enfoque determinista. Primero los apartados «parciales» del índice; lo «hecho» se mantiene y sus cambios van al final; lo «ejecutable», lo «externo» y lo del analista se aparcan | Usuario (2026-10-12) |
 | Versiones | Detección automática + confirmación; año fiscal; SQLite fuera de OneDrive | Usuario |
 | Alcance | Todas las empresas de EEUU: plantilla general + perfiles sectoriales validados (banca, seguros, REIT, BDC/fondos cerrados) y emisores extranjeros en USD; el resto, «plantilla pendiente de validar» | Usuario + [editor-y-versiones.md](editor-y-versiones.md#alcance) |

@@ -40,6 +40,7 @@ from .secciones import BLOQUES, Tipo
 log = logging.getLogger(__name__)
 ANIOS = 5
 PARTIDAS_CONTRASTE = ("ingresos", "resultado_operativo", "beneficio_neto", "activos", "patrimonio", "flujo_operativo")
+AVISO_COMPARABLES = "Comparables automáticos: introduce tu lista para incluir los múltiplos en el precio objetivo."
 MESES = ("ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic")
 
 
@@ -193,6 +194,8 @@ def componer(*, ticker: str, empresa: str, sic, cobertura, filing: dict, estados
     dfn, deuda = f_ltm["dfn"] or 0.0, f_ltm["deuda_bruta"]
     minoritarios = ltm.valor("minoritarios", LTM) or 0.0
     avisos_valoracion = []
+    # Avisos antes de emitir: el SaaS los muestra al analista, no bloquean la emisión y no salen en el informe.
+    avisos_emision = [] if comparables_del_analista else [AVISO_COMPARABLES]
     try:
         r_esc = valorar_escenarios(esc, f_ltm["ingresos"], dfn, deuda, minoritarios, acciones, mercado.capitalizacion)
         valor = r_esc.resultados["Base"]
@@ -256,7 +259,6 @@ def componer(*, ticker: str, empresa: str, sic, cobertura, filing: dict, estados
         "margen_bruto": f["margen_bruto"], "margen_operativo": f["margen_operativo"], "roic": f["roic"], "roe": f["roe"],
         "fcf": (f["fcf"] or 0) / 1e6, "conversion_fcf": f["conversion_fcf"],
         "precio_objetivo_dcf": valor_dcf, "precio_objetivo_multiplos": valor_multiplos,
-        "comparables_pendientes": not comparables_del_analista,
         "wacc": valor.wacc if valor else None, "g": base.g,
         "auditor": (gobierno.auditor if gobierno and gobierno.auditor else "[[ANALISTA: auditor (Item 9 / proxy)]]"),
         "gobierno": gobierno, "puente": puente, "apalancamiento": apalancamiento, "uso": uso, "fecha_ltm": fecha_ltm,
@@ -279,7 +281,8 @@ def componer(*, ticker: str, empresa: str, sic, cobertura, filing: dict, estados
         "valor_dcf": valor_dcf, "valor_multiplos": valor_multiplos, "valor_multiplos_orientativo": valor_multiplos_orientativo,
         "precio_modelo": precio_modelo,
         "precio_objetivo": precio_objetivo, "potencial": potencial, "potencial_dcf": potencial_dcf, "recomendacion": propuesta,
-        "avisos_valoracion": avisos_valoracion, "puente": puente, "apalancamiento": apalancamiento, "uso": uso, "notas": notas,
+        "avisos_valoracion": avisos_valoracion, "avisos_emision": avisos_emision,
+        "puente": puente, "apalancamiento": apalancamiento, "uso": uso, "notas": notas,
         "puntuaciones": puntuaciones, "gobierno": gobierno, "riesgos_cambios": riesgos_cambios,
         "riesgos": riesgos, "riesgos_lista": riesgos_lista, "textos": textos,
         "pendientes": [p for t in textos.values() for p in pendientes(t)], "fecha": fecha or date.today().isoformat(),

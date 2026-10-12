@@ -44,10 +44,8 @@ def _informe(args) -> None:
               f" (DCF por escenarios {c['valor_dcf'] or 0:,.2f} · múltiplos "
               + (f"{c['valor_multiplos']:,.2f}" if c["valor_multiplos"] is not None else "n.d.") + ")")
     print(f"Comparables: {', '.join(x['ticker'] for x in c['comparables']) or 'ninguno'} ({c['comparables_criterio']})")
-    if not c["comparables_del_analista"]:
-        print("IMPORTANTE: la lista de comparables es una propuesta automática y no entra en el precio objetivo. "
-              "Introduce la tuya para completar la valoración: informes-warrants informe "
-              f"{c['ticker']} --comparables A,B,C")
+    for aviso in c["avisos_emision"]:  # internos del SaaS: no salen en el informe
+        print(f"Aviso antes de emitir: {aviso} (informes-warrants informe {c['ticker']} --comparables A,B,C)")
     print(f"Apartados pendientes del analista: {len(c['pendientes'])}")
 
 

@@ -61,6 +61,10 @@ class Version:
         """Marcadores [[ANALISTA: …]] sin completar en los textos."""
         return [p for texto in self.contenido.get("textos", {}).values() for p in pendientes(texto)]
 
+    def avisos(self) -> list[str]:
+        """Avisos que el SaaS muestra antes de emitir (p. ej. comparables automáticos): no bloquean la emisión."""
+        return list(self.contenido.get("avisos_emision", []))
+
     def confirmar(self) -> "Version":
         self._exigir(Estado.DETECTADA, "confirmar")
         return replace(self, estado=Estado.BORRADOR)

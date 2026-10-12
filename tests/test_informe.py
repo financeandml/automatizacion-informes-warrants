@@ -27,7 +27,7 @@ DATOS = {
                                    "capex_sobre_da": 0.9, "fcf": 490000e6},
     "fecha_ltm": "2026-06-27", "crecimiento_ltm": 0.142, "margen_operativo_ltm": 0.33, "margen_operativo_ini": 0.30,
     "escenarios": {"Pesimista": 200.0, "Base": 240.0, "Optimista": 290.0}, "crecimiento_implicito": None, "wacc_implicito": None,
-    "crecimiento_base": 0.04, "comparables_pendientes": False,  # caso base: lista del analista ya introducida
+    "crecimiento_base": 0.04,
 }
 
 
@@ -162,10 +162,3 @@ def test_comparar_riesgos_nuevos_eliminados_y_modificados():
     assert [x["titulo"][:13] for x in r["nuevos"]] == ["Climate chang"]
     assert r["eliminados"] == [anterior[1]] and r["sin_cambios"] == 1
     assert r["modificados"][0]["anterior"] == anterior[0]  # ampliado, no nuevo
-
-
-def test_sin_lista_del_analista_la_valoracion_queda_pendiente():
-    """La propuesta automática de comparables no entra en el precio: el bloque lo marca y bloquea la emisión."""
-    texto = rellenar("valoracion.comentario", {**DATOS, "comparables_pendientes": True})
-    assert any("lista de comparables" in p for p in pendientes(texto))
-    assert not pendientes(rellenar("valoracion.comentario", DATOS))

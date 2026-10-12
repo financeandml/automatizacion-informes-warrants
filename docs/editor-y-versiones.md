@@ -48,7 +48,7 @@ Son los supuestos que mueven la proyección, el BPA estimado y el DCF ([estimaci
 
 **Escenarios** (`Escenarios`): pesimista, base y optimista. Cada uno es un juego completo de estimaciones editable. Por defecto, el pesimista y el optimista son la base ∓ 1 desviación típica histórica del crecimiento (2-5 pp) y del margen (1-3 pp), con probabilidades 25/50/25. El valor DCF es la media ponderada.
 
-**Comparables:** el SaaS propone una lista por SIC y tamaño, marcada «Revisar», **solo orientativa**: no entra en el precio objetivo y deja un marcador pendiente que bloquea la emisión. El analista debe introducir su lista (`construir(..., comparables=[...])`, o `--comparables` en la CLI) para que la valoración por múltiplos se genere y pondere con el DCF.
+**Comparables:** el SaaS propone una lista por SIC y tamaño, marcada «Revisar», **solo orientativa**: no entra en el precio objetivo (que queda por DCF) y genera un **aviso antes de emitir**, que no bloquea la emisión ni aparece en el informe (`Version.avisos()`). El analista introduce su lista (`construir(..., comparables=[...])`, o `--comparables` en la CLI) para que la valoración por múltiplos entre en el precio objetivo.
 
 Los valores se validan: rangos razonables, g inferior al coste del capital y probabilidades que suman 100 %.
 

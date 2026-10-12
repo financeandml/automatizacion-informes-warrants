@@ -73,7 +73,7 @@ ollama pull llama3.2:3b
 Flujo del analista:
 1. Genera el borrador: `informes-warrants informe AAPL`.
 2. Revisa los recuadros «PENDIENTE DEL ANALISTA» y el aviso «REVISAR».
-3. **Introduce tu lista de comparables:** sin ella, la valoración por múltiplos no entra en el precio objetivo, que queda solo por DCF:
+3. **Introduce tu lista de comparables:** sin ella, la valoración por múltiplos no entra en el precio objetivo, que queda solo por DCF (el SaaS lo avisa antes de emitir, sin bloquear):
    `informes-warrants informe AAPL --comparables MSFT,GOOGL,DELL`.
 
 ```bash

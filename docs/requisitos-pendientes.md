@@ -55,7 +55,7 @@ El estado de cada fase está en una sola tabla: [plan.md, «Fases»](plan.md#fas
 | E2 | Proveedor de LLM | ✅ Integrado: `gpt-oss-120b` en Groq (activo) + Ollama local. Groq retiró llama4; para usarlo, `OPENROUTER_API_KEY` (opcional, de pago, [ia.md](ia.md)) |
 | E3 | GTK para WeasyPrint | ✅ Instalado (MSYS2 + pango) y probado |
 | E4 | Alcance del universo | ✅ Plantilla general + 4 perfiles sectoriales validados con 12 empresas + extranjeros en USD; SPAC/ETF/fondos abiertos, «plantilla pendiente de validar» |
-| E5 | Comparables | ✅ Propuesta automática por SIC, **solo orientativa**: la valoración por múltiplos entra en el precio objetivo únicamente con la lista del analista (`--comparables`) |
+| E5 | Comparables | ✅ Propuesta automática por SIC, **solo orientativa**: sin la lista del analista, aviso antes de emitir (no bloquea); la valoración por múltiplos entra en el precio objetivo únicamente con esa lista (`--comparables`) |
 | E6 | Índices de referencia | ✅ S&P 500 + ETF sectorial SPDR asignado por SIC (`ingesta/mercado.SIC_A_ETF`) |
 | E7 | `git push` | ✅ Autorizado; el repo es público |
 | E8 | Clave de Alpha Vantage (opcional) | Opcional, como respaldo de yfinance |

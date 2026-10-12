@@ -27,7 +27,7 @@ La maquetación aprobada es la del [ejemplo](ejemplos/AAPL_FY2025_borrador.pdf).
 | 7. Estado de resultados | Hecho | 5 FY + LTM; proyección hasta el BPA (`calculo/proyeccion.py`) |
 | 8. Balance de situación | Hecho | 5 FY + LTM; DFN |
 | 9. Flujo de caja | Hecho | FCF y FCF tras remuneración en acciones; dividendos y recompras |
-| 10. Métricas de valoración | Parcial (avanzado) | Múltiplos LTM, DCF por escenarios, DCF inverso y comparables. Pendiente: **lista de comparables del analista** (obligatoria), PEG y el **motor de valoración** con los modelos que aportará el usuario. El consenso es externo |
+| 10. Métricas de valoración | Parcial (avanzado) | Múltiplos LTM, DCF por escenarios, DCF inverso y comparables. Sin la lista del analista, precio solo por DCF y aviso antes de emitir (no bloquea). Pendiente: PEG y el **motor de valoración** con los modelos que aportará el usuario. El consenso es externo |
 | 11. Rentabilidad y eficiencia | Hecho | ROE, ROIC, ROA, ROCE, márgenes y notas de contexto |
 | 12. Criterios de valoración personales | Ejecutable | Necesita los umbrales del fondo |
 | **D. Mercado objetivo y posicionamiento competitivo** | | |
