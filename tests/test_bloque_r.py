@@ -631,3 +631,27 @@ def test_mercado_de_opciones_a_mano():
     assert [f["strike"] for f in m["inusual"]] == [110.0]  # 1.200 contratos > 2 × 300 abiertos
     assert volatilidad_realizada([100 * (1.01 ** i) for i in range(30)]) == pytest.approx(0.0, abs=1e-9)  # sin dispersión
     assert lectura_cortos(0.12) == "elevado" and lectura_cortos(0.02) == "bajo" and lectura_cortos(None) is None
+
+
+def test_stop_tamano_var_a_mano():
+    from informes_warrants.calculo.posicion import dias_para_construir, stop_volatilidad, tamano_posicion, var_historico
+
+    s = stop_volatilidad(100.0, 0.02, 2.0, 25)  # 2 × 2 % × √25 = 20 % de pérdida
+    assert s["perdida"] == pytest.approx(0.20) and s["stop"] == pytest.approx(80.0)
+    assert stop_volatilidad(100.0, 0.02, 2.0, 25, perdida_maxima=0.10)["stop"] == pytest.approx(90.0)  # acotado
+    t = tamano_posicion(1_000_000, 0.01, 100.0, 90.0)  # arriesgar 10.000 USD con 10 USD por acción = 1.000 acciones
+    assert t["acciones"] == pytest.approx(1000) and t["peso"] == pytest.approx(0.10)
+    assert tamano_posicion(1_000_000, 0.01, 100.0, 90.0, peso_maximo=0.05)["acciones"] == pytest.approx(500)
+    assert dias_para_construir(1000, 10_000, 0.05) == pytest.approx(2.0)
+    rend = [i / 1000 - 0.05 for i in range(101)]  # −5 % … +5 %
+    var, cvar = var_historico(rend)
+    assert var == pytest.approx(-0.045) and cvar < var
+
+
+def test_prueba_historica_del_stop():
+    from informes_warrants.calculo.posicion import frecuencia_stop
+
+    serie = [100.0] * 30 + [85.0] + [100.0] * 30  # una caída del 15 % en una sesión
+    f = frecuencia_stop(serie, 0.10, 5)
+    assert f == pytest.approx(5 / 56)  # solo las 5 ventanas que contienen la caída (de 56)
+    assert frecuencia_stop(serie, 0.20, 5) == 0.0 and frecuencia_stop([100.0] * 10, 0.1, 5) is None

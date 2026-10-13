@@ -29,7 +29,7 @@ La maquetación aprobada es la del [ejemplo](ejemplos/AAPL_FY2025_borrador.pdf).
 | 9. Flujo de caja | Hecho | FCF y FCF tras remuneración en acciones; dividendos y recompras; flujo de caja proyectado y dos gráficos |
 | 10. Métricas de valoración | Parcial (avanzado) | Múltiplos LTM, DCF por escenarios con desencadenantes, DCF inverso, comparables (con crecimiento a 3 años), múltiplos frente a su historia, suma de partes, puente del EV con ajustes y derivación ponderada del precio objetivo con gráfico de rangos. Sin la lista del analista, comparables fuera del precio y aviso antes de emitir (no bloquea). Pendiente: PEG y el **motor de valoración** con los modelos del usuario. El consenso es externo |
 | 11. Rentabilidad y eficiencia | Hecho | ROE, ROIC, ROA, ROCE, márgenes y notas de contexto |
-| 12. Criterios de valoración personales | Ejecutable | Necesita los umbrales del fondo |
+| 12. Criterios de valoración personales | Hecho | Umbrales del fondo (los fija el analista) evaluados frente al informe |
 | **D. Mercado objetivo y posicionamiento competitivo** | | |
 | 13. Tamaño de mercado (TAM/SAM/SOM) | Analista | Sin fuente pública rigurosa |
 | 14. Análisis competitivo | Hecho | Apartado «Competition» del Item 1 traducido (IA verificada), cuotas de ingresos, ROIC − WACC y estabilidad del margen frente a los comparables del analista, tabla de comparables; la valoración de la ventaja competitiva es del analista |
@@ -45,9 +45,9 @@ La maquetación aprobada es la del [ejemplo](ejemplos/AAPL_FY2025_borrador.pdf).
 | 21. Historial de resultados anteriores | Hecho | Publicaciones de resultados (8-K 2.02) con su trimestre y la reacción a 5 sesiones, sin comparar; alarmas de la SEC de 5 años |
 | **H. Tesis de inversión y gestión de la posición** | | |
 | 22. Tesis de inversión consolidada | Analista | Plantilla que ate cada asunción a una cifra del modelo |
-| 23. Checklist de entrada | Ejecutable | Umbrales del apartado 12 + casillas del analista |
-| 24. Gestión del riesgo | Ejecutable | Stop por volatilidad, tamaño por presupuesto de riesgo, liquidez (parámetros del fondo) |
-| 25. Seguimiento post-entrada | Ejecutable | Indicadores, fechas de revisión y criterios de salida, enlazados con las versiones |
+| 23. Checklist de entrada | Hecho | Criterios cuantitativos automáticos + criterios cualitativos del analista (con borrador de la IA) |
+| 24. Gestión del riesgo | Hecho | Stop por volatilidad, tamaño por presupuesto de riesgo, VaR/CVaR, días de liquidez y prueba histórica del stop |
+| 25. Seguimiento post-entrada | Hecho | Fechas de revisión del calendario, precio objetivo, stop, versiones por 10-Q/10-K y criterios de salida del analista |
 | **I. Apéndices** | | |
 | 26. Fuentes y referencias | Parcial (avanzado) | Anexo A (trazabilidad de cada partida) y anexo B (metodología, sistema de recomendación, historial de recomendaciones y documentos usados) |
 

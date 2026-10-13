@@ -50,6 +50,10 @@ BLOQUES: tuple[Bloque, ...] = (
            "Plantilla con las estimaciones; el analista explica el porqué", "perspectivas.md.j2"),
     Bloque("conclusiones.fortalezas_riesgos", "2", "C) Fortalezas y riesgos clave", Tipo.ANALISTA,
            "Los riesgos vienen del bloque de IA; las fortalezas, del analista", "fortalezas_riesgos.md.j2"),
+    Bloque("conclusiones.checklist", "2", "Checklist de entrada: criterios cualitativos", Tipo.ANALISTA,
+           "Los criterios cuantitativos los evalúa el SaaS con los parámetros del fondo (B4)", "checklist.md.j2"),
+    Bloque("conclusiones.seguimiento", "2", "Seguimiento: criterios de salida", Tipo.ANALISTA,
+           "Fechas de revisión, precio objetivo y stop del SaaS; la salida por tesis, del analista (B4)", "seguimiento.md.j2"),
     # §3
     Bloque("graficos_clave", "3", "La compañía en 8 gráficos", Tipo.AUTO, "Capa 3"),
     # §4 Negocio

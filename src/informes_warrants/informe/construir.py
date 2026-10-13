@@ -54,6 +54,15 @@ from ..calculo.normalizador import (
 )
 from ..calculo.normalizador import _silencio as _silencio_edgar
 from ..calculo.notas import notas_de_ratios
+from ..calculo.posicion import (
+    dias_para_construir,
+    evaluar_criterios,
+    frecuencia_stop,
+    rendimientos_diarios,
+    stop_volatilidad,
+    tamano_posicion,
+    var_historico,
+)
 from ..calculo.proyeccion import balance_inicial, proyectar
 from ..calculo.puntuaciones import altman, beneish, piotroski
 from ..calculo.sintesis import Metodo, sintetizar
@@ -75,6 +84,7 @@ from .secciones import BLOQUES, Tipo
 log = logging.getLogger(__name__)
 ANIOS = 5
 PARTIDAS_CONTRASTE = ("ingresos", "resultado_operativo", "beneficio_neto", "activos", "patrimonio", "flujo_operativo")
+AVISO_PARAMETROS = "Parámetros del fondo sin definir: la gestión de la posición no sale en el informe (Configuración)."
 AVISO_CALENDARIO = "Calendario de catalizadores en borrador: confírmalo o introduce el tuyo antes de emitir."
 AVISO_COMPARABLES = "Comparables automáticos: introduce tu lista para incluir los múltiplos en el precio objetivo."
 MESES = ("ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic")
@@ -205,7 +215,7 @@ def componer(*, ticker: str, empresa: str, sic, cobertura, filing: dict, estados
              comparables: list[dict] | None = None, comparables_criterio: str = "", comparables_del_analista: bool = False,
              gobierno=None, insiders: dict | None = None, competencia_texto: dict | None = None, catalizadores: dict | None = None,
              borradores_ia: dict | None = None, filiales: dict | None = None, opciones_cadena: dict | None = None,
-             cortos: dict | None = None,
+             cortos: dict | None = None, parametros=None,
              eventos: list | None = None, alarmas: list | None = None,
              riesgos_cambios: dict | None = None, acciones_origen: str = "", trimestres_lista: list | None = None,
              segmentos_dict: dict | None = None, concentracion: list | None = None, vencimientos: dict | None = None,
@@ -330,6 +340,11 @@ def componer(*, ticker: str, empresa: str, sic, cobertura, filing: dict, estados
     potencial = precio_objetivo / cotizacion.precio - 1 if precio_objetivo else None
     potencial_dcf = valor_dcf / cotizacion.precio - 1 if valor_dcf else None
     propuesta = recomendacion_propuesta(potencial) if potencial is not None else "Pendiente"
+    gestion = _gestion(parametros, cotizacion, series_bolsa.get(ticker), {
+        "potencial": potencial, "per": multiplos.get("per"), "ev_ebitda": multiplos.get("ev_ebitda"),
+        "dfn_ebitda": f_ltm.get("dfn_ebitda"), "roic": f_ltm.get("roic"), "crecimiento": f_ltm.get("crecimiento_ingresos")})
+    if gestion is None:
+        avisos_emision.append(AVISO_PARAMETROS)
 
     # Analítica, notas y puntuaciones (deterministas)
     puente = puente_margen(fund[ejercicios[0]], f_ltm, _gastos(estados, ejercicios[0]), _gastos(ltm, LTM))
@@ -437,7 +452,7 @@ def componer(*, ticker: str, empresa: str, sic, cobertura, filing: dict, estados
         "dupont": {**{f"FY{a}": dupont(estados, a) for a in ejercicios[-3:]}, "LTM": dupont(ltm, LTM)},
         "cascada": cascada_ebitda_fcf(estados, ejercicio, f), "vencimientos": vencimientos or {"importes": [], "motivo": ""},
         "puntuaciones": puntuaciones, "gobierno": gobierno, "riesgos_cambios": riesgos_cambios, "insiders": insiders,
-        "catalizadores": catalizadores, "filiales": filiales,
+        "catalizadores": catalizadores, "filiales": filiales, "gestion": gestion,
         "opciones": mercado_de_opciones(opciones_cadena, cotizacion.precio, series_bolsa.get(ticker)),  # externos (B5)
         "cortos": {**cortos, "lectura": lectura_cortos(cortos.get("sobre_flotante"))} if cortos else None,
         "equipo": _equipo(insiders, series_bolsa.get(ticker)),
@@ -453,6 +468,25 @@ def componer(*, ticker: str, empresa: str, sic, cobertura, filing: dict, estados
     c["historial"] = historial_recomendaciones(historial_resumenes or [], cotizacion.precio,
                                                date.fromisoformat(c["fecha"]))  # R17
     return c
+
+
+def _gestion(parametros, cotizacion, cierres, datos: dict) -> dict | None:
+    """Apartados 12, 23 y 24 (B4) con los parámetros del analista; None si no hay ninguno definido."""
+    if parametros is None or not parametros.definidos:
+        return None
+    rend = rendimientos_diarios(cierres)
+    sigma = statistics.pstdev(rend) if len(rend) >= 20 else None
+    salida = {"parametros": parametros, "criterios": evaluar_criterios(parametros, datos), "volatilidad_diaria": sigma,
+              "var": var_historico(rend), "riesgo": None}
+    p = parametros
+    if sigma and None not in (p.multiplo_volatilidad, p.horizonte_stop_dias, p.capital_cartera, p.riesgo_por_posicion):
+        stop = stop_volatilidad(cotizacion.precio, sigma, p.multiplo_volatilidad, p.horizonte_stop_dias, p.perdida_minima_stop,
+                                p.perdida_maxima_stop)
+        tam = tamano_posicion(p.capital_cartera, p.riesgo_por_posicion, cotizacion.precio, stop["stop"], p.peso_maximo)
+        salida["riesgo"] = {**stop, **tam, "dias_para_construir": dias_para_construir(
+            tam["acciones"], cotizacion.volumen_medio_acciones_12m, p.participacion_maxima_volumen),
+            "frecuencia_stop": frecuencia_stop(cierres, stop["perdida"], p.horizonte_stop_dias)}
+    return salida
 
 
 def _texto_competencia(texto: dict | None) -> str:
@@ -546,6 +580,7 @@ def reunir(ticker: str, con_ia: bool = True, comparables: list[str] | None = Non
     from ..ingesta.nombres import nombre_legible
     from ..ingesta.riesgos import comparar_riesgos, riesgos_anteriores, riesgos_anuales
     from .autoria import cargar as cargar_autoria
+    from .parametros import cargar as cargar_parametros
 
     ticker = ticker.upper()
     empresa = Company(ticker)
@@ -695,7 +730,7 @@ def reunir(ticker: str, con_ia: bool = True, comparables: list[str] | None = Non
         concentracion=concentracion_clientes(xbrl, cierres), vencimientos=venc, catalizadores=catalizadores, filiales=filiales_10k(tenk),
         opciones_cadena=cadena_opciones(ticker), cortos=posiciones_cortas(ticker),
         precios_semanales=precios_semanales(ticker), fechas_disponibles=disponibles, anterior=anterior,
-        historial_resumenes=historial_resumenes, autoria=cargar_autoria(),
+        historial_resumenes=historial_resumenes, autoria=cargar_autoria(), parametros=cargar_parametros(),
         capital_flotante=flotante if flotante[0] else None,
     )
     if con_ia:  # borradores de la IA para los apartados del analista, sobre lo que ya dice el informe

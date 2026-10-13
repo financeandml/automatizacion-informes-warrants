@@ -256,6 +256,41 @@ def pantalla_configuracion() -> None:
             autoria.guardar(autoria.Autoria(**valores))
             st.success("Guardado.")
     st.json(asdict(autoria.cargar()))
+    _configuracion_parametros()
+
+
+PARAMETROS = (  # (campo, etiqueta, en porcentaje)
+    ("potencial_minimo", "Potencial mínimo frente al precio objetivo (%)", True), ("per_maximo", "PER máximo (x)", False),
+    ("ev_ebitda_maximo", "EV / EBITDA máximo (x)", False), ("deuda_neta_ebitda_maxima", "Deuda neta / EBITDA máxima (x)", False),
+    ("roic_minimo", "ROIC mínimo (%)", True), ("crecimiento_minimo", "Crecimiento mínimo de ventas (%)", True),
+    ("capital_cartera", "Capital de la cartera (USD)", False),
+    ("riesgo_por_posicion", "Riesgo por posición hasta el stop (% de la cartera)", True),
+    ("peso_maximo", "Peso máximo de una posición (%)", True), ("multiplo_volatilidad", "Múltiplo de volatilidad del stop (k)", False),
+    ("horizonte_stop_dias", "Horizonte del stop (sesiones)", False), ("perdida_minima_stop", "Pérdida mínima hasta el stop (%)", True),
+    ("perdida_maxima_stop", "Pérdida máxima hasta el stop (%)", True),
+    ("participacion_maxima_volumen", "Participación máxima en el volumen diario (%)", True),
+)
+
+
+def _configuracion_parametros() -> None:
+    from informes_warrants.informe import parametros
+
+    st.subheader("Parámetros del fondo")
+    st.caption("Los fija el analista bajo su responsabilidad. Vacío = no se evalúa. Uso interno: se guardan en tu carpeta "
+               "de datos, fuera del repositorio; en el informe solo salen los criterios y el riesgo que resultan.")
+    actual = parametros.cargar()
+    with st.form("parametros"):
+        valores = {}
+        for campo, etiqueta, en_pct in PARAMETROS:
+            v = getattr(actual, campo)
+            texto = st.text_input(etiqueta, "" if v is None else f"{v * 100 if en_pct else v:g}", key=f"par_{campo}")
+            numero = float(texto.replace(",", ".")) if texto.strip() else None
+            if numero is not None and en_pct:
+                numero /= 100
+            valores[campo] = int(numero) if numero is not None and campo == "horizonte_stop_dias" else numero
+        if st.form_submit_button("Guardar parámetros"):
+            parametros.guardar(parametros.ParametrosFondo(**valores))
+            st.success("Parámetros guardados: se aplican al recomponer el informe.")
 
 
 def main() -> None:

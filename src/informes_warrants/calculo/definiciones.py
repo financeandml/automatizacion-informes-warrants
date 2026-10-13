@@ -86,6 +86,11 @@ DEFINICIONES: tuple[tuple[str, str, str], ...] = (
      "Max pain: precio con el menor pago total a los compradores. Fuente: yfinance, no auditada."),
     ("Cortos (externo)", "Posiciones cortas", "Acciones en corto declaradas (FINRA vía yfinance), sobre el capital flotante y "
      "días para cubrir al volumen medio. Fuente no auditada."),
+    ("Posición", "Criterios del fondo", "Umbrales que fija el analista (potencial, PER, EV/EBITDA, deuda neta / EBITDA, ROIC, "
+     "crecimiento) frente a las cifras del informe: cumple, no cumple o sin dato."),
+    ("Posición", "Stop y tamaño", "Stop = precio × (1 − k × volatilidad diaria × √h), acotado entre la pérdida mínima y máxima "
+     "del analista; acciones = capital × riesgo por posición / (precio − stop), sin superar el peso máximo. VaR y CVaR "
+     "diarios al 95 % históricos (1 año); prueba histórica: % de ventanas de h sesiones (5 años) en que se tocó el stop."),
     ("Riesgos", "Autonomía de caja", "Solo si el FCF LTM es negativo: meses = (caja + inversiones a corto plazo) / −FCF × 12."),
     ("Riesgos", "Cambios en los factores de riesgo", "Comparación de los títulos del Item 1A con los del informe anual "
      "anterior por similitud de texto: nuevos, eliminados y modificados."),

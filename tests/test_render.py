@@ -99,10 +99,10 @@ def test_comparables_automaticos_avisan_sin_bloquear(contexto):
 
     assert not contexto["comparables_del_analista"] and contexto["valor_multiplos"] is None
     assert contexto["precio_objetivo"] == pytest.approx(contexto["valor_dcf"])
-    assert contexto["avisos_emision"] == [AVISO_COMPARABLES]
+    assert contexto["avisos_emision"][0] == AVISO_COMPARABLES  # (y el de parámetros del fondo sin definir)
     assert not any("lista de comparables" in p for p in contexto["pendientes"])  # no es un apartado pendiente
     v = Version("AAPL", 2023, "FY", 1, "x", "2023-11-03", contenido={"textos": {}, "avisos_emision": contexto["avisos_emision"]})
-    assert v.avisos() == [AVISO_COMPARABLES] and v.confirmar().emitir().estado == "emitida"
+    assert AVISO_COMPARABLES in v.avisos() and v.confirmar().emitir().estado == "emitida"
     html = render.html(contexto)
     assert "El analista debe introducir su lista de comparables" in html  # la sección de comparables se mantiene
     for interno in ("informes-warrants", "--comparables", "pendiente*", AVISO_COMPARABLES):  # nada interno en el informe
@@ -224,3 +224,22 @@ def test_comparacion_de_versiones_en_la_interfaz():
     pasos = r["valoracion"]["atribucion"]["pasos"]
     assert sum(p["impacto"] for p in pasos) == pytest.approx(r["valoracion"]["atribucion"]["total"])
     assert next(p for p in pasos if p["grupo"] == "Crecimiento a perpetuidad")["impacto"] > 0  # g más alto, más valor
+
+
+
+def test_gestion_de_la_posicion_con_parametros_del_fondo():
+    """B4: criterios, stop por volatilidad y tamaño con los parámetros del analista; sin ellos, solo un aviso interno."""
+    from informes_warrants.informe import render
+    from informes_warrants.informe.construir import AVISO_PARAMETROS
+    from informes_warrants.informe.parametros import ParametrosFondo
+
+    assert AVISO_PARAMETROS in _componer()["avisos_emision"]
+    p = ParametrosFondo(potencial_minimo=0.15, per_maximo=30.0, capital_cartera=10e6, riesgo_por_posicion=0.01,
+                        multiplo_volatilidad=2.0, horizonte_stop_dias=20, perdida_maxima_stop=0.10, peso_maximo=0.05)
+    c = _componer(parametros=p)
+    assert AVISO_PARAMETROS not in c["avisos_emision"]
+    g = c["gestion"]
+    assert [k["criterio"] for k in g["criterios"]] == ["Potencial frente al precio objetivo", "PER (LTM)"]
+    r = g["riesgo"]
+    assert r["perdida"] <= 0.10 and r["peso"] <= 0.05 + 1e-9 and r["stop"] < c["cotizacion"].precio
+    assert "Gestión de la posición" in render.html(c) and "Stop por volatilidad" in render.html(c)
