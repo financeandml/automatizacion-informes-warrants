@@ -26,7 +26,8 @@ Implementado en `ui/` (A12, `informes-warrants interfaz`) y `informe/versionado.
   - La vista HTML se regenera en cada cambio con la misma plantilla que el PDF (milisegundos).
   - El PDF se recompila en segundo plano: WeasyPrint tarda unos 2 s por documento.
 - Recomendación: el SaaS propone el precio objetivo (media ponderada de los métodos con valor, con `pesos`: tabla «Derivación del precio objetivo») y una recomendación mecánica por potencial: **Comprar ≥ +15 %**, **Vender ≤ −10 %**, Mantener entre ambos. El analista la confirma o la cambia en el bloque `portada.recomendacion`. El informe muestra siempre el precio objetivo y el potencial calculados; si el analista fija su propio precio objetivo (`Estimaciones.precio_objetivo_analista`), prevalece en la portada junto al del DCF, y el potencial y la propuesta los recalcula el código (decisión del usuario, 2026-10-11).
-- Emisión: un apartado **«Confirmar emisión del informe»** con un botón. Solo se activa cuando no quedan marcadores y las estimaciones son válidas. Al pulsarlo, la versión pasa a `emitida` y queda inmutable.
+- Emisión: un apartado **«Confirmar emisión del informe»** con un botón. Desde el 2026-10-14 los apartados pendientes **no bloquean**: se avisan y se completan después en una revisión nueva (botón «Seguir editando», v+1). Bloquean solo la calidad de los datos en rojo y unas estimaciones no válidas. Al emitir, la versión pasa a `emitida` y queda inmutable.
+- Borradores de la IA: cada apartado del analista trae un borrador marcado (`ia/borradores.py`) que el analista revisa, edita o sustituye; mientras no lo marque como revisado, cuenta como pendiente.
 
 ## Estimaciones que ajusta el analista
 

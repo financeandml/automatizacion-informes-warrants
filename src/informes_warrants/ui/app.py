@@ -20,6 +20,7 @@ from informes_warrants.almacenamiento.versiones import Estado, TransicionInvalid
 from informes_warrants.config import configurar_identidad
 from informes_warrants.informe import autoria, render
 from informes_warrants.informe.cambios import estimaciones_desde_dict
+from informes_warrants.informe.plantillas import pendientes, sin_marcas_ia
 from informes_warrants.informe.secciones import BLOQUES, Tipo
 from informes_warrants.informe.versionado import datos_de_la_version, preparar, ultima_abierta
 from informes_warrants.ui import logica
@@ -49,6 +50,12 @@ def pantalla_versiones(almacen: Almacen, ticker: str) -> None:
     if abierta is not None and abierta.estado == Estado.DETECTADA and c2.button(f"Confirmar {abierta.etiqueta}", use_container_width=True):
         almacen.guardar(abierta.confirmar())
         st.success("Versión confirmada: ya puedes editarla en «Editor del informe».")
+    emitida = almacen.ultima_emitida(ticker)
+    if abierta is None and emitida is not None and c2.button(f"Seguir editando {emitida.etiqueta} (crea la revisión siguiente)",
+                                                             use_container_width=True):
+        revision = emitida.nueva_revision()  # la emitida no cambia; la nueva hereda lo que aportó el analista
+        almacen.guardar(revision)
+        st.success(f"Creada {revision.etiqueta}: edítala en «Editor del informe».")
     filas = [{"Versión": v.etiqueta, "Estado": v.estado.value, "Filing": v.accession, "Fecha": v.fecha_filing,
               "PDF": v.contenido.get("pdf", "—")} for v in reversed(almacen.historial(ticker))]
     if filas:
@@ -69,16 +76,22 @@ def _cargar(version, almacen: Almacen, con_ia: bool, comparables: list[str] | No
 
 def _bloques_editables(c: dict) -> list:
     """Bloques del analista y los que el SaaS dejó con un marcador pendiente."""
-    return [b for b in BLOQUES if b.id in c["textos"] and (b.tipo == Tipo.ANALISTA or "[[ANALISTA" in c["textos"][b.id])]
+    return [b for b in BLOQUES if b.id in c["textos"] and (b.tipo == Tipo.ANALISTA or pendientes(c["textos"][b.id]))]
 
 
 def _editor_textos(c: dict) -> None:
+    st.caption("Los apartados del analista traen un borrador de la IA (sobre lo que ya dice el informe) para ayudarte: "
+               "revísalo, edítalo o sustitúyelo. Mientras no lo marques como revisado, el informe lo muestra como borrador.")
     for b in _bloques_editables(c):
-        actual = st.session_state.textos.get(b.id) or c["textos"][b.id]
-        nuevo = st.text_area(b.titulo, actual, key=f"texto_{b.id}", height=140,
-                             help="Markdown. Sustituye cada [[ANALISTA: …]] por tu texto; mientras quede alguno, no se puede emitir.")
-        if nuevo != c["textos"][b.id]:
+        propio = st.session_state.textos.get(b.id)
+        legible = propio or sin_marcas_ia(c["textos"][b.id])  # el borrador de la IA, en limpio
+        nuevo = st.text_area(b.titulo, legible, key=f"texto_{b.id}", height=150,
+                             help="Markdown. Sustituye cada [[ANALISTA: …]] por tu texto. Los pendientes no impiden emitir.")
+        revisado = st.checkbox("Revisado por el analista", value=propio is not None, key=f"revisado_{b.id}")
+        if revisado or nuevo != legible:
             st.session_state.textos[b.id] = nuevo
+        else:
+            st.session_state.textos.pop(b.id, None)
 
 
 def _editor_estimaciones(c: dict) -> None:
@@ -141,7 +154,7 @@ def _editor_catalizadores(c: dict) -> None:
 
 
 def _emision(c: dict, version, almacen: Almacen) -> None:
-    for aviso in c["avisos_emision"]:
+    for aviso in c["avisos_emision"] + logica.pendientes_aviso(c):  # avisos: no bloquean la emisión
         st.warning(aviso)
     motivos = logica.motivos_para_no_emitir(c)
     if version.estado == Estado.DETECTADA:

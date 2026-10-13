@@ -29,10 +29,12 @@ def test_ciclo_de_vida():
     assert (revision.revision, revision.estado) == (2, Estado.BORRADOR)
 
 
-def test_no_se_emite_con_apartados_pendientes():
+def test_se_emite_con_apartados_pendientes_y_se_avisa():
+    """Decisión del usuario (2026-10-14): los pendientes avisan, no bloquean; se completan en una revisión nueva."""
     v = _version(contenido={"textos": {"tesis": "[[ANALISTA: escribe la tesis]]"}}).confirmar()
-    with pytest.raises(TransicionInvalida, match="1 apartados"):
-        v.emitir()
+    assert any("1 apartados" in a for a in v.avisos())
+    emitida = v.emitir()
+    assert emitida.estado == Estado.EMITIDA and emitida.nueva_revision().contenido["textos"]["tesis"].startswith("[[ANALISTA")
 
 
 def test_no_se_confirma_dos_veces():

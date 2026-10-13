@@ -45,13 +45,18 @@ recomponer = versionado.recomponer  # la misma recomposición que al guardar la 
 
 
 def motivos_para_no_emitir(c: dict) -> list[str]:
-    """Lo que impide emitir (vacío = se puede): marcadores del analista, estimaciones no válidas, calidad en rojo."""
-    motivos = [f"Pendiente del analista: {p}" for p in c["pendientes"]]
-    motivos += [f"Estimaciones: {e}" for e in c["estimaciones"].validar()]
+    """Lo que impide emitir (vacío = se puede): estimaciones o escenarios no válidos y calidad en rojo. Los apartados
+    pendientes del analista no impiden emitir (decisión del usuario, 2026-10-14): son avisos (`pendientes_aviso`)."""
+    motivos = [f"Estimaciones: {e}" for e in c["estimaciones"].validar()]
     motivos += [f"Escenarios: {e}" for e in (c["escenarios"].validar() if c["escenarios"] is not None else [])]
     if str(c["calidad"].nivel) == "rojo":
         motivos += [f"Calidad de los datos: {e}" for e in c["calidad"].errores]
     return motivos
+
+
+def pendientes_aviso(c: dict) -> list[str]:
+    """Apartados del analista aún por completar o revisar: se muestran antes de emitir, sin bloquear."""
+    return [f"Pendiente del analista: {p}" for p in c["pendientes"]]
 
 
 def contenido_editable(c: dict) -> dict:

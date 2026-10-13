@@ -91,6 +91,8 @@ Objetivo: que el analista genere, complete, emita (PDF descargable) y versione i
 
 ## Fase B: perfeccionar el contenido y la valoración
 
+**Decisiones del usuario (2026-10-14):** se emite aunque queden apartados pendientes (avisos; edición posterior = revisión nueva); borrador de la IA en cada apartado del analista; autoría en la portada; A6 sin *smart money score*; B1 (motor de valoración) fuera hasta nuevo aviso.
+
 | # | Tarea | Detalle | Estado |
 |---|---|---|---|
 | B1 | Motor de valoración | Con los documentos del usuario (aviso pendiente). Observación de la regresión: con los supuestos por defecto (Rf 5,2 % de FRED, prima 5,5 %, medias históricas) el DCF queda muy por debajo de la cotización en casi todas las empresas (AAPL −62 %, MSFT −44 %, TSLA −98 %); el motor debe revisar estos supuestos por defecto. Ya hechos: derivación ponderada (R8), múltiplos históricos (R11), proyección de flujo y balance (R12) y suma de partes (R14). Faltan DDM, ingreso residual y R15 (P3) | Esperando documentos |

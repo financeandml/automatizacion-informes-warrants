@@ -55,6 +55,10 @@ li { margin-bottom: 1.2mm; }
 .salto { break-before: page; }
 .dos-col { columns: 2; column-gap: 6mm; }
 .fuente { font-size: 5.6pt; margin-top: 0.8mm; }
+/* Borrador de la IA en un apartado del analista: visible y distinto del texto definitivo (decisión del 2026-10-14) */
+.borrador-ia { display: block; border-left: 1.2pt solid var(--burdeos); padding: 0.6mm 0 0.6mm 2mm; margin: 0.8mm 0; font-style: italic; }
+.borrador-ia .etiqueta-ia { display: block; font: 600 5.4pt "Montserrat"; font-style: normal; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--burdeos); margin-bottom: 0.4mm; }
 
 /* Tablas densas, sin sombreados */
 table.datos { break-inside: avoid; width: 100%; border-collapse: collapse; font-size: 6.6pt; margin-bottom: 2.5mm; font-variant-numeric: tabular-nums; }

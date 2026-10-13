@@ -554,3 +554,35 @@ def test_plazo_con_cierre_fiscal_el_29_de_febrero():
 
     plazo = plazo_siguiente_informe(date(2026, 8, 29), date(2024, 2, 29), "Accelerated Filer", date(2026, 10, 13))
     assert plazo["formulario"] == "10-Q" and plazo["limite"] > date(2026, 10, 13)
+
+
+# --- Borradores de la IA en los apartados del analista (2026-10-14) ------------------------------------------------
+
+def test_borrador_de_la_ia_sin_cifras_nuevas():
+    from informes_warrants.ia.borradores import verificar_borrador
+
+    contexto = "Ingresos LTM de 466.823 USD Mn (+14,2 % interanual). Margen EBITDA del 36,0 %."
+    assert verificar_borrador("La compañía crece un 14,2 % con un margen EBITDA del 36,0 %, lo que sostiene la tesis.", contexto) == ""
+    assert "cifras" in verificar_borrador("Crecerá un 20 % en 2027.", contexto)  # cifras que no están en el informe
+    assert verificar_borrador("SIN DATOS", contexto) == "el contexto no basta"
+    assert verificar_borrador("Texto [[ANALISTA: x]]", contexto) == "formato no válido"
+
+
+def test_generar_borradores_con_modelo_simulado(monkeypatch):
+    from informes_warrants.ia import borradores
+
+    respuestas = {"titular": "Crecimiento del 14,2 % con caja neta.", "mercado": "SIN DATOS", "consejo": "Inventa un 99 %."}
+    monkeypatch.setattr(borradores, "completar",
+                        lambda sistema, usuario, cfg=None: (next(v for k, v in respuestas.items() if k in usuario), cfg))
+    r = borradores.generar(["titular de la tesis", "tamaño del mercado", "composición del consejo"], "Crece un 14,2 %.")
+    assert r == {"titular de la tesis": "Crecimiento del 14,2 % con caja neta."}  # sin datos y cifra inventada: fuera
+
+
+def test_marcadores_con_borrador_siguen_pendientes():
+    from informes_warrants.informe.plantillas import con_borradores, pendientes, sin_marcas_ia
+
+    texto = "Tesis: [[ANALISTA: titular de la tesis]] y [[ANALISTA: riesgo principal]]"
+    con = con_borradores(texto, {"titular de la tesis": "Crece con caja neta."})
+    assert con == "Tesis: [[IA: titular de la tesis || Crece con caja neta.]] y [[ANALISTA: riesgo principal]]"
+    assert pendientes(con) == ["riesgo principal", "revisar el borrador de la IA (titular de la tesis)"]
+    assert sin_marcas_ia(con) == "Tesis: Crece con caja neta. y [[ANALISTA: riesgo principal]]"

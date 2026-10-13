@@ -66,7 +66,7 @@ from .cambios import comparar as comparar_versiones
 from .cambios import resumen as resumen_version
 from .cobertura import PENDIENTE_VALIDAR, PLANTILLA_GENERAL, cobertura_de, es_biotecnologia
 from .estimaciones import ANIOS_EXPLICITOS, Escenarios, Estimaciones, escenarios_por_defecto, recomendacion_propuesta
-from .plantillas import pendientes, rellenar
+from .plantillas import MARCADOR, con_borradores, pendientes, rellenar
 from .secciones import BLOQUES, Tipo
 
 log = logging.getLogger(__name__)
@@ -201,6 +201,7 @@ def componer(*, ticker: str, empresa: str, sic, cobertura, filing: dict, estados
              escenarios: Escenarios | None = None, estados_ltm=None, fecha_ltm: str | None = None, rf=None,
              comparables: list[dict] | None = None, comparables_criterio: str = "", comparables_del_analista: bool = False,
              gobierno=None, insiders: dict | None = None, competencia_texto: dict | None = None, catalizadores: dict | None = None,
+             borradores_ia: dict | None = None,
              eventos: list | None = None, alarmas: list | None = None,
              riesgos_cambios: dict | None = None, acciones_origen: str = "", trimestres_lista: list | None = None,
              segmentos_dict: dict | None = None, concentracion: list | None = None, vencimientos: dict | None = None,
@@ -407,6 +408,8 @@ def componer(*, ticker: str, empresa: str, sic, cobertura, filing: dict, estados
     }
     textos = {b.id: rellenar(b.id, datos) for b in BLOQUES if b.tipo in (Tipo.PLANTILLA, Tipo.ANALISTA)}
     textos["negocio.competencia"] = _texto_competencia(competencia_texto)
+    if borradores_ia:  # borrador de la IA en cada apartado del analista que lo tiene (lo revisa el analista)
+        textos = {k: con_borradores(v, borradores_ia) for k, v in textos.items()}
     c = {
         "ticker": ticker, "empresa": empresa, "sic": sic, "etf": etf_sectorial(sic), "cobertura": cobertura, "filing": filing,
         "ejercicios": ejercicios, "estados": estados, "fundamentales": fund, "calidad": calidad,
@@ -654,7 +657,7 @@ def reunir(ticker: str, con_ia: bool = True, comparables: list[str] | None = Non
         elegidos, cfg = riesgos_principales(riesgos_lista, texto_1a)
         riesgos = [{"resumen": s.resumen, "cita": s.cita, "modelo": f"{cfg.proveedor} · {cfg.modelo}"} for s in elegidos]
 
-    return dict(  # argumentos de `componer`: la interfaz los guarda y recompone el informe sin red al editar (A12)
+    datos = dict(  # argumentos de `componer`: la interfaz los guarda y recompone el informe sin red al editar (A12)
         ticker=ticker, empresa=nombre_legible(empresa.name), sic=empresa.sic, cobertura=cobertura, estimaciones=estimaciones,
         filing={"accession": filing.accession_no, "fecha": str(filing.filing_date), "ejercicio": ejercicio,
                 "ultimo_periodico": periodico.accession_no if periodico is not None else None,
@@ -672,3 +675,10 @@ def reunir(ticker: str, con_ia: bool = True, comparables: list[str] | None = Non
         historial_resumenes=historial_resumenes, autoria=cargar_autoria(),
         capital_flotante=flotante if flotante[0] else None,
     )
+    if con_ia:  # borradores de la IA para los apartados del analista, sobre lo que ya dice el informe
+        from ..ia.borradores import contexto, generar
+
+        borrador = componer(**datos)
+        instrucciones = [m.strip() for texto in borrador["textos"].values() for m in MARCADOR.findall(texto)]
+        datos["borradores_ia"] = generar(instrucciones, contexto(borrador, texto_negocio))
+    return datos

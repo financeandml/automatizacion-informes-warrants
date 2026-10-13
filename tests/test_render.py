@@ -144,8 +144,7 @@ def test_version_preparada_con_lo_del_analista(tmp_path, monkeypatch):
     assert {"resumen", "instantanea", "pdf", "calidad", "avisos_emision"} <= set(preparada.contenido)
     assert almacen.historial("AAPL")[0].contenido["pdf"].endswith("AAPL_FY2023_v1.pdf")
     borrador = preparada.confirmar()
-    with pytest.raises(TransicionInvalida):  # quedan marcadores del analista: no se emite
-        borrador.emitir()
+    assert borrador.avisos() and borrador.emitir().estado == Estado.EMITIDA  # los pendientes avisan, no bloquean
     rojo = Version("AAPL", 2023, "FY", 2, "x", "2023-11-03", estado=Estado.BORRADOR,
                    contenido={"textos": {}, "calidad": {"nivel": "rojo", "errores": ["activo ≠ pasivo + patrimonio"]}})
     with pytest.raises(TransicionInvalida, match="rojo"):
@@ -165,8 +164,8 @@ def test_logica_de_la_interfaz():
     nuevas, errores = logica.editar(c["estimaciones"], g=0.03, tasa_fiscal=1.5)
     assert nuevas.g == 0.03 and errores  # tasa fiscal fuera de rango
     assert logica.a_pantalla("g", 0.025) == 2.5 and logica.de_pantalla("g", 2.5) == 0.025 and logica.a_pantalla("beta", 1.1) == 1.1
-    motivos = logica.motivos_para_no_emitir(c)
-    assert any(m.startswith("Pendiente del analista") for m in motivos)  # quedan marcadores: no se emite
+    assert logica.motivos_para_no_emitir(c) == []  # los marcadores pendientes no impiden emitir…
+    assert any(m.startswith("Pendiente del analista") for m in logica.pendientes_aviso(c))  # …pero se avisan
     assert set(logica.contenido_editable(c)) == {"textos", "estimaciones"}
 
 
@@ -191,3 +190,14 @@ def test_el_html_de_terceros_no_se_ejecuta():
     salida = str(_md("Texto <script>alert(1)</script> de AT&T y [[ANALISTA: completar]]\n\n> cita"))
     assert "<script>" not in salida and "&lt;script" in salida  # se ve como texto, no se ejecuta
     assert '<span class="pendiente">completar</span>' in salida and "<blockquote>" in salida and "AT&amp;T" in salida
+
+
+def test_borradores_de_la_ia_en_el_informe():
+    from informes_warrants.informe import render
+    from informes_warrants.informe.plantillas import MARCADOR
+
+    instruccion = next(m.strip() for t in _componer()["textos"].values() for m in MARCADOR.findall(t))
+    c = _componer(borradores_ia={instruccion: "Borrador de prueba sin cifras."})
+    assert any("revisar el borrador de la IA" in p for p in c["pendientes"])  # sigue siendo tarea del analista
+    html = render.html(c)
+    assert 'class="borrador-ia"' in html and "Borrador de prueba sin cifras." in html

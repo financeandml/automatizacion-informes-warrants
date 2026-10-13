@@ -62,8 +62,11 @@ class Version:
         return [p for texto in self.contenido.get("textos", {}).values() for p in pendientes(texto)]
 
     def avisos(self) -> list[str]:
-        """Avisos que el SaaS muestra antes de emitir (p. ej. comparables automáticos): no bloquean la emisión."""
-        return list(self.contenido.get("avisos_emision", []))
+        """Avisos que el SaaS muestra antes de emitir (comparables automáticos, apartados pendientes…): no bloquean."""
+        faltan = self.pendientes()
+        return list(self.contenido.get("avisos_emision", [])) + (
+            [f"Quedan {len(faltan)} apartados del analista por completar o revisar (se pueden completar en una revisión nueva)."]
+            if faltan else [])
 
     def confirmar(self) -> "Version":
         self._exigir(Estado.DETECTADA, "confirmar")
@@ -75,10 +78,9 @@ class Version:
         return replace(self, estado=Estado.DESCARTADA)
 
     def emitir(self) -> "Version":
+        """Emite la versión. Los apartados pendientes del analista NO bloquean (decisión del usuario, 2026-10-14):
+        se avisan antes de emitir y se completan después en una revisión nueva. Bloquea la calidad en rojo."""
         self._exigir(Estado.BORRADOR, "emitir")
-        faltan = self.pendientes()
-        if faltan:
-            raise TransicionInvalida(f"Quedan {len(faltan)} apartados del analista sin completar.")
         if (self.contenido.get("calidad") or {}).get("nivel") == "rojo":  # los datos de la SEC no cuadran
             raise TransicionInvalida("La calidad de los datos está en rojo: " + "; ".join(self.contenido["calidad"].get("errores", [])))
         return replace(self, estado=Estado.EMITIDA, emitida=_ahora())

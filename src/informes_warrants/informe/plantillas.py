@@ -1,7 +1,7 @@
 """Relleno de las plantillas Markdown de los bloques y marcadores para el analista.
 
 Un marcador `[[ANALISTA: instrucción]]` señala lo que el SaaS no puede escribir solo.
-Mientras quede alguno, el informe no se puede emitir.
+Mientras quede alguno, el informe muestra el recuadro y lo avisa antes de emitir (no bloquea desde el 2026-10-14).
 """
 
 import re
@@ -13,6 +13,9 @@ from .secciones import BLOQUES, Tipo
 
 DIR_PLANTILLAS = Path(__file__).resolve().parent.parent / "plantillas" / "secciones"
 MARCADOR = re.compile(r"\[\[ANALISTA:\s*(.+?)\]\]", re.DOTALL)
+# Borrador de la IA para un apartado del analista (decisión del usuario, 2026-10-14): `[[IA: instrucción || borrador]]`.
+# Sigue siendo tarea del analista: cuenta como pendiente hasta que lo revise (y no impide emitir).
+MARCADOR_IA = re.compile(r"\[\[IA:\s*(.+?)\s*\|\|\s*(.+?)\]\]", re.DOTALL)
 
 _entorno = Environment(
     loader=FileSystemLoader(DIR_PLANTILLAS),
@@ -54,5 +57,20 @@ def rellenar(id_bloque: str, datos: dict) -> str:
 
 
 def pendientes(texto: str) -> list[str]:
-    """Instrucciones de los marcadores que el analista aún no ha completado."""
-    return [m.strip() for m in MARCADOR.findall(texto)]
+    """Instrucciones de los marcadores que el analista aún no ha completado (y borradores de la IA sin revisar)."""
+    return ([m.strip() for m in MARCADOR.findall(texto)]
+            + [f"revisar el borrador de la IA ({instruccion.strip()})" for instruccion, _ in MARCADOR_IA.findall(texto)])
+
+
+def con_borradores(texto: str, borradores: dict[str, str]) -> str:
+    """Sustituye cada marcador del analista que tiene borrador de la IA por `[[IA: instrucción || borrador]]`."""
+    def sustituir(m):
+        instruccion = m.group(1).strip()
+        return f"[[IA: {instruccion} || {borradores[instruccion]}]]" if borradores.get(instruccion) else m.group(0)
+
+    return MARCADOR.sub(sustituir, texto)
+
+
+def sin_marcas_ia(texto: str) -> str:
+    """El texto con cada borrador de la IA en limpio (para que el analista lo edite)."""
+    return MARCADOR_IA.sub(lambda m: m.group(2).strip(), texto)

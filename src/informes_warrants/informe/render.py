@@ -18,7 +18,7 @@ from ..calculo.normalizador import LTM, PARTIDAS
 from ..calculo.valoracion_relativa import MULTIPLOS, significativo
 from ..visual import graficos
 from .estimaciones import UMBRAL_COMPRAR, UMBRAL_VENDER
-from .plantillas import MARCADOR, _num, _pct, _var
+from .plantillas import MARCADOR, MARCADOR_IA, _num, _pct, _var
 
 DIR = Path(__file__).resolve().parent.parent / "plantillas"
 DIR_INFORME = DIR / "informe"
@@ -35,6 +35,8 @@ def _md(texto: str) -> Markup:
     nunca se ejecuta (Markdown deja pasar HTML en bruto). Las plantillas de sección no usan HTML propio."""
     seguro = texto.replace("&", "&amp;").replace("<", "&lt;")
     con_marcas = MARCADOR.sub(lambda m: f'<span class="pendiente">{m.group(1).strip()}</span>', seguro)
+    con_marcas = MARCADOR_IA.sub(lambda m: f'<span class="borrador-ia"><span class="etiqueta-ia">Borrador de la IA · el analista debe '
+                                           f'revisarlo</span> {m.group(2).strip()}</span>', con_marcas)
     return Markup(markdown.markdown(con_marcas))
 
 
