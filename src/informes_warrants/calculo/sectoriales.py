@@ -3,8 +3,8 @@
 import math
 from dataclasses import dataclass
 
-from ..informe.perfiles import Perfil
 from .normalizador import FuenteEntityFacts
+from .perfiles import Perfil
 
 
 @dataclass(frozen=True)

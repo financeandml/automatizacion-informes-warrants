@@ -54,7 +54,7 @@ Toda cifra sale de aquí (regla 9). Las fórmulas de edgar_analytics y FinRobot 
 | Analítica de márgenes, uso del capital, autonomía de caja, origen del crecimiento | `analitica.py` | Propio (no existía) |
 | Altman, Beneish, Piotroski | `puntuaciones.py` | edgar_analytics `scores.py` (fórmulas y umbrales) |
 | Notas de los ratios y metodología | `notas.py`, `definiciones.py` | Propio |
-| Métricas sectoriales | `sectoriales.py` | Propio sobre `informe/perfiles.py` |
+| Métricas sectoriales (perfiles y fórmulas) | `sectoriales.py`, `perfiles.py` | Propio |
 
 Tests *golden* con el 10-K FY2023 de AAPL (`tests/fixtures/aapl_10k_2023`).
 

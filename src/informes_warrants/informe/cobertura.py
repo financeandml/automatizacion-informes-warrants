@@ -2,7 +2,7 @@
 
 - General: empresas operativas, holdings y gestoras (`Operating Company`, `Holding Company`,
   `Investment Manager`).
-- Sectorial (informe/perfiles.py): banca, seguros, REIT, BDC y fondos cerrados. Mismos bloques
+- Sectorial (calculo/perfiles.py): banca, seguros, REIT, BDC y fondos cerrados. Mismos bloques
   de texto; cambian las métricas y la valoración. Validadas contra empresas reales (tests/test_red.py).
 - Emisores extranjeros (20-F/40-F): la plantilla de su categoría, con los textos del 20-F
   (`TwentyF`) y las cifras convertidas a USD (ingesta/divisas.py).
@@ -11,7 +11,7 @@
 
 from dataclasses import dataclass
 
-from .perfiles import perfil_de
+from ..calculo.perfiles import perfil_de
 
 PLANTILLA_GENERAL = "general"
 PENDIENTE_VALIDAR = "pendiente de validar"

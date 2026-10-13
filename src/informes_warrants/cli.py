@@ -67,9 +67,9 @@ def _metricas(args) -> None:
 
     from edgar import Company
 
+    from .calculo.perfiles import PERFILES_SECTORIALES
     from .calculo.sectoriales import calcular
     from .informe.cobertura import cobertura_de
-    from .informe.perfiles import PERFILES_SECTORIALES
 
     cobertura = cobertura_de(args.ticker)
     print(cobertura.motivo)

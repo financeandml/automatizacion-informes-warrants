@@ -31,7 +31,7 @@ def test_titulos_de_riesgo_reales(ticker):
 
 
 def _referencias():
-    from informes_warrants.informe.perfiles import PERFILES_SECTORIALES
+    from informes_warrants.calculo.perfiles import PERFILES_SECTORIALES
 
     return [(p.id, t) for p in PERFILES_SECTORIALES for t in p.referencias]
 
@@ -40,8 +40,8 @@ def _referencias():
 def test_perfil_sectorial_validado(perfil_id, ticker):
     from edgar import Company
 
+    from informes_warrants.calculo.perfiles import PERFILES_SECTORIALES
     from informes_warrants.calculo.sectoriales import calcular
-    from informes_warrants.informe.perfiles import PERFILES_SECTORIALES
 
     perfil = next(p for p in PERFILES_SECTORIALES if p.id == perfil_id)
     r = calcular(perfil, Company(ticker).get_facts())

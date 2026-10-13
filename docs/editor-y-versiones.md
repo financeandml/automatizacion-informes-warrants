@@ -83,7 +83,7 @@ Descartado, con el motivo:
 
 ## Alcance
 
-Se cubren todas las empresas de EEUU que presentan informes a la SEC, con la plantilla que corresponde a su categoría de negocio (edgartools `Company.business_category`). Código: [cobertura.py](../src/informes_warrants/informe/cobertura.py) y [perfiles.py](../src/informes_warrants/informe/perfiles.py).
+Se cubren todas las empresas de EEUU que presentan informes a la SEC, con la plantilla que corresponde a su categoría de negocio (edgartools `Company.business_category`). Código: [cobertura.py](../src/informes_warrants/informe/cobertura.py) y [perfiles.py](../src/informes_warrants/calculo/perfiles.py).
 
 | Categoría | Plantilla | Métricas propias | Valoración | Validada con |
 |---|---|---|---|---|

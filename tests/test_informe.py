@@ -119,8 +119,8 @@ class _Facts:
 
 
 def test_metricas_de_banco_con_trazabilidad():
+    from informes_warrants.calculo.perfiles import BANCO
     from informes_warrants.calculo.sectoriales import calcular
-    from informes_warrants.informe.perfiles import BANCO
 
     facts = _Facts({"NetIncomeLoss": 10, "StockholdersEquity": 100, "Assets": 1000, "InterestIncomeExpenseNet": 30,
                     "NoninterestIncome": 20, "NoninterestExpense": 25, "Deposits": 800, "Goodwill": 20})
@@ -132,8 +132,8 @@ def test_metricas_de_banco_con_trazabilidad():
 
 
 def test_metrica_esencial_que_falta_invalida():
+    from informes_warrants.calculo.perfiles import REIT
     from informes_warrants.calculo.sectoriales import calcular
-    from informes_warrants.informe.perfiles import REIT
 
     r = calcular(REIT, _Facts({"NetIncomeLoss": 10, "StockholdersEquity": 100, "Assets": 1000}))
     assert not r.completo and "amortizacion" in r.faltan
