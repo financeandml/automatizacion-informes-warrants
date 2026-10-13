@@ -62,3 +62,15 @@ def pendientes_aviso(c: dict) -> list[str]:
 def contenido_editable(c: dict) -> dict:
     """Lo que la versión guarda del analista (se hereda en la siguiente)."""
     return {"textos": dict(c["textos"]), "estimaciones": asdict(c["estimaciones"])}
+
+
+def comparacion(anterior, actual) -> dict:
+    """Qué cambió entre dos versiones (B9): textos (diff), estimaciones y recomendación (almacenamiento/versiones.comparar)
+    y la atribución del cambio del valor DCF a cada grupo de supuestos (R16, informe/cambios.comparar)."""
+    from ..almacenamiento.versiones import comparar as comparar_versiones
+    from ..informe.cambios import comparar as comparar_resumenes
+
+    salida = comparar_versiones(anterior, actual)
+    a, b = anterior.contenido.get("resumen"), actual.contenido.get("resumen")
+    salida["valoracion"] = comparar_resumenes(a, b) if a and b else None
+    return salida

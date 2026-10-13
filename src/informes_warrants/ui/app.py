@@ -56,12 +56,42 @@ def pantalla_versiones(almacen: Almacen, ticker: str) -> None:
         revision = emitida.nueva_revision()  # la emitida no cambia; la nueva hereda lo que aportó el analista
         almacen.guardar(revision)
         st.success(f"Creada {revision.etiqueta}: edítala en «Editor del informe».")
+    versiones = almacen.historial(ticker)
     filas = [{"Versión": v.etiqueta, "Estado": v.estado.value, "Filing": v.accession, "Fecha": v.fecha_filing,
-              "PDF": v.contenido.get("pdf", "—")} for v in reversed(almacen.historial(ticker))]
+              "PDF": v.contenido.get("pdf", "—")} for v in reversed(versiones)]
     if filas:
         st.dataframe(filas, use_container_width=True, hide_index=True)
     else:
         st.info("Aún no hay versiones de esta empresa: pulsa «Detectar 10-Q/10-K nuevo».")
+    if len(versiones) >= 2:
+        _comparar(versiones)
+
+
+def _comparar(versiones: list) -> None:
+    st.subheader("Comparar versiones")
+    etiquetas = [v.etiqueta for v in versiones]
+    c1, c2 = st.columns(2)
+    anterior = versiones[etiquetas.index(c1.selectbox("Anterior", etiquetas, index=len(etiquetas) - 2))]
+    actual = versiones[etiquetas.index(c2.selectbox("Actual", etiquetas, index=len(etiquetas) - 1))]
+    r = logica.comparacion(anterior, actual)
+    antes, ahora = r["recomendacion"]
+    if antes != ahora:
+        st.write(f"Recomendación: **{antes or '—'} → {ahora or '—'}**")
+    if r["valoracion"]:
+        cambios = r["valoracion"]["cambios"]
+        if cambios:
+            st.dataframe([{"Dato": x["campo"], "Antes": x["antes"], "Ahora": x["ahora"]} for x in cambios], hide_index=True)
+        if r["valoracion"]["atribucion"]:
+            st.caption("Qué explica el cambio del valor DCF (escenario base, USD por acción)")
+            pasos = r["valoracion"]["atribucion"]["pasos"]
+            st.dataframe([{"Grupo de supuestos": p["grupo"], "Impacto": round(p["impacto"], 2)} for p in pasos], hide_index=True)
+    if r["estimaciones"]:
+        st.dataframe([{"Estimación": k, "Antes": str(v[0]), "Ahora": str(v[1])} for k, v in r["estimaciones"].items()], hide_index=True)
+    for bloque, diff in r["textos"].items():
+        with st.expander(f"Texto cambiado: {bloque}"):
+            st.code(diff, language="diff")
+    if not (r["textos"] or r["estimaciones"] or (r["valoracion"] and r["valoracion"]["cambios"]) or antes != ahora):
+        st.info("Sin diferencias entre estas dos versiones.")
 
 
 def _cargar(version, almacen: Almacen, con_ia: bool, comparables: list[str] | None) -> None:

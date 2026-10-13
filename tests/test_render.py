@@ -201,3 +201,26 @@ def test_borradores_de_la_ia_en_el_informe():
     assert any("revisar el borrador de la IA" in p for p in c["pendientes"])  # sigue siendo tarea del analista
     html = render.html(c)
     assert 'class="borrador-ia"' in html and "Borrador de prueba sin cifras." in html
+
+
+def test_comparacion_de_versiones_en_la_interfaz():
+    """B9: textos, estimaciones, recomendación y atribución del cambio de valor entre dos versiones."""
+    from dataclasses import asdict
+
+    from informes_warrants.almacenamiento.versiones import Version
+    from informes_warrants.informe.cambios import resumen
+    from informes_warrants.ui import logica
+
+    c1 = _componer()
+    c2 = logica.recomponer(_datos(), logica.editar(c1["estimaciones"], g=0.03)[0], {"conclusiones.perspectivas": "Nueva tesis."})
+
+    def version(c, revision):
+        return Version("AAPL", 2023, "FY", revision, "x", "2023-11-03", contenido={
+            "textos": c["textos"], "estimaciones": asdict(c["estimaciones"]), "resumen": resumen(c),
+            "recomendacion": c["recomendacion"]})
+
+    r = logica.comparacion(version(c1, 1), version(c2, 2))
+    assert "conclusiones.perspectivas" in r["textos"] and r["estimaciones"]["g"] == (c1["estimaciones"].g, 0.03)
+    pasos = r["valoracion"]["atribucion"]["pasos"]
+    assert sum(p["impacto"] for p in pasos) == pytest.approx(r["valoracion"]["atribucion"]["total"])
+    assert next(p for p in pasos if p["grupo"] == "Crecimiento a perpetuidad")["impacto"] > 0  # g más alto, más valor
