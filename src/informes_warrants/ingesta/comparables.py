@@ -20,6 +20,8 @@ import math
 import re
 from datetime import date
 
+from .nombres import nombre_legible
+
 log = logging.getLogger(__name__)
 URL_SIC = "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&SIC={sic}&type=10-K&dateb=&owner=include&count=100&start={inicio}&output=atom"
 URL_FRAMES = "https://data.sec.gov/api/xbrl/frames/us-gaap/{concepto}/USD/CY{anio}.json"
@@ -111,10 +113,16 @@ def crecimiento_3_anios(fuente, por_id, normalizar, cagr, ticker: str) -> dict:
     ultimos = [h.fiscal_year for c in por_id["ingresos"].conceptos if (h := fuente.fact(c, None)) is not None and h.fiscal_year]
     if not ultimos:
         return {"tacc_ventas_3a": None, "tacc_bpa_3a": None}
+    from ..calculo.analitica import estabilidad_margen
+    from ..calculo.metricas import fundamentales
+
     fin = max(ultimos)
-    e = normalizar(fuente, [fin - 3, fin], ticker)
+    anios = list(range(fin - 4, fin + 1))
+    e = normalizar(fuente, anios, ticker)
+    margenes = [fundamentales(e, a)["margen_operativo"] for a in anios if a in e.ejercicios and a not in e.faltan]
     return {"tacc_ventas_3a": cagr(e.valor("ingresos", fin - 3), e.valor("ingresos", fin), 3),
-            "tacc_bpa_3a": cagr(e.valor("bpa_diluido", fin - 3), e.valor("bpa_diluido", fin), 3), "ejercicio_crecimiento": fin}
+            "tacc_bpa_3a": cagr(e.valor("bpa_diluido", fin - 3), e.valor("bpa_diluido", fin), 3), "ejercicio_crecimiento": fin,
+            "estabilidad_margen_5a": estabilidad_margen(margenes)}  # A5
 
 
 def datos(ticker: str) -> dict | None:
@@ -138,7 +146,7 @@ def datos(ticker: str) -> dict | None:
             return None
         f = fundamentales(estados, LTM)
         crecimiento = crecimiento_3_anios(FuenteEntityFacts(facts), POR_ID, normalizar, cagr, ticker)
-        return {"ticker": ticker, "nombre": empresa.name, "fecha_ltm": str(ultimo.period_of_report), "fundamentales": f,
+        return {"ticker": ticker, "nombre": nombre_legible(empresa.name), "fecha_ltm": str(ultimo.period_of_report), "fundamentales": f,
                 "multiplos": valoracion(estados, LTM, Mercado(precio.precio, acciones, precio.fecha)), **crecimiento}
     except Exception as e:  # noqa: BLE001  (un comparable que falla no rompe el informe: se omite con aviso)
         log.warning("Comparable %s omitido: %s", ticker, e)

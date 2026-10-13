@@ -1,0 +1,163 @@
+{
+ "ticker": "KO",
+ "origen": {
+  "filing": "0001628280-26-010047",
+  "ultimo_periodico": "0001628280-26-028802",
+  "fecha_ltm": "2026-04-03",
+  "fecha": "2026-10-13"
+ },
+ "sec": {
+  "ltm": {
+   "ingresos": 49284000000.0,
+   "resultado_operativo": 14462000000.0,
+   "beneficio_neto": 13701000000.0,
+   "bpa_diluido": 3.1759388038942977,
+   "acciones_diluidas": 4314000000.0,
+   "caja": 10574000000.0,
+   "deuda_cp": 4743000000.0,
+   "deuda_lp": 39065000000.0,
+   "patrimonio": 33633000000.0,
+   "flujo_operativo": 14631000000.0,
+   "capex": 2069000000.0
+  },
+  "fundamentales_ltm": {
+   "ebitda": 15509000000.0,
+   "fcf": 12562000000.0,
+   "fcf_tras_sbc": 12290000000.0,
+   "dfn": 33234000000.0,
+   "deuda_neta_ajustada": 33234000000.0
+  },
+  "acciones_del_dcf": 4302482418.0,
+  "anuales": {
+   "2021": {
+    "ingresos": 38655000000.0,
+    "resultado_operativo": 10308000000.0,
+    "beneficio_neto": 9771000000.0
+   },
+   "2022": {
+    "ingresos": 43004000000.0,
+    "resultado_operativo": 10909000000.0,
+    "beneficio_neto": 9542000000.0
+   },
+   "2023": {
+    "ingresos": 45754000000.0,
+    "resultado_operativo": 11311000000.0,
+    "beneficio_neto": 10714000000.0
+   },
+   "2024": {
+    "ingresos": 47061000000.0,
+    "resultado_operativo": 9992000000.0,
+    "beneficio_neto": 10631000000.0
+   },
+   "2025": {
+    "ingresos": 47941000000.0,
+    "resultado_operativo": 13762000000.0,
+    "beneficio_neto": 13107000000.0
+   }
+  },
+  "segmentos": {
+   "negocio": {
+    "ejercicios": [
+     2021,
+     2022
+    ],
+    "miembros": [
+     "Asia Pacific",
+     "Bottling Investments",
+     "Corporate",
+     "EMEA",
+     "Eliminations",
+     "Global Ventures",
+     "Latin America",
+     "North America"
+    ]
+   },
+   "producto": {
+    "ejercicios": [
+     2023,
+     2024,
+     2025
+    ],
+    "miembros": [
+     "Concentrate operations",
+     "Finished product operations"
+    ]
+   },
+   "geografia": {
+    "ejercicios": [
+     2021,
+     2022,
+     2023,
+     2024,
+     2025
+    ],
+    "miembros": [
+     "EE. UU.",
+     "International"
+    ]
+   }
+  },
+  "trimestres": [
+   {
+    "fin": "2024-06-28",
+    "ingresos": 12363000000.0,
+    "bpa": 0.56
+   },
+   {
+    "fin": "2024-09-27",
+    "ingresos": 11854000000.0,
+    "bpa": 0.66
+   },
+   {
+    "fin": "2024-12-31",
+    "ingresos": 11544000000.0,
+    "bpa": 0.5081018518518519
+   },
+   {
+    "fin": "2025-03-28",
+    "ingresos": 11129000000.0,
+    "bpa": 0.77
+   },
+   {
+    "fin": "2025-06-27",
+    "ingresos": 12535000000.0,
+    "bpa": 0.88
+   },
+   {
+    "fin": "2025-09-26",
+    "ingresos": 12455000000.0,
+    "bpa": 0.86
+   },
+   {
+    "fin": "2025-12-31",
+    "ingresos": 11822000000.0,
+    "bpa": 0.5265476466496638
+   },
+   {
+    "fin": "2026-04-03",
+    "ingresos": 12472000000.0,
+    "bpa": 0.91
+   }
+  ],
+  "calidad": {
+   "nivel": "ámbar",
+   "errores": [],
+   "avisos": [
+    "FY2021: pasivo total, valor calculado (no declarado): LiabilitiesAndStockholdersEquity − StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+    "FY2021: la deuda a corto suma papel comercial y préstamos a corto: comprobar en el balance que los préstamos no incluyen ya el papel comercial",
+    "FY2022: pasivo total, valor calculado (no declarado): LiabilitiesAndStockholdersEquity − StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+    "FY2022: la deuda a corto suma papel comercial y préstamos a corto: comprobar en el balance que los préstamos no incluyen ya el papel comercial",
+    "FY2023: pasivo total, valor calculado (no declarado): LiabilitiesAndStockholdersEquity − StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+    "FY2024: pasivo total, valor calculado (no declarado): LiabilitiesAndStockholdersEquity − StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+    "FY2025: pasivo total, valor calculado (no declarado): LiabilitiesAndStockholdersEquity − StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+    "LTM a 2026-04-03: pasivo total, valor calculado (no declarado): LiabilitiesAndStockholdersEquity − StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+    "el periodo cerrado a 2026-07-03 aún no está en la API companyfacts de la SEC: se usa LTM a 2026-04-03"
+   ]
+  }
+ },
+ "mercado_referencia": {
+  "cotizacion": 89.95999908447266,
+  "valor_dcf": 51.47462619442461,
+  "precio_objetivo": 51.47462619442461
+ }
+}

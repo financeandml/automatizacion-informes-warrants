@@ -1,0 +1,125 @@
+{
+ "ticker": "IOVA",
+ "origen": {
+  "filing": "0001104659-26-018899",
+  "ultimo_periodico": "0001104659-26-091716",
+  "fecha_ltm": "2026-06-30",
+  "fecha": "2026-10-13"
+ },
+ "sec": {
+  "ltm": {
+   "ingresos": 324969000.0,
+   "resultado_operativo": -301309000.0,
+   "beneficio_neto": -289517000.0,
+   "bpa_diluido": -0.6431010086874623,
+   "acciones_diluidas": 450189000.0,
+   "caja": 110768000.0,
+   "deuda_cp": null,
+   "deuda_lp": null,
+   "patrimonio": 736045000.0,
+   "flujo_operativo": -264182000.0,
+   "capex": 32213000.0
+  },
+  "fundamentales_ltm": {
+   "ebitda": -287992000.0,
+   "fcf": -296395000.0,
+   "fcf_tras_sbc": -343114000.0,
+   "dfn": -297674000.0,
+   "deuda_neta_ajustada": -297674000.0
+  },
+  "acciones_del_dcf": 452971432.0,
+  "anuales": {
+   "2023": {
+    "ingresos": 1189000.0,
+    "resultado_operativo": -460559000.0,
+    "beneficio_neto": -444037000.0
+   },
+   "2024": {
+    "ingresos": 164070000.0,
+    "resultado_operativo": -395278000.0,
+    "beneficio_neto": -372177000.0
+   },
+   "2025": {
+    "ingresos": 263502000.0,
+    "resultado_operativo": -403356000.0,
+    "beneficio_neto": -390978000.0
+   }
+  },
+  "segmentos": {
+   "producto": {
+    "ejercicios": [
+     2024,
+     2025
+    ],
+    "miembros": [
+     "Amtagvi",
+     "Proleukin"
+    ]
+   },
+   "geografia": {
+    "ejercicios": [
+     2024,
+     2025
+    ],
+    "miembros": [
+     "EE. UU.",
+     "Rest of world"
+    ]
+   }
+  },
+  "trimestres": [
+   {
+    "fin": "2024-09-30",
+    "ingresos": 58555000.0,
+    "bpa": -0.28
+   },
+   {
+    "fin": "2024-12-31",
+    "ingresos": 73694000.0,
+    "bpa": -0.2575704918032787
+   },
+   {
+    "fin": "2025-03-31",
+    "ingresos": 49324000.0,
+    "bpa": -0.36
+   },
+   {
+    "fin": "2025-06-30",
+    "ingresos": 59952000.0,
+    "bpa": -0.33
+   },
+   {
+    "fin": "2025-09-30",
+    "ingresos": 67455000.0,
+    "bpa": null
+   },
+   {
+    "fin": "2025-12-31",
+    "ingresos": 86771000.0,
+    "bpa": -0.20121731100197288
+   },
+   {
+    "fin": "2026-03-31",
+    "ingresos": 71430000.0,
+    "bpa": -0.19
+   },
+   {
+    "fin": "2026-06-30",
+    "ingresos": 99313000.0,
+    "bpa": -0.11
+   }
+  ],
+  "calidad": {
+   "nivel": "ámbar",
+   "errores": [],
+   "avisos": [
+    "Sin estados financieros anteriores a FY2023: historial de 3 ejercicios"
+   ]
+  }
+ },
+ "mercado_referencia": {
+  "cotizacion": 14.475000381469727,
+  "valor_dcf": null,
+  "precio_objetivo": null
+ }
+}

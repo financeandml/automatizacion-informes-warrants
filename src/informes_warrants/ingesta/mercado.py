@@ -147,3 +147,34 @@ def comportamiento(ticker: str, sic: int | str | None) -> dict[str, dict[str, fl
         return {k: None if propia[k] is None or absoluta[ref][k] is None else propia[k] - absoluta[ref][k] for k in propia}
 
     return {"absoluta": propia, f"vs {INDICE}": relativa(INDICE), f"vs {etf}": relativa(etf)}
+
+
+def participaciones(ticker: str) -> dict | None:
+    """Participación de insiders e institucional y mayores tenedores institucionales (A6).
+
+    **Fuente externa, no auditada (yfinance)**: excepción aprobada por el usuario solo para este bloque (como el
+    resto de financial-research-analyst-agent `insider_activity.get_institutional_holdings`). El informe la etiqueta
+    así y nunca la usa en cifras financieras ni en la valoración. None si yfinance no responde.
+    """
+    from datetime import date
+
+    import yfinance as yf
+
+    try:
+        t = yf.Ticker(ticker)
+        mayores = t.major_holders
+        instituciones = t.institutional_holders
+    except Exception as e:  # noqa: BLE001
+        log.warning("yfinance sin participaciones de %s: %s", ticker, e)
+        return None
+    if mayores is None or getattr(mayores, "empty", True):
+        return None
+    valores = mayores["Value"].to_dict() if "Value" in mayores else {}
+    principales = []
+    if instituciones is not None and not instituciones.empty:
+        for fila in instituciones.head(5).to_dict("records"):
+            principales.append({"nombre": str(fila.get("Holder", "")), "porcentaje": fila.get("pctHeld"),
+                                "fecha": str(fila.get("Date Reported", ""))[:10]})
+    return {"insiders": valores.get("insidersPercentHeld"), "instituciones": valores.get("institutionsPercentHeld"),
+            "numero_instituciones": valores.get("institutionsCount"), "principales": principales,
+            "consulta": date.today().isoformat()}

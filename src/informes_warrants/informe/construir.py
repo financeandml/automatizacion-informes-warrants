@@ -12,13 +12,17 @@ import logging
 import re
 import statistics
 from dataclasses import replace
-from datetime import date
+from datetime import date, timedelta
 
 from ..calculo.analitica import (
     apalancamiento_operativo,
     autonomia_de_caja,
+    cascada_ebitda_fcf,
     contribucion_segmentos,
+    cuotas_de_ingresos,
+    estabilidad_margen,
     puente_margen,
+    reaccion_resultados,
     uso_del_capital,
 )
 from ..calculo.calidad import revisar
@@ -35,10 +39,13 @@ from ..calculo.normalizador import (
     FuenteLTM,
     FuenteXBRL,
     acciones_en_circulacion,
+    concentracion_clientes,
     ltm_desde_anual,
     normalizar,
     segmentos,
+    segmentos_ltm,
     trimestres,
+    vencimientos_deuda,
 )
 from ..calculo.normalizador import _silencio as _silencio_edgar
 from ..calculo.notas import notas_de_ratios
@@ -190,8 +197,12 @@ def componer(*, ticker: str, empresa: str, sic, cobertura, filing: dict, estados
              texto_negocio: str, fecha: str | None = None, estimaciones: Estimaciones | None = None,
              escenarios: Escenarios | None = None, estados_ltm=None, fecha_ltm: str | None = None, rf=None,
              comparables: list[dict] | None = None, comparables_criterio: str = "", comparables_del_analista: bool = False,
-             gobierno=None, riesgos_cambios: dict | None = None, acciones_origen: str = "", trimestres_lista: list | None = None,
-             segmentos_dict: dict | None = None, precios_semanales: list | None = None, fechas_disponibles: dict | None = None,
+             gobierno=None, insiders: dict | None = None, competencia_texto: dict | None = None,
+             eventos: list | None = None, alarmas: list | None = None,
+             riesgos_cambios: dict | None = None, acciones_origen: str = "", trimestres_lista: list | None = None,
+             segmentos_dict: dict | None = None, concentracion: list | None = None, vencimientos: dict | None = None,
+             precios_semanales: list | None = None,
+             fechas_disponibles: dict | None = None,
              anterior: dict | None = None, historial_resumenes: list | None = None, autoria=None,
              capital_flotante: tuple | None = None) -> dict:
     """Parte pura (sin red): de los datos ya reunidos al contexto completo del informe.
@@ -362,6 +373,7 @@ def componer(*, ticker: str, empresa: str, sic, cobertura, filing: dict, estados
         "es_biotecnologia": es_biotecnologia(sic),
     }
     textos = {b.id: rellenar(b.id, datos) for b in BLOQUES if b.tipo in (Tipo.PLANTILLA, Tipo.ANALISTA)}
+    textos["negocio.competencia"] = _texto_competencia(competencia_texto)
     c = {
         "ticker": ticker, "empresa": empresa, "sic": sic, "etf": etf_sectorial(sic), "cobertura": cobertura, "filing": filing,
         "ejercicios": ejercicios, "estados": estados, "fundamentales": fund, "calidad": calidad,
@@ -377,12 +389,16 @@ def componer(*, ticker: str, empresa: str, sic, cobertura, filing: dict, estados
         "avisos_valoracion": avisos_valoracion, "avisos_emision": avisos_emision, "datos_dcf": datos_dcf,
         "componentes_ev": componentes_ev(ltm, LTM), "metodos": metodos, "bandas": bandas, "historicos": historicos,
         "valor_historicos": valor_historicos, "sotp": sotp, "precios_semanales": precios_semanales or [], "balance_base": balance_base,
-        "segmentos": segmentos_dict or {}, "trimestres": trimestres_lista or [],
+        "segmentos": segmentos_dict or {}, "concentracion": concentracion or [], "trimestres": trimestres_lista or [],
         "autonomia": autonomia, "contribucion": desglose_crec, "autoria": autoria, "capital_flotante": capital_flotante,
         "valor_contable_por_accion": (ltm.valor("patrimonio", LTM) / acciones) if ltm.valor("patrimonio", LTM) and acciones else None,
         "rango_dcf": (pesimista, optimista),
         "puente": puente, "apalancamiento": apalancamiento, "uso": uso, "notas": notas,
-        "puntuaciones": puntuaciones, "gobierno": gobierno, "riesgos_cambios": riesgos_cambios,
+        "cascada": cascada_ebitda_fcf(estados, ejercicio, f), "vencimientos": vencimientos or {"importes": [], "motivo": ""},
+        "puntuaciones": puntuaciones, "gobierno": gobierno, "riesgos_cambios": riesgos_cambios, "insiders": insiders,
+        "competencia": _competencia(competencia_texto, ticker, f_ltm, fund, ejercicios, comps if comparables_del_analista else [],
+                                    valor.wacc if valor else None),
+        "publicaciones": _publicaciones(eventos or [], trimestres_lista or [], series_bolsa.get(ticker)), "alarmas": alarmas or [],
         "riesgos": riesgos, "riesgos_lista": riesgos_lista, "textos": textos,
         "pendientes": [p for t in textos.values() for p in pendientes(t)], "fecha": fecha or date.today().isoformat(),
         "series_bolsa": series_bolsa,
@@ -391,6 +407,59 @@ def componer(*, ticker: str, empresa: str, sic, cobertura, filing: dict, estados
     c["historial"] = historial_recomendaciones(historial_resumenes or [], cotizacion.precio,
                                                date.fromisoformat(c["fecha"]))  # R17
     return c
+
+
+def _texto_competencia(texto: dict | None) -> str:
+    """Markdown del bloque de competencia: la traducción verificada o, si no la hay, el marcador para el analista."""
+    if not texto:
+        return "[[ANALISTA: el Item 1 del 10-K no tiene un apartado «Competition»: describe la competencia de la empresa]]"
+    if texto["valida"]:
+        return texto["texto"]
+    citado = "\n\n".join(f"> {p}" for p in texto["original"].split("\n\n"))
+    return f"[[ANALISTA: traduce o resume el apartado «Competition» del Item 1 ({texto['motivo']})]]\n\n{citado}"
+
+
+def _competencia(texto: dict | None, ticker: str, f_ltm: dict, fund: dict, ejercicios: list[int], comps: list[dict],
+                 wacc: float | None) -> dict:
+    """Apartado 14 (A5): texto del 10-K (traducido por la IA si pasó la verificación) y cifras frente a los
+    comparables del analista (sin su lista no hay cuotas: la propuesta automática por SIC es solo orientativa)."""
+    roic = f_ltm.get("roic")
+    estab = [c.get("estabilidad_margen_5a") for c in comps if c.get("estabilidad_margen_5a") is not None]
+    roics = [c["fundamentales"].get("roic") for c in comps if c["fundamentales"].get("roic") is not None]
+    return {
+        "texto": texto,
+        "cuotas": cuotas_de_ingresos({ticker: f_ltm.get("ingresos"), **{c["ticker"]: c["fundamentales"].get("ingresos") for c in comps}}),
+        "nombres": {c["ticker"]: c["nombre"] for c in comps},
+        "roic": roic, "wacc": wacc, "roic_menos_wacc": roic - wacc if roic is not None and wacc is not None else None,
+        "roic_mediana": statistics.median(roics) if roics else None,
+        "estabilidad": estabilidad_margen([fund[a]["margen_operativo"] for a in ejercicios[-5:]]),
+        "estabilidad_mediana": statistics.median(estab) if estab else None,
+    }
+
+
+MAX_PUBLICACIONES = 8
+
+
+def _publicaciones(eventos: list[dict], trimestres_lista: list[dict], cierres) -> list[dict]:
+    """Apartado 21 (A8): cada 8-K de resultados (ítem 2.02) con su trimestre y la reacción a 5 sesiones."""
+    salida = []
+    for e in [e for e in eventos if "2.02" in e["items"]][-MAX_PUBLICACIONES:]:
+        trimestre = next((t for t in sorted(trimestres_lista, key=lambda t: t["fin"], reverse=True)
+                          if 0 <= (e["fecha"] - t["fin"]).days <= 100), None)  # el último trimestre cerrado antes del 8-K
+        salida.append({**e, "trimestre": trimestre, "reaccion": reaccion_resultados(e["aceptacion"], cierres)})
+    return salida
+
+
+def _insiders(empresa, ticker: str) -> dict:
+    """Apartado 18 (A6): Form 4 de 12 meses, accionistas de más del 5 % y participaciones de yfinance (externas)."""
+    from ..calculo.insiders import actividad
+    from ..ingesta.insiders import accionistas_principales, transacciones
+    from ..ingesta.mercado import participaciones
+
+    hoy = date.today()
+    tr = transacciones(empresa, hoy)
+    return {**tr, "actividad": actividad(tr["operaciones"]), "accionistas": accionistas_principales(empresa, hoy),
+            "participaciones": participaciones(ticker)}
 
 
 def construir(ticker: str, con_ia: bool = True, comparables: list[str] | None = None, anterior: dict | None = None,
@@ -403,8 +472,12 @@ def construir(ticker: str, con_ia: bool = True, comparables: list[str] | None = 
     from edgar import Company
 
     from ..ingesta import comparables as ingesta_comparables
+    from ..ingesta.competencia import apartado_competencia
+    from ..ingesta.eventos import ANIOS_ALARMAS, eventos_8k
+    from ..ingesta.eventos import alarmas as alarmas_sec
     from ..ingesta.gobierno import gobierno as datos_gobierno
     from ..ingesta.mercado import INDICE, comportamiento, cotizacion, etf_sectorial, historico, precios_semanales, tipo_libre_riesgo
+    from ..ingesta.nombres import nombre_legible
     from ..ingesta.riesgos import comparar_riesgos, riesgos_anteriores, riesgos_anuales
     from .autoria import cargar as cargar_autoria
 
@@ -485,10 +558,29 @@ def construir(ticker: str, con_ia: bool = True, comparables: list[str] | None = 
         except Exception as e:  # noqa: BLE001  (sin el 10-K antiguo, los segmentos cubren 3 años)
             log.warning("XBRL del 10-K de hace dos años no disponible: %s", e)
     desgloses = segmentos(xbrls, totales, cierres)
+    if desgloses and periodico is not None and periodico.form == "10-Q" and fecha_ltm and cierres.get(ejercicio):
+        try:  # LTM provisional por segmento (F7): último ejercicio + acumulados del 10-Q
+            segmentos_ltm(desgloses, periodico.xbrl(), periodico.accession_no, ejercicio, cierres[ejercicio],
+                          date.fromisoformat(fecha_ltm), estados_ltm.valor("ingresos", LTM))
+        except Exception as e:  # noqa: BLE001  (sin XBRL del 10-Q: los segmentos se quedan sin columna LTM)
+            log.warning("Segmentos LTM no disponibles: %s", e)
     lista_trimestres = trimestres(facts, date.fromisoformat(fecha_ltm)) if fecha_ltm else []
     with _silencio_edgar():
         flotante = (facts.public_float, getattr(facts.public_float_fact, "period_end", None))
 
+    eventos = eventos_8k(empresa, date.today() - timedelta(days=365 * ANIOS_ALARMAS))
+    texto_negocio = filing.obj().business or ""
+    competencia_texto = None
+    literal = apartado_competencia(texto_negocio)
+    if literal:  # A5: tercer bloque de IA, solo traduce el texto literal; sin IA, el original para el analista
+        competencia_texto = {"original": literal["texto"], "texto": literal["texto"], "valida": False, "recortado": literal["recortado"],
+                             "motivo": "sin modelo de lenguaje (--sin-ia)", "modelo": None}
+        if con_ia:
+            from ..ia.bloques import competencia_en_espanol
+
+            tr, cfg = competencia_en_espanol(literal["texto"])
+            competencia_texto.update(texto=tr.texto, valida=tr.valida, motivo=tr.motivo,
+                                     modelo=f"{cfg.proveedor} · {cfg.modelo}" if cfg else None)
     riesgos_lista, texto_1a, _ = riesgos_anuales(ticker)
     try:  # la comparación con el año anterior es un añadido: si falla la red, el informe sale sin ella
         anteriores, _ = riesgos_anteriores(ticker)
@@ -504,17 +596,19 @@ def construir(ticker: str, con_ia: bool = True, comparables: list[str] | None = 
         riesgos = [{"resumen": s.resumen, "cita": s.cita, "modelo": f"{cfg.proveedor} · {cfg.modelo}"} for s in elegidos]
 
     return componer(
-        ticker=ticker, empresa=empresa.name, sic=empresa.sic, cobertura=cobertura,
+        ticker=ticker, empresa=nombre_legible(empresa.name), sic=empresa.sic, cobertura=cobertura,
         filing={"accession": filing.accession_no, "fecha": str(filing.filing_date), "ejercicio": ejercicio,
                 "ultimo_periodico": periodico.accession_no if periodico is not None else None,
                 "ultimo_periodico_formulario": periodico.form if periodico is not None else None},
         estados=estados, calidad=calidad, cotizacion=cotizacion(ticker), acciones=acciones,
         beta_estimada=_beta_semanal(ticker), comportamiento=comportamiento(ticker, empresa.sic),
         series_bolsa=_series_bolsa(ticker, etf_sectorial(empresa.sic), historico, INDICE),
-        riesgos=riesgos, riesgos_lista=riesgos_lista, texto_negocio=filing.obj().business or "",
+        riesgos=riesgos, riesgos_lista=riesgos_lista, texto_negocio=texto_negocio, competencia_texto=competencia_texto,
         estados_ltm=estados_ltm, fecha_ltm=fecha_ltm, rf=tipo_libre_riesgo(), comparables=datos_comparables,
         comparables_criterio=criterio, comparables_del_analista=del_analista, gobierno=datos_gobierno(empresa, xbrl),
+        insiders=_insiders(empresa, ticker), eventos=eventos, alarmas=alarmas_sec(empresa, date.today(), filing, eventos),
         riesgos_cambios=cambios, acciones_origen=acciones_origen, trimestres_lista=lista_trimestres, segmentos_dict=desgloses,
+        concentracion=concentracion_clientes(xbrl, cierres), vencimientos=vencimientos_deuda(fuente_anual, ejercicio),
         precios_semanales=precios_semanales(ticker), fechas_disponibles=disponibles, anterior=anterior,
         historial_resumenes=historial_resumenes, autoria=cargar_autoria(),
         capital_flotante=flotante if flotante[0] else None,

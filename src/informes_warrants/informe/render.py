@@ -197,10 +197,56 @@ def _segmentos(c) -> list[dict]:
                     resultado.append({"nombre": n, "valores": [_mn(r.get(a)) for a in d.ejercicios],
                                       "margen": _pct(r[ultimo] / s[ultimo]) if ultimo in r and s.get(ultimo) else "—"})
         rechazados = ", ".join(f"FY{a}" for a in sorted(d.rechazados))
+        for fila, (n, _) in zip(filas, orden, strict=True):  # LTM provisional (F7): solo si cuadró con el total LTM
+            fila["ltm"] = _mn(d.ltm.get(n)) if d.ltm else None
         tablas.append({"clave": clave, "titulo": titulo, "ejercicios": d.ejercicios, "filas": filas,
                        "total": [_mn(total[a]) for a in d.ejercicios], "resultado": resultado, "rechazados": rechazados,
-                       "origen": d.origen})
+                       "origen": d.origen, "ltm": bool(d.ltm), "total_ltm": _mn(sum(d.ltm.values())) if d.ltm else None,
+                       "ltm_origen": d.ltm_origen})
     return tablas
+
+
+def _concentracion(c) -> dict | None:
+    """Clientes con concentración declarada (A3): los 3 últimos ejercicios con dato."""
+    filas = c["concentracion"]
+    if not filas:
+        return None
+    anios = sorted({a for f in filas for a in f["valores"]})[-3:]
+    return {"anios": anios, "filas": [{"cliente": f["cliente"], "base": f["base"], "detalle": f["detalle"] or "—",
+                                       "valores": [_pct(f["valores"].get(a), 0) if a in f["valores"] else "—" for a in anios]}
+                                      for f in filas]}
+
+
+def _publicaciones(c) -> list[dict]:
+    filas = []
+    for p in reversed(c.get("publicaciones") or []):
+        t, r = p["trimestre"], p["reaccion"]
+        filas.append({"fecha": p["fecha"].strftime("%d/%m/%Y"), "trimestre": _mes_anio(t["fin"]) if t else "—",
+                      "ingresos": _mn(t["ingresos"]) if t else "—", "variacion": _var(t["crecimiento_interanual"]) if t else "—",
+                      "bpa": _num(t["bpa"], 2) if t else "—", "sesion": r["primera_sesion"].strftime("%d/%m/%Y") if r else "—",
+                      "reaccion": _var(r["reaccion"]) if r else "en curso"})
+    return filas
+
+
+MAX_OPERACIONES_INSIDERS = 10
+
+
+def _insiders(c) -> dict | None:
+    """Apartado 18: tablas formateadas (las cifras ya vienen calculadas en calculo/insiders.py)."""
+    ins = c.get("insiders")
+    if not ins:
+        return None
+    mayores = sorted(ins["operaciones"], key=lambda o: -(o["importe"] or 0))[:MAX_OPERACIONES_INSIDERS]
+    return {
+        "operaciones": [{"fecha": o["fecha"].strftime("%d/%m/%Y"), "nombre": o["nombre"], "cargo": o["cargo"] or "—",
+                         "tipo": o["tipo"], "acciones": _num(o["acciones"], 0), "precio": _num(o["precio"], 2),
+                         "importe": _num(o["importe"] / 1e6, 1) if o["importe"] else "—", "plan": "Sí" if o["plan_10b5_1"] else "No"}
+                        for o in sorted(mayores, key=lambda o: o["fecha"], reverse=True)],
+        "proxy": [{"nombre": a["nombre"], "acciones": _num(a["acciones"] / 1e6, 1) if a["acciones"] else "—",
+                   "porcentaje": _pct(a["porcentaje"])} for a in ins["accionistas"]["del_proxy"]],
+        "declaraciones": [{"nombre": d["nombre"], "porcentaje": _pct(d["porcentaje"]), "fecha": d["fecha_hecho"],
+                           "formulario": d["formulario"]} for d in ins["accionistas"]["declaraciones"]],
+    }
 
 
 def _trimestres(c) -> dict | None:
@@ -276,6 +322,14 @@ def _graficos(c):
 
 def _graficos_extra(c) -> dict:
     graficos_extra = {}
+    if c.get("cascada"):
+        graficos_extra["cascada"] = Markup(graficos.cascada([(n, v / 1e6, k) for n, v, k in c["cascada"]]))
+    venc = c.get("vencimientos") or {}
+    if venc.get("importes"):
+        ej = c["filing"]["ejercicio"]
+        etiquetas = [f"FY{(ej + i) % 100:02d}" for i in range(1, 6)] + ["Posterior"]
+        importes = [None if v is None else v / 1e6 for v in venc["importes"]]
+        graficos_extra["vencimientos"] = Markup(graficos.vencimientos(etiquetas, importes))
     principal = next((c["segmentos"][k] for k in ("negocio", "producto") if k in c["segmentos"]), None)
     if principal:
         orden = sorted(principal.miembros.items(), key=lambda kv: -(kv[1].get(principal.ejercicios[-1]) or 0))
@@ -337,10 +391,12 @@ def html(c: dict) -> str:
     return _env.get_template("informe.html.j2").render(
         c=c, f=c["fundamentales"][ejercicio], fl=c["fund_ltm"], t={k: _md(v) for k, v in c["textos"].items()},
         g=_graficos(c), fecha_larga=_fecha_larga(c["fecha"]), etiqueta_ltm=ltm,
+        ns_portada=any(v == "n.s." for fila in _resumen(c) for v in fila["valores"]),
         anios_est=c["etiquetas_estimadas"], resumen=_resumen(c), resumen_cabecera=[f"FY{a}" for a in c["ejercicios"][-2:]] + [ltm],
         estimados_portada=c["etiquetas_estimadas"][:ESTIMADOS_PORTADA], proyeccion=_proyeccion(c),
         comparables=_comparables(c), multiplos_def=MULTIPLOS, definiciones=DEFINICIONES, segmentos=_segmentos(c),
-        trimestres=_trimestres(c), flujo_balance=_flujo_balance(c), historicos=_historicos(c),
+        trimestres=_trimestres(c), concentracion=_concentracion(c),
+        insiders=_insiders(c), publicaciones=_publicaciones(c), flujo_balance=_flujo_balance(c), historicos=_historicos(c),
         umbral_comprar=UMBRAL_COMPRAR, umbral_vender=UMBRAL_VENDER,
         estados=[{"titulo": t, "filas": _filas(c, filas)} for t, filas in ESTADOS], trazas=trazas,
         horizontes=["1m", "3m", "12m", "YTD", "3a", "5a"], claves_horizonte=["1m", "3m", "12m", "ytd", "3a", "5a"],

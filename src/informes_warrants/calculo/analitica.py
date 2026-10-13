@@ -9,7 +9,12 @@ explican su variación. Aquí se descompone por código, sin IA, para que las pl
   Apalancamiento operativo = variación % del EBIT / variación % de las ventas
   Uso del capital (suma del periodo): dividendos + recompras sobre FCF tras remuneración en acciones;
     variación de las acciones diluidas; capex / D&A
-  Contribución de cada segmento al crecimiento: pendiente (docs/rigor-del-contenido.md, carencia 4)
+  Contribución de cada segmento al crecimiento: puntos de crecimiento de las ventas de cada segmento
+  Competencia (A5): cuota de ingresos entre la empresa y sus comparables; estabilidad del margen operativo =
+    desviación típica de los 5 últimos ejercicios (pp)
+  Cascada EBITDA → FCF (A9): EBITDA − impuestos pagados − intereses pagados + remuneración en acciones
+    (no es caja) ± circulante y otros (el resto, para que cuadre con el flujo operativo declarado)
+    = flujo operativo − capex = FCF − remuneración en acciones = FCF tras SBC
 """
 
 PB = 10_000  # de tanto por uno a puntos básicos
@@ -102,3 +107,79 @@ def contribucion_segmentos(miembros: dict[str, dict[int, float]], inicio: int, f
     contribucion = {n: (miembros[n][fin] - miembros[n][inicio]) / total_inicio for n in comunes}
     principal = max(contribucion, key=lambda n: abs(contribucion[n]))
     return {"contribuciones": contribucion, "total": sum(contribucion.values()), "principal": principal}
+
+
+def cascada_ebitda_fcf(estados, ejercicio: int, fund: dict) -> list[tuple[str, float, str]] | None:
+    """Pasos de la cascada (nombre, importe, tipo «total» o «variacion»), en USD, del ejercicio indicado.
+
+    Solo con partidas declaradas; lo que la empresa no declara por separado entra en el resto («circulante y
+    otros»), que hace que la cascada cuadre exactamente con el flujo operativo declarado. None si falta el EBITDA,
+    el flujo operativo o el capex.
+    """
+    v = lambda p: estados.valor(p, ejercicio)  # noqa: E731
+    ebitda, flujo, capex = fund.get("ebitda"), v("flujo_operativo"), v("capex")
+    if None in (ebitda, flujo, capex):
+        return None
+    pasos = [("EBITDA", ebitda, "total")]
+    resto = flujo - ebitda
+    for pid, nombre in (("impuestos_pagados", "Impuestos pagados"), ("intereses_pagados", "Intereses pagados")):
+        if v(pid) is not None:
+            pasos.append((nombre, -v(pid), "variacion"))
+            resto += v(pid)
+    sbc = v("pagos_basados_acciones")
+    if sbc:
+        pasos.append(("Remun. en acciones (no caja)", sbc, "variacion"))
+        resto -= sbc
+    otros = "Circulante y otros" if v("intereses_pagados") is not None else "Intereses, circulante y otros"
+    pasos += [(otros, resto, "variacion"), ("Flujo operativo", flujo, "total"), ("Capex", -capex, "variacion"),
+              ("FCF", flujo - capex, "total")]
+    if sbc:
+        pasos += [("Remun. en acciones", -sbc, "variacion"), ("FCF tras SBC", flujo - capex - sbc, "total")]
+    return pasos
+
+
+SESIONES_REACCION = 5
+CIERRE_MERCADO_ET = 16  # hora de Nueva York: lo presentado después del cierre cotiza en la sesión siguiente
+
+
+def reaccion_resultados(aceptacion_utc: str, cierres) -> dict | None:
+    """Reacción de la cotización a una publicación de resultados (A8): 5 sesiones, sin comparar con índices.
+
+    Sesión 1 = la primera en que el mercado pudo reaccionar (la del día si se presentó antes del cierre de
+    Nueva York; la siguiente si se presentó después). Reacción = cierre de la sesión 5 / cierre previo a la
+    sesión 1 − 1. `cierres`: serie diaria de cierres (ajustados por desdoblamientos). None si aún no hay 5
+    sesiones o falta el precio.
+    """
+    import pandas as pd
+
+    if not aceptacion_utc or cierres is None or len(cierres) < SESIONES_REACCION + 1:
+        return None
+    hora = pd.Timestamp(aceptacion_utc)
+    hora = (hora.tz_localize("UTC") if hora.tzinfo is None else hora).tz_convert("America/New_York")
+    dias = pd.DatetimeIndex(cierres.index).tz_localize(None).normalize() if cierres.index.tz is not None \
+        else pd.DatetimeIndex(cierres.index).normalize()
+    dia = pd.Timestamp(hora.date())
+    posteriores = [i for i, d in enumerate(dias) if (d > dia if hora.hour >= CIERRE_MERCADO_ET else d >= dia)]
+    if not posteriores or posteriores[0] == 0 or posteriores[0] + SESIONES_REACCION - 1 >= len(cierres):
+        return None
+    inicio = posteriores[0]
+    previo, final = float(cierres.iloc[inicio - 1]), float(cierres.iloc[inicio + SESIONES_REACCION - 1])
+    return {"primera_sesion": dias[inicio].date(), "reaccion": final / previo - 1} if previo else None
+
+
+MINIMO_ANIOS_ESTABILIDAD = 3
+
+
+def cuotas_de_ingresos(ingresos: dict[str, float | None]) -> dict[str, float]:
+    """Cuota de cada empresa en los ingresos del grupo (empresa + comparables del analista), A5."""
+    validos = {k: v for k, v in ingresos.items() if v is not None and v > 0}
+    total = sum(validos.values())
+    return {k: v / total for k, v in validos.items()} if total and len(validos) >= 2 else {}
+
+
+def estabilidad_margen(margenes: list[float | None]) -> float | None:
+    """Desviación típica (poblacional) del margen operativo en los ejercicios con dato; None con menos de 3."""
+    import statistics
+
+    validos = [m for m in margenes if m is not None]
+    return statistics.pstdev(validos) if len(validos) >= MINIMO_ANIOS_ESTABILIDAD else None

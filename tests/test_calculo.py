@@ -335,3 +335,16 @@ def test_ajuste_por_desdoblamiento():
     bpa = SimpleNamespace(numeric_value=19.83, period_end=date(2024, 12, 31), filing_date=date(2025, 1, 27))
     assert _ajustar_split("EarningsPerShareDiluted", bpa, splits)[0] == pytest.approx(1.983)
     assert _ajustar_split("NetIncomeLoss", fy2024, splits)[1] == ""  # las cifras en USD no se tocan
+
+
+def test_cascada_ebitda_fcf_golden(aapl):
+    """AAPL FY2023: EBITDA 125.820 → impuestos 18.679 e intereses 3.803 pagados, +SBC 10.833 → flujo operativo 110.543."""
+    from informes_warrants.calculo.analitica import cascada_ebitda_fcf
+
+    pasos = cascada_ebitda_fcf(aapl, 2023, fundamentales(aapl, 2023))
+    d = {n: v for n, v, _ in pasos}
+    assert d["Impuestos pagados"] == -18679 * M and d["Intereses pagados"] == -3803 * M
+    assert d["Flujo operativo"] == 110543 * M and d["FCF"] == 99584 * M and d["FCF tras SBC"] == (99584 - 10833) * M
+    # la cascada cuadra: EBITDA + variaciones hasta el flujo operativo = flujo operativo declarado
+    hasta_flujo = pasos[:[n for n, _, _ in pasos].index("Flujo operativo")]
+    assert sum(v for _, v, _ in hasta_flujo) == pytest.approx(110543 * M)

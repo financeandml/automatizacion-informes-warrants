@@ -161,6 +161,9 @@ PARTIDAS: tuple[Partida, ...] = (
             opcional=True),
     Partida("dividendos", "Dividendos pagados", ("PaymentsOfDividends", "PaymentsOfDividendsCommonStock"), opcional=True),
     Partida("recompras", "Recompra de acciones", ("PaymentsForRepurchaseOfCommonStock",), opcional=True),
+    # Información complementaria del estado de flujos (cascada EBITDA → FCF, A9)
+    Partida("impuestos_pagados", "Impuestos pagados", ("IncomeTaxesPaidNet", "IncomeTaxesPaid"), opcional=True),
+    Partida("intereses_pagados", "Intereses pagados", ("InterestPaidNet", "InterestPaid"), opcional=True),
 )
 POR_ID = {p.id: p for p in PARTIDAS}
 
@@ -629,6 +632,10 @@ class Desglose:
     ejercicios: list[int] = field(default_factory=list)  # ejercicios que cuadran con el total
     rechazados: dict[int, str] = field(default_factory=dict)  # ejercicio → motivo
     origen: str = ""
+    # LTM provisional (decisión F7, abierta): la empresa no lo publica; se calcula con el último 10-Q
+    ltm: dict[str, float] = field(default_factory=dict)  # nombre → ingresos LTM
+    ltm_origen: str = ""
+    ltm_motivo: str = ""  # por qué no hay LTM (vacío si lo hay)
 
 
 def _nombre_miembro(miembro: str, etiqueta: str | None) -> str:
@@ -683,8 +690,9 @@ def seleccion_validada(valores: dict[str, float], total: float, grupos: list[set
     return {k: valores[k] for k in mejores[0]} if len(mejores) == 1 else None
 
 
-def _hechos_eje(xbrl, concepto: str, eje: str) -> list[dict]:
-    """Hechos anuales de `concepto` desglosados SOLO por `eje` (o por eje + segmentos operativos de consolidación)."""
+def _hechos_eje(xbrl, concepto: str, eje: str, dias: tuple[int, int] = (350, 380)) -> list[dict]:
+    """Hechos de `concepto` desglosados SOLO por `eje` (o por eje + segmentos operativos de consolidación) cuyo
+    periodo dura entre `dias` (por defecto, anuales)."""
     try:
         with _silencio():
             df = xbrl.facts.query().by_concept(concepto).by_dimension(eje).to_dataframe()
@@ -703,9 +711,9 @@ def _hechos_eje(xbrl, concepto: str, eje: str) -> list[dict]:
         if len(propio) != 1 or not valido_resto or not r.get("period_start") or not r.get("period_end"):
             continue
         inicio, fin = (date.fromisoformat(str(r[c])[:10]) for c in ("period_start", "period_end"))
-        if not 350 <= (fin - inicio).days <= 380 or r.get("numeric_value") is None:
+        if not dias[0] <= (fin - inicio).days <= dias[1] or r.get("numeric_value") is None:
             continue
-        filas.append({"miembro": dims[propio[0]], "etiqueta": r.get("dimension_member_label"), "fin": fin,
+        filas.append({"miembro": dims[propio[0]], "etiqueta": r.get("dimension_member_label"), "inicio": inicio, "fin": fin,
                       "valor": float(r["numeric_value"])})
     return filas
 
@@ -766,3 +774,112 @@ def segmentos(xbrls: list[tuple], totales: dict[int, float], fines: dict[int, da
         if d.ejercicios:
             salida[clave] = d
     return salida
+
+
+def segmentos_ltm(desgloses: dict[str, Desglose], xbrl_10q, accession: str, ejercicio: int, fin_ejercicio: date,
+                  fecha_ltm: date, total_ltm: float | None) -> None:
+    """LTM provisional por segmento (decisión F7 del usuario, abierta): las empresas no lo publican.
+
+    LTM = último ejercicio + acumulado del año en curso − acumulado del mismo periodo del año anterior, con los
+    hechos del último 10-Q (que trae los dos acumulados). Solo se publica si están todos los miembros del último
+    ejercicio y la suma cuadra con los ingresos LTM consolidados (±1 %); si no, queda el motivo en `ltm_motivo`.
+    Rellena `ltm`, `ltm_origen` y `ltm_motivo` de cada desglose.
+    """
+    inicio_actual = fin_ejercicio + timedelta(days=1)
+    for d in desgloses.values():
+        if ejercicio not in d.ejercicios:
+            d.ltm_motivo = f"el último ejercicio (FY{ejercicio}) no tiene desglose validado"
+            continue
+        actual, anterior = {}, {}
+        for f in _hechos_eje(xbrl_10q, d.concepto, EJES_SEGMENTOS[d.eje], dias=(80, 290)):
+            nombre = _nombre_miembro(f["miembro"], f["etiqueta"])
+            if abs((f["fin"] - fecha_ltm).days) <= TOLERANCIA_DIAS and abs((f["inicio"] - inicio_actual).days) <= TOLERANCIA_DIAS:
+                actual.setdefault(nombre, f["valor"])
+            elif (abs((f["fin"] - (fecha_ltm - timedelta(days=364))).days) <= TOLERANCIA_DIAS
+                  and abs((f["inicio"] - (inicio_actual - timedelta(days=364))).days) <= TOLERANCIA_DIAS):
+                anterior.setdefault(nombre, f["valor"])
+        nombres = [n for n, s in d.miembros.items() if ejercicio in s]
+        faltan = [n for n in nombres if n not in actual or n not in anterior]
+        if faltan:
+            d.ltm_motivo = f"el 10-Q no trae los dos acumulados de: {', '.join(faltan)}"
+            continue
+        ltm = {n: d.miembros[n][ejercicio] + actual[n] - anterior[n] for n in nombres}
+        if not total_ltm or abs(sum(ltm.values()) - total_ltm) > TOLERANCIA_SEGMENTOS * abs(total_ltm):
+            d.ltm_motivo = (f"la suma ({sum(ltm.values()) / 1e6:,.0f} USD mn) no cuadra con los ingresos LTM"
+                            + (f" ({total_ltm / 1e6:,.0f})" if total_ltm else ""))
+            continue
+        d.ltm, d.ltm_origen = ltm, accession
+
+
+# --- Concentración de clientes (A3) ------------------------------------------------------------------------------
+EJE_CLIENTES = "MajorCustomersAxis"
+BASES_CONCENTRACION = {  # miembro de ConcentrationRiskByBenchmarkAxis → base del porcentaje (literal de la empresa)
+    "RevenueFromContractWithCustomerMember": "Ingresos", "SalesRevenueNetMember": "Ingresos", "RevenueBenchmarkMember": "Ingresos",
+    "RevenueFromContractWithCustomerProductAndServiceBenchmarkMember": "Ingresos",
+    "AccountsReceivableMember": "Cuentas a cobrar", "TradeAccountsReceivableMember": "Cuentas a cobrar",
+}
+TIPOS_CONCENTRACION = {"CustomerConcentrationRiskMember", "CreditConcentrationRiskMember"}
+EJES_CONCENTRACION = ("MajorCustomersAxis", "ConcentrationRiskByBenchmarkAxis", "ConcentrationRiskByTypeAxis")
+
+
+def concentracion_clientes(xbrl, fines: dict[int, date]) -> list[dict]:
+    """Clientes que la empresa declara como concentración de riesgo (`ConcentrationRiskPercentage1` del 10-K).
+
+    Solo bases de ingresos o de cuentas a cobrar (los proveedores y otras bases quedan fuera) y sin los miembros
+    residuales («Other customers»). Si el porcentaje viene además atribuido a un segmento o región, se muestra ese
+    detalle tal cual lo declara la empresa, sin reinterpretar la base. Filas: cliente, base, detalle y
+    {ejercicio: porcentaje}.
+    """
+    try:
+        with _silencio():
+            df = xbrl.facts.query().by_concept("ConcentrationRiskPercentage1").by_dimension(f"srt:{EJE_CLIENTES}").to_dataframe()
+    except Exception:  # noqa: BLE001  (sin el concepto: la empresa no declara concentraciones)
+        return []
+    if df is None or df.empty:
+        return []
+    columnas = [c for c in df.columns if c.startswith("dim_")]
+    filas: dict[tuple, dict] = {}
+    for _, r in df.iterrows():
+        dims = {c.split("_", 2)[-1]: str(r[c]) for c in columnas if isinstance(r[c], str) and r[c]}
+        cliente = next((v for k, v in dims.items() if k.endswith(EJE_CLIENTES)), "")
+        base = next((BASES_CONCENTRACION.get(_local(v)) for k, v in dims.items() if k.endswith("ConcentrationRiskByBenchmarkAxis")), None)
+        tipo = next((_local(v) for k, v in dims.items() if k.endswith("ConcentrationRiskByTypeAxis")), "")
+        if not cliente or base is None or tipo not in TIPOS_CONCENTRACION or "Other" in _local(cliente):
+            continue
+        fin = date.fromisoformat(str(r["period_end"])[:10]) if r.get("period_end") else None
+        ej = next((a for a, f in fines.items() if f and fin and abs((fin - f).days) <= TOLERANCIA_DIAS), None)
+        if ej is None or r.get("numeric_value") is None:
+            continue
+        extra = [_nombre_miembro(v, None) for k, v in dims.items() if not k.endswith(EJES_CONCENTRACION)]
+        clave = (_nombre_miembro(cliente, r.get("dimension_member_label")), base, " · ".join(extra))
+        filas.setdefault(clave, {"cliente": clave[0], "base": base, "detalle": clave[2], "valores": {}})["valores"].setdefault(
+            ej, float(r["numeric_value"]))
+    return sorted(filas.values(), key=lambda f: (f["base"] != "Ingresos", -max(f["valores"].values())))
+
+
+# --- Perfil de vencimientos de deuda (A9) --------------------------------------------------------------------------
+VENCIMIENTOS = ("LongTermDebtMaturitiesRepaymentsOfPrincipalInNextTwelveMonths", "LongTermDebtMaturitiesRepaymentsOfPrincipalInYearTwo",
+                "LongTermDebtMaturitiesRepaymentsOfPrincipalInYearThree", "LongTermDebtMaturitiesRepaymentsOfPrincipalInYearFour",
+                "LongTermDebtMaturitiesRepaymentsOfPrincipalInYearFive", "LongTermDebtMaturitiesRepaymentsOfPrincipalAfterYearFive")
+# Total con el que se contrastan (principal de la deuda): el primero declarado
+REFERENCIAS_VENCIMIENTOS = ("DebtInstrumentCarryingAmount", "DebtInstrumentFaceAmount", "LongTermDebt")
+TOLERANCIA_VENCIMIENTOS = 0.02  # principal frente a valor contable (descuentos, costes de emisión)
+
+
+def vencimientos_deuda(fuente, ejercicio: int) -> dict:
+    """Vencimientos de principal declarados en el 10-K (ASC 470) y su contraste con la deuda declarada.
+
+    Solo se publican si su suma cuadra (±2 %) con el principal o el valor contable de la deuda que declara la
+    empresa: si no, `importes` queda vacío y `motivo` dice por qué. Un año sin dato queda en None (no se pone 0).
+    """
+    importes = [fuente.hecho(c, ejercicio) for c in VENCIMIENTOS]
+    if not any(importes):
+        return {"importes": [], "motivo": "la empresa no declara vencimientos de deuda en el XBRL"}
+    suma = sum(x for x in importes if x)
+    referencia = next(((c, v) for c in REFERENCIAS_VENCIMIENTOS if (v := fuente.hecho(c, ejercicio))), None)
+    if referencia is None:
+        ref_cp, ref_lp = fuente.hecho("LongTermDebtCurrent", ejercicio), fuente.hecho("LongTermDebtNoncurrent", ejercicio)
+        referencia = ("LongTermDebtCurrent + LongTermDebtNoncurrent", (ref_cp or 0) + ref_lp) if ref_lp else None
+    if referencia is None or abs(suma - referencia[1]) > TOLERANCIA_VENCIMIENTOS * referencia[1]:
+        return {"importes": [], "motivo": "los vencimientos declarados no cuadran con la deuda declarada"}
+    return {"importes": importes, "suma": suma, "referencia": referencia[0], "valor_referencia": referencia[1], "motivo": ""}

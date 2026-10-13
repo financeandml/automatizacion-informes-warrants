@@ -1,0 +1,112 @@
+{
+ "ticker": "NFLX",
+ "origen": {
+  "filing": "0001065280-26-000034",
+  "ultimo_periodico": "0001065280-26-000212",
+  "fecha_ltm": "2026-06-30",
+  "fecha": "2026-10-13"
+ },
+ "sec": {
+  "ltm": {
+   "ingresos": 48370764000.0,
+   "resultado_operativo": 14354517000.0,
+   "beneficio_neto": 13649642000.0,
+   "bpa_diluido": 3.203163823246427,
+   "acciones_diluidas": 4261300000.0,
+   "caja": 9099232000.0,
+   "deuda_cp": 2483758000.0,
+   "deuda_lp": 11825548000.0,
+   "patrimonio": 30152052000.0,
+   "flujo_operativo": 11970833000.0,
+   "capex": 818828000.0
+  },
+  "fundamentales_ltm": {
+   "ebitda": 14726931000.0,
+   "fcf": 11152005000.0,
+   "fcf_tras_sbc": 10664678000.0,
+   "dfn": 5181396000.0,
+   "deuda_neta_ajustada": 5181396000.0
+  },
+  "acciones_del_dcf": 4163939676.0,
+  "anuales": {
+   "2021": {
+    "ingresos": 29697844000.0,
+    "resultado_operativo": 6194509000.0,
+    "beneficio_neto": 5116228000.0
+   },
+   "2022": {
+    "ingresos": 31615550000.0,
+    "resultado_operativo": 5632831000.0,
+    "beneficio_neto": 4491924000.0
+   },
+   "2023": {
+    "ingresos": 33723297000.0,
+    "resultado_operativo": 6954003000.0,
+    "beneficio_neto": 5407990000.0
+   },
+   "2024": {
+    "ingresos": 39000966000.0,
+    "resultado_operativo": 10417614000.0,
+    "beneficio_neto": 8711631000.0
+   },
+   "2025": {
+    "ingresos": 45183036000.0,
+    "resultado_operativo": 13326603000.0,
+    "beneficio_neto": 10981201000.0
+   }
+  },
+  "segmentos": {},
+  "trimestres": [
+   {
+    "fin": "2024-09-30",
+    "ingresos": 9824703000.0,
+    "bpa": 0.54
+   },
+   {
+    "fin": "2024-12-31",
+    "ingresos": 10246513000.0,
+    "bpa": 0.4253978841736462
+   },
+   {
+    "fin": "2025-03-31",
+    "ingresos": 10542801000.0,
+    "bpa": 0.66
+   },
+   {
+    "fin": "2025-06-30",
+    "ingresos": 11079166000.0,
+    "bpa": 0.72
+   },
+   {
+    "fin": "2025-09-30",
+    "ingresos": 11510307000.0,
+    "bpa": 0.587
+   },
+   {
+    "fin": "2025-12-31",
+    "ingresos": 12050762000.0,
+    "bpa": 0.5567673289880459
+   },
+   {
+    "fin": "2026-03-31",
+    "ingresos": 12249757000.0,
+    "bpa": 1.23
+   },
+   {
+    "fin": "2026-06-30",
+    "ingresos": 12559938000.0,
+    "bpa": 0.8
+   }
+  ],
+  "calidad": {
+   "nivel": "verde",
+   "errores": [],
+   "avisos": []
+  }
+ },
+ "mercado_referencia": {
+  "cotizacion": 71.34989929199219,
+  "valor_dcf": 60.447059665880474,
+  "precio_objetivo": 60.447059665880474
+ }
+}

@@ -1,0 +1,141 @@
+{
+ "ticker": "RIVN",
+ "origen": {
+  "filing": "0001874178-26-000008",
+  "ultimo_periodico": "0001874178-26-000054",
+  "fecha_ltm": "2026-06-30",
+  "fecha": "2026-10-13"
+ },
+ "sec": {
+  "ltm": {
+   "ingresos": 5883000000.0,
+   "resultado_operativo": -3533000000.0,
+   "beneficio_neto": -3233000000.0,
+   "bpa_diluido": -2.44,
+   "acciones_diluidas": 1325000000.0,
+   "caja": 3592000000.0,
+   "deuda_cp": null,
+   "deuda_lp": 4444000000.0,
+   "patrimonio": 5106000000.0,
+   "flujo_operativo": -1845000000.0,
+   "capex": 1644000000.0
+  },
+  "fundamentales_ltm": {
+   "ebitda": -2714000000.0,
+   "fcf": -3489000000.0,
+   "fcf_tras_sbc": -4286000000.0,
+   "dfn": -866000000.0,
+   "deuda_neta_ajustada": -767000000.0
+  },
+  "acciones_del_dcf": 1362000000.0,
+  "anuales": {
+   "2021": {
+    "ingresos": 55000000.0,
+    "resultado_operativo": -4220000000.0,
+    "beneficio_neto": -4688000000.0
+   },
+   "2022": {
+    "ingresos": 1658000000.0,
+    "resultado_operativo": -6856000000.0,
+    "beneficio_neto": -6752000000.0
+   },
+   "2023": {
+    "ingresos": 4434000000.0,
+    "resultado_operativo": -5739000000.0,
+    "beneficio_neto": -5432000000.0
+   },
+   "2024": {
+    "ingresos": 4970000000.0,
+    "resultado_operativo": -4689000000.0,
+    "beneficio_neto": -4747000000.0
+   },
+   "2025": {
+    "ingresos": 5387000000.0,
+    "resultado_operativo": -3585000000.0,
+    "beneficio_neto": -3646000000.0
+   }
+  },
+  "segmentos": {
+   "negocio": {
+    "ejercicios": [
+     2023,
+     2024,
+     2025
+    ],
+    "miembros": [
+     "Automotive",
+     "Software and Services"
+    ]
+   },
+   "producto": {
+    "ejercicios": [
+     2023,
+     2024,
+     2025
+    ],
+    "miembros": [
+     "New electric vehicles",
+     "Regulatory credits",
+     "Software and services"
+    ]
+   }
+  },
+  "trimestres": [
+   {
+    "fin": "2024-09-30",
+    "ingresos": 874000000.0,
+    "bpa": -1.08
+   },
+   {
+    "fin": "2024-12-31",
+    "ingresos": 1734000000.0,
+    "bpa": -0.7032136105860114
+   },
+   {
+    "fin": "2025-03-31",
+    "ingresos": 1240000000.0,
+    "bpa": -0.48
+   },
+   {
+    "fin": "2025-06-30",
+    "ingresos": 1303000000.0,
+    "bpa": -0.97
+   },
+   {
+    "fin": "2025-09-30",
+    "ingresos": 1558000000.0,
+    "bpa": -0.96
+   },
+   {
+    "fin": "2025-12-31",
+    "ingresos": 1286000000.0,
+    "bpa": -0.6588139723801787
+   },
+   {
+    "fin": "2026-03-31",
+    "ingresos": 1381000000.0,
+    "bpa": -0.33
+   },
+   {
+    "fin": "2026-06-30",
+    "ingresos": 1658000000.0,
+    "bpa": -0.63
+   }
+  ],
+  "calidad": {
+   "nivel": "ámbar",
+   "errores": [],
+   "avisos": [
+    "FY2024: patrimonio neto atribuible, valor calculado (no declarado): StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest − MinorityInterest",
+    "FY2025: patrimonio neto atribuible, valor calculado (no declarado): StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest − MinorityInterest",
+    "Sin estados financieros anteriores a FY2021: historial de 5 ejercicios",
+    "LTM a 2026-06-30: patrimonio neto atribuible, valor calculado (no declarado): StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest − MinorityInterest"
+   ]
+  }
+ },
+ "mercado_referencia": {
+  "cotizacion": 13.414999961853027,
+  "valor_dcf": null,
+  "precio_objetivo": null
+ }
+}

@@ -1,0 +1,126 @@
+{
+ "ticker": "XOM",
+ "origen": {
+  "filing": "0000034088-26-000045",
+  "ultimo_periodico": "0000034088-26-000067",
+  "fecha_ltm": "2026-03-31",
+  "fecha": "2026-10-13"
+ },
+ "sec": {
+  "ltm": {
+   "ingresos": 334246000000.0,
+   "resultado_operativo": 37328000000.0,
+   "beneficio_neto": 25314000000.0,
+   "bpa_diluido": 6.024274155164208,
+   "acciones_diluidas": 4202000000.0,
+   "caja": 8435000000.0,
+   "deuda_cp": 14531000000.0,
+   "deuda_lp": 33130000000.0,
+   "patrimonio": 254381000000.0,
+   "flujo_operativo": 47722000000.0,
+   "capex": 28930000000.0
+  },
+  "fundamentales_ltm": {
+   "ebitda": 64390000000.0,
+   "fcf": 18792000000.0,
+   "fcf_tras_sbc": null,
+   "dfn": 39226000000.0,
+   "deuda_neta_ajustada": 48166000000.0
+  },
+  "acciones_del_dcf": 4144947162.0,
+  "anuales": {
+   "2021": {
+    "ingresos": 276692000000.0,
+    "resultado_operativo": 32181000000.0,
+    "beneficio_neto": 23040000000.0
+   },
+   "2022": {
+    "ingresos": 413680000000.0,
+    "resultado_operativo": 78551000000.0,
+    "beneficio_neto": 55740000000.0
+   },
+   "2023": {
+    "ingresos": 344582000000.0,
+    "resultado_operativo": 53632000000.0,
+    "beneficio_neto": 36010000000.0
+   },
+   "2024": {
+    "ingresos": 349585000000.0,
+    "resultado_operativo": 49869000000.0,
+    "beneficio_neto": 33680000000.0
+   },
+   "2025": {
+    "ingresos": 332238000000.0,
+    "resultado_operativo": 41871000000.0,
+    "beneficio_neto": 28844000000.0
+   }
+  },
+  "segmentos": {},
+  "trimestres": [
+   {
+    "fin": "2024-06-30",
+    "ingresos": 93060000000.0,
+    "bpa": 2.14
+   },
+   {
+    "fin": "2024-09-30",
+    "ingresos": 90016000000.0,
+    "bpa": 1.92
+   },
+   {
+    "fin": "2024-12-31",
+    "ingresos": 83426000000.0,
+    "bpa": null
+   },
+   {
+    "fin": "2025-03-31",
+    "ingresos": 83130000000.0,
+    "bpa": 1.76
+   },
+   {
+    "fin": "2025-06-30",
+    "ingresos": 81506000000.0,
+    "bpa": 1.64
+   },
+   {
+    "fin": "2025-09-30",
+    "ingresos": 85294000000.0,
+    "bpa": 1.76
+   },
+   {
+    "fin": "2025-12-31",
+    "ingresos": 82308000000.0,
+    "bpa": null
+   },
+   {
+    "fin": "2026-03-31",
+    "ingresos": 85138000000.0,
+    "bpa": 1.0
+   }
+  ],
+  "calidad": {
+   "nivel": "ámbar",
+   "errores": [],
+   "avisos": [
+    "FY2021: resultado operativo (ebit), valor calculado (no declarado): IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest + InterestExpense",
+    "FY2021: BAI − impuestos ≠ beneficio neto (resultados de participadas, minoritarios u operaciones interrumpidas)",
+    "FY2022: resultado operativo (ebit), valor calculado (no declarado): IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest + InterestExpense",
+    "FY2022: BAI − impuestos ≠ beneficio neto (resultados de participadas, minoritarios u operaciones interrumpidas)",
+    "FY2023: resultado operativo (ebit), valor calculado (no declarado): IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest + InterestExpense",
+    "FY2023: BAI − impuestos ≠ beneficio neto (resultados de participadas, minoritarios u operaciones interrumpidas)",
+    "FY2024: resultado operativo (ebit), valor calculado (no declarado): IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest + InterestExpense",
+    "FY2024: BAI − impuestos ≠ beneficio neto (resultados de participadas, minoritarios u operaciones interrumpidas)",
+    "FY2025: resultado operativo (ebit), valor calculado (no declarado): IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest + InterestExpense",
+    "FY2025: BAI − impuestos ≠ beneficio neto (resultados de participadas, minoritarios u operaciones interrumpidas)",
+    "LTM a 2026-03-31: resultado operativo (ebit), valor calculado (no declarado): IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest + InterestExpense",
+    "LTM a 2026-03-31: BAI − impuestos ≠ beneficio neto (resultados de participadas, minoritarios u operaciones interrumpidas)",
+    "el periodo cerrado a 2026-06-30 aún no está en la API companyfacts de la SEC: se usa LTM a 2026-03-31"
+   ]
+  }
+ },
+ "mercado_referencia": {
+  "cotizacion": 173.8000030517578,
+  "valor_dcf": 112.1243391400514,
+  "precio_objetivo": 112.1243391400514
+ }
+}

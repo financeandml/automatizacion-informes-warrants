@@ -56,8 +56,16 @@ Orden de desarrollo y por qué: primero los datos que usan los demás, luego la 
 | P1 | R1: hechos clave con etiqueta temática (A2) | Aparcada hasta terminar el SaaS |
 | P2 | R5: taxonomía de riesgos para la clasificación del apartado 20 (A7) | Aparcada hasta terminar el SaaS |
 | P3 | R15: valoración de empresas sin beneficios | En espera de los documentos del usuario (con B1) |
+| P4 | Emisores extranjeros (20-F/40-F) en el PDF (antigua A10). Auditoría del 2026-10-13: faltan las listas IFRS (`ifrs-full`) en el normalizador (reutilizar edgar_analytics `synonyms.py` y `SynonymGroups` de edgartools), sin LTM trimestral (no hay 10-Q), sin Form 4 ni DEF 14A (Item 6 del 20-F); cifras a USD con `ingesta/divisas.py` y textos de `TwentyF` | Aparcada por el usuario |
 
 ## Fase A: primer uso real (un analista, en su ordenador)
+
+**Decisiones del usuario para cerrar la fase A (2026-10-13):** orden A14 → A1-bis (F7 provisional) → A15 → A3 → A9 → A6 → A8 → A5 → A4 → A2 → PDF de revisión → A11 → A12 + A13. Todo sin alucinaciones (cifras por código y validadas; si no cuadran, no se muestran).
+- A2: 4 hechos por reglas sin etiqueta temática (patrón FRAA `insight_engine`); R1 se valorará después (P1).
+- A4: el calendario lo introduce preferentemente el analista; el SaaS prepara un borrador por empresa marcado «Revisar».
+- A5: tercer bloque de IA: localizar el apartado «Competition» del Item 1, extraerlo y traducirlo al español salvo los nombres de los competidores.
+- A6: lógica de FRAA `insider_activity` (actividad neta, compras agrupadas) sobre los Form 4 de la SEC; participación de *insiders* e institucional de yfinance, etiquetada como fuente externa no auditada (excepción aprobada).
+- A11: reutilizar `almacenamiento/` tal cual. A13: la autoría se gestiona solo dentro del SaaS.
 
 Objetivo: que el analista genere, complete, emita (PDF descargable) y versione informes reales de cualquier empresa operativa de EEUU desde una interfaz.
 
@@ -69,10 +77,10 @@ Objetivo: que el analista genere, complete, emita (PDF descargable) y versione i
 | A4 | Apartado 6: catalizadores | Bloque de IA del MD&A conectado; en el informe, la propuesta automática; editable en la interfaz (A12). Calendario: vencimientos de deuda (verificado), junta anual y próximos resultados estimados **siempre posteriores a la fecha de emisión**; hechos relevantes del 8-K de 12 meses. Pipeline de biotecnológicas: propuesta R4 | Lista para empezar |
 | A5 | Apartado 14: competencia | Párrafo «Competition» del Item 1 y cuotas entre los comparables del analista, en español; ROIC − WACC y estabilidad del margen frente a la mediana. Hecho: crecimiento de los comparables (R10) | Lista para empezar |
 | A6 | Apartado 18: insiders y accionistas | Form 4 de 12 meses: solo compras y ventas en mercado, separadas de la retribución en acciones; accionistas > 5 % (proxy y 13D/G) | Lista para empezar |
-| A7 | Apartado 20: clasificación de riesgos | **No se ejecuta** (P2). Hecho: autonomía de caja y dilución (R2) | Pendiente de decisión |
+| ~~A7~~ | ~~Apartado 20: clasificación de riesgos~~ | Sacada de la fase A a P2 (decisión del usuario, 2026-10-13). Hecho: autonomía de caja y dilución (R2) | En P2 |
 | A8 | Apartado 21: historial de resultados | Resultados de la empresa; alarmas SEC (8-K 4.01/4.02, 10-K/A, NT 10-K/10-Q, debilidad material, *going concern*); reacción bursátil a 5 sesiones tras cada 8-K 2.02, sin comparar con índices; hecho: tabla de 8 trimestres (R3) | Lista para empezar |
 | A9 | Gráficos pendientes | Cascada EBITDA → FCF y perfil de vencimientos de deuda | Lista para empezar |
-| A10 | Emisores extranjeros en el PDF | `construir` solo busca 10-K: añadir 20-F/40-F (textos del 20-F y cifras en USD, ya resueltos en `ingesta/divisas.py`) | Lista para empezar |
+| ~~A10~~ | ~~Emisores extranjeros en el PDF~~ | Aparcada en P4 (decisión del usuario, 2026-10-13) | En P4 |
 | A11 | Versiones conectadas al informe | Detectar 10-Q/10-K → construir → guardar contenido, *snapshot* de datos (JSON) y PDF por versión; herencia de lo que aportó el analista | Lista para empezar |
 | A12 | Interfaz Streamlit (un analista, en su ordenador) | Panel con estados; editor híbrido (cifras de solo lectura, textos en Markdown, estimaciones, escenarios, comparables y catalizadores editables); vista previa en tiempo real; avisos antes de emitir; botón «Confirmar emisión»; descarga del PDF | Tras A1-A11 |
 | A13 | Autoría | Hecho: campos, portada y `informes-warrants autoria` (R6), guardados fuera del repositorio. Falta la pantalla de configuración de la interfaz (A12) | Con A12 |

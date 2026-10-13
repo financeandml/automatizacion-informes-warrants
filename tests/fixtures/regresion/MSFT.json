@@ -1,0 +1,168 @@
+{
+ "ticker": "MSFT",
+ "origen": {
+  "filing": "0001193125-26-323660",
+  "ultimo_periodico": "0001193125-26-323660",
+  "fecha_ltm": "2026-06-30",
+  "fecha": "2026-10-13"
+ },
+ "sec": {
+  "ltm": {
+   "ingresos": 331839000000.0,
+   "resultado_operativo": 155237000000.0,
+   "beneficio_neto": 133749000000.0,
+   "bpa_diluido": 17.94565946598685,
+   "acciones_diluidas": 7453000000.0,
+   "caja": 20935000000.0,
+   "deuda_cp": 9227000000.0,
+   "deuda_lp": 31067000000.0,
+   "patrimonio": 442387000000.0,
+   "flujo_operativo": 182935000000.0,
+   "capex": 115948000000.0
+  },
+  "fundamentales_ltm": {
+   "ebitda": 194337000000.0,
+   "fcf": 66987000000.0,
+   "fcf_tras_sbc": 54582000000.0,
+   "dfn": -36549000000.0,
+   "deuda_neta_ajustada": 30045000000.0
+  },
+  "acciones_del_dcf": 7425545491.0,
+  "anuales": {
+   "2022": {
+    "ingresos": 198270000000.0,
+    "resultado_operativo": 83383000000.0,
+    "beneficio_neto": 72738000000.0
+   },
+   "2023": {
+    "ingresos": 211915000000.0,
+    "resultado_operativo": 88523000000.0,
+    "beneficio_neto": 72361000000.0
+   },
+   "2024": {
+    "ingresos": 245122000000.0,
+    "resultado_operativo": 109433000000.0,
+    "beneficio_neto": 88136000000.0
+   },
+   "2025": {
+    "ingresos": 281724000000.0,
+    "resultado_operativo": 128528000000.0,
+    "beneficio_neto": 101832000000.0
+   },
+   "2026": {
+    "ingresos": 331839000000.0,
+    "resultado_operativo": 155237000000.0,
+    "beneficio_neto": 133749000000.0
+   }
+  },
+  "segmentos": {
+   "negocio": {
+    "ejercicios": [
+     2022,
+     2023,
+     2024,
+     2025,
+     2026
+    ],
+    "miembros": [
+     "Intelligent Cloud",
+     "More Personal Computing",
+     "Productivity and Business Processes"
+    ]
+   },
+   "producto": {
+    "ejercicios": [
+     2022,
+     2023,
+     2024,
+     2025,
+     2026
+    ],
+    "miembros": [
+     "Devices",
+     "Dynamics Products and Cloud Services",
+     "Dynamics products and cloud services",
+     "Enterprise and Partner Services",
+     "Enterprise and partner services",
+     "Gaming",
+     "LinkedIn",
+     "Microsoft 365 Commercial Products and Cloud Services",
+     "Microsoft 365 Consumer products and cloud services",
+     "Office Products and Cloud Services",
+     "Other",
+     "Search advertising",
+     "Search and News Advertising",
+     "Server Products and Cloud Services",
+     "Windows",
+     "Windows and Devices",
+     "XBOX"
+    ]
+   },
+   "geografia": {
+    "ejercicios": [
+     2022,
+     2023,
+     2024,
+     2025,
+     2026
+    ],
+    "miembros": [
+     "EE. UU.",
+     "Other Countries"
+    ]
+   }
+  },
+  "trimestres": [
+   {
+    "fin": "2024-09-30",
+    "ingresos": 65585000000.0,
+    "bpa": 3.3
+   },
+   {
+    "fin": "2024-12-31",
+    "ingresos": 69632000000.0,
+    "bpa": 3.23
+   },
+   {
+    "fin": "2025-03-31",
+    "ingresos": 70066000000.0,
+    "bpa": 3.46
+   },
+   {
+    "fin": "2025-06-30",
+    "ingresos": 76441000000.0,
+    "bpa": 3.648091091761554
+   },
+   {
+    "fin": "2025-09-30",
+    "ingresos": 77673000000.0,
+    "bpa": 3.72
+   },
+   {
+    "fin": "2025-12-31",
+    "ingresos": 81273000000.0,
+    "bpa": 5.16
+   },
+   {
+    "fin": "2026-03-31",
+    "ingresos": 82886000000.0,
+    "bpa": 4.27
+   },
+   {
+    "fin": "2026-06-30",
+    "ingresos": 90007000000.0,
+    "bpa": 4.7988729370723195
+   }
+  ],
+  "calidad": {
+   "nivel": "verde",
+   "errores": [],
+   "avisos": []
+  }
+ },
+ "mercado_referencia": {
+  "cotizacion": 549.0800170898438,
+  "valor_dcf": 304.8905430802879,
+  "precio_objetivo": 304.8905430802879
+ }
+}

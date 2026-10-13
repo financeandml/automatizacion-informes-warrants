@@ -38,8 +38,9 @@ def test_cubre_todas_las_secciones_del_indice():
     assert len({b.id for b in BLOQUES}) == len(BLOQUES)
 
 
-def test_la_ia_se_usa_en_solo_dos_bloques():
-    assert [b.id for b in bloques_por_tipo(Tipo.IA)] == ["riesgos.resumen", "riesgos.catalizadores"]
+def test_la_ia_se_usa_en_solo_tres_bloques():
+    """Regla 7: riesgos y catalizadores (eligen y resumen) y competencia (solo traduce; decisión del 2026-10-13)."""
+    assert [b.id for b in bloques_por_tipo(Tipo.IA)] == ["negocio.competencia", "riesgos.resumen", "riesgos.catalizadores"]
 
 
 def test_cada_bloque_con_plantilla_la_tiene_y_se_rellena():

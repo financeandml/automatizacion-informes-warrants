@@ -1,0 +1,151 @@
+{
+ "ticker": "ORCL",
+ "origen": {
+  "filing": "0001193125-26-277521",
+  "ultimo_periodico": "0001193125-26-389274",
+  "fecha_ltm": "2026-08-31",
+  "fecha": "2026-10-13"
+ },
+ "sec": {
+  "ltm": {
+   "ingresos": 71777000000.0,
+   "resultado_operativo": 23056000000.0,
+   "beneficio_neto": 18920000000.0,
+   "bpa_diluido": 6.306666666666667,
+   "acciones_diluidas": 3000000000.0,
+   "caja": 36369000000.0,
+   "deuda_cp": 7625000000.0,
+   "deuda_lp": 117712000000.0,
+   "patrimonio": 66772000000.0,
+   "flujo_operativo": 46940000000.0,
+   "capex": 75660000000.0
+  },
+  "fundamentales_ltm": {
+   "ebitda": 33938000000.0,
+   "fcf": -28720000000.0,
+   "fcf_tras_sbc": -33534000000.0,
+   "dfn": 88260000000.0,
+   "deuda_neta_ajustada": 102399000000.0
+  },
+  "acciones_del_dcf": 3023736000.0,
+  "anuales": {
+   "2022": {
+    "ingresos": 42440000000.0,
+    "resultado_operativo": 10926000000.0,
+    "beneficio_neto": 6717000000.0
+   },
+   "2023": {
+    "ingresos": 49954000000.0,
+    "resultado_operativo": 13093000000.0,
+    "beneficio_neto": 8503000000.0
+   },
+   "2024": {
+    "ingresos": 52961000000.0,
+    "resultado_operativo": 15353000000.0,
+    "beneficio_neto": 10467000000.0
+   },
+   "2025": {
+    "ingresos": 57399000000.0,
+    "resultado_operativo": 17678000000.0,
+    "beneficio_neto": 12443000000.0
+   },
+   "2026": {
+    "ingresos": 67357000000.0,
+    "resultado_operativo": 20606000000.0,
+    "beneficio_neto": 17087000000.0
+   }
+  },
+  "segmentos": {
+   "negocio": {
+    "ejercicios": [
+     2022,
+     2023,
+     2024,
+     2025,
+     2026
+    ],
+    "miembros": [
+     "Cloud and License",
+     "Cloud and Software",
+     "Hardware",
+     "Services"
+    ]
+   },
+   "geografia": {
+    "ejercicios": [
+     2022,
+     2023,
+     2024,
+     2025,
+     2026
+    ],
+    "miembros": [
+     "Americas",
+     "Asia Pacific",
+     "EMEA"
+    ]
+   }
+  },
+  "trimestres": [
+   {
+    "fin": "2024-11-30",
+    "ingresos": 14059000000.0,
+    "bpa": 1.1
+   },
+   {
+    "fin": "2025-02-28",
+    "ingresos": 14130000000.0,
+    "bpa": 1.02
+   },
+   {
+    "fin": "2025-05-31",
+    "ingresos": 15903000000.0,
+    "bpa": 1.1957431960921145
+   },
+   {
+    "fin": "2025-08-31",
+    "ingresos": 14926000000.0,
+    "bpa": 1.01
+   },
+   {
+    "fin": "2025-11-30",
+    "ingresos": 16058000000.0,
+    "bpa": 2.1
+   },
+   {
+    "fin": "2026-02-28",
+    "ingresos": 17190000000.0,
+    "bpa": 1.27
+   },
+   {
+    "fin": "2026-05-31",
+    "ingresos": 19184000000.0,
+    "bpa": 1.4770075497597803
+   },
+   {
+    "fin": "2026-08-31",
+    "ingresos": 19345000000.0,
+    "bpa": 1.56
+   }
+  ],
+  "calidad": {
+   "nivel": "ámbar",
+   "errores": [],
+   "avisos": [
+    "FY2022: pasivo total, valor calculado (no declarado): LiabilitiesAndStockholdersEquity − StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+    "FY2022: patrimonio negativo: ROE y P/BV no son interpretables",
+    "FY2023: pasivo total, valor calculado (no declarado): LiabilitiesAndStockholdersEquity − StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+    "FY2024: pasivo total, valor calculado (no declarado): LiabilitiesAndStockholdersEquity − StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+    "FY2025: pasivo total, valor calculado (no declarado): LiabilitiesAndStockholdersEquity − StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+    "FY2026: pasivo total, valor calculado (no declarado): LiabilitiesAndStockholdersEquity − StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+    "LTM a 2026-08-31: beneficio antes de impuestos, valor calculado (no declarado): NetIncomeLoss + IncomeTaxExpenseBenefit",
+    "LTM a 2026-08-31: pasivo total, valor calculado (no declarado): LiabilitiesAndStockholdersEquity − StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest"
+   ]
+  }
+ },
+ "mercado_referencia": {
+  "cotizacion": 139.14500427246094,
+  "valor_dcf": 69.96810722087127,
+  "precio_objetivo": 69.96810722087127
+ }
+}

@@ -56,6 +56,8 @@ BLOQUES: tuple[Bloque, ...] = (
     Bloque("negocio.segmentos", "4", "Ingresos por segmento, plantilla y costes", Tipo.AUTO, "Segmentos XBRL, LaborAndRelatedExpense"),
     Bloque("negocio.pipeline", "4", "Pipeline de producto (farmacia y biotecnología)", Tipo.ANALISTA,
            "Solo en esos sectores (SIC 2833-2836, 8731): la SEC no lo publica como datos", "pipeline.md.j2"),
+    Bloque("negocio.competencia", "4", "Competencia según la empresa", Tipo.IA,
+           "Apartado «Competition» del Item 1, extraído por código y traducido por IA con verificación (A5)"),
     Bloque("negocio.posicionamiento", "4", "Posicionamiento competitivo", Tipo.ANALISTA,
            "Criterio del analista", "posicionamiento.md.j2"),
     # §5 Industria

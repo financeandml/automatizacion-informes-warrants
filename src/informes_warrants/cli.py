@@ -115,6 +115,30 @@ def _versiones(args) -> None:
     print(f"Base de datos: {almacen.ruta}")
 
 
+def _regresion(args) -> None:
+    from .informe import regresion
+    from .informe.construir import construir
+
+    fallos = 0
+    for ticker in [t.upper() for t in args.tickers] or regresion.EMPRESAS:
+        ahora = regresion.cifras_clave(construir(ticker, con_ia=False))
+        antes = regresion.cargar(ticker)
+        if antes is None or args.actualizar:
+            print(f"{ticker}: instantánea {'actualizada' if antes else 'creada'} en {regresion.guardar(ahora)}")
+            continue
+        r = regresion.comparar(antes, ahora)
+        if not r["diferencias"]:
+            print(f"{ticker}: sin cambios")
+            continue
+        fallos += not r["nuevo_filing"]
+        motivo = ("filing nuevo de la SEC: revisar y, si es correcto, --actualizar" if r["nuevo_filing"]
+                  else "MISMO filing: revisar el código")
+        print(f"{ticker}: {len(r['diferencias'])} diferencias ({motivo})")
+        for d in r["diferencias"]:
+            print(f"   {d}")
+    sys.exit(1 if fallos else 0)
+
+
 def _autoria(args) -> None:
     from .informe.autoria import Autoria, cargar, guardar
 
@@ -155,6 +179,11 @@ def main() -> None:
     p.add_argument("--comparables", help="Lista del analista separada por comas (p. ej. MSFT,GOOGL,DELL); sin ella, propuesta por SIC")
     p.add_argument("--comparar-con", help="Resumen JSON de un informe anterior: muestra qué cambió y por qué (R16)")
     p.set_defaults(func=_informe, sec=True)
+
+    p = sub.add_parser("regresion", help="Batería de regresión: cifras clave de las empresas de prueba frente a su instantánea")
+    p.add_argument("tickers", nargs="*", help="Por defecto, las 10 empresas de prueba")
+    p.add_argument("--actualizar", action="store_true", help="Guarda las cifras actuales como nueva referencia (tras revisarlas)")
+    p.set_defaults(func=_regresion, sec=True)
 
     p = sub.add_parser("autoria", help="Datos de autoría que salen en la portada (cada usuario los suyos)")
     for campo in ("analista", "correo", "telefono", "empresa", "contacto_empresa"):

@@ -1,0 +1,150 @@
+{
+ "ticker": "TSLA",
+ "origen": {
+  "filing": "0001628280-26-003952",
+  "ultimo_periodico": "0001628280-26-049270",
+  "fecha_ltm": "2026-06-30",
+  "fecha": "2026-10-13"
+ },
+ "sec": {
+  "ltm": {
+   "ingresos": 103619000000.0,
+   "resultado_operativo": 4372000000.0,
+   "beneficio_neto": 3804000000.0,
+   "bpa_diluido": 1.0745762711864406,
+   "acciones_diluidas": 3540000000.0,
+   "caja": 15219000000.0,
+   "deuda_cp": 1340000000.0,
+   "deuda_lp": 6381000000.0,
+   "patrimonio": 86858000000.0,
+   "flujo_operativo": 18685000000.0,
+   "capex": 12923000000.0
+  },
+  "fundamentales_ltm": {
+   "ebitda": 9812000000.0,
+   "fcf": 5762000000.0,
+   "fcf_tras_sbc": 1964000000.0,
+   "dfn": -35803000000.0,
+   "deuda_neta_ajustada": -35468000000.0
+  },
+  "acciones_del_dcf": 3949547394.0,
+  "anuales": {
+   "2021": {
+    "ingresos": 53823000000.0,
+    "resultado_operativo": 6523000000.0,
+    "beneficio_neto": 5519000000.0
+   },
+   "2022": {
+    "ingresos": 81462000000.0,
+    "resultado_operativo": 13656000000.0,
+    "beneficio_neto": 12556000000.0
+   },
+   "2023": {
+    "ingresos": 96773000000.0,
+    "resultado_operativo": 8891000000.0,
+    "beneficio_neto": 14997000000.0
+   },
+   "2024": {
+    "ingresos": 97690000000.0,
+    "resultado_operativo": 7076000000.0,
+    "beneficio_neto": 7091000000.0
+   },
+   "2025": {
+    "ingresos": 94827000000.0,
+    "resultado_operativo": 4355000000.0,
+    "beneficio_neto": 3794000000.0
+   }
+  },
+  "segmentos": {
+   "negocio": {
+    "ejercicios": [
+     2021,
+     2022,
+     2023,
+     2024,
+     2025
+    ],
+    "miembros": [
+     "Automotive segment",
+     "Energy generation and storage segment"
+    ]
+   },
+   "geografia": {
+    "ejercicios": [
+     2021,
+     2022,
+     2023,
+     2024,
+     2025
+    ],
+    "miembros": [
+     "China",
+     "EE. UU.",
+     "Other international"
+    ]
+   }
+  },
+  "trimestres": [
+   {
+    "fin": "2024-09-30",
+    "ingresos": 25182000000.0,
+    "bpa": 0.62
+   },
+   {
+    "fin": "2024-12-31",
+    "ingresos": 25707000000.0,
+    "bpa": 0.6623785020011436
+   },
+   {
+    "fin": "2025-03-31",
+    "ingresos": 19335000000.0,
+    "bpa": 0.12
+   },
+   {
+    "fin": "2025-06-30",
+    "ingresos": 22496000000.0,
+    "bpa": 0.33
+   },
+   {
+    "fin": "2025-09-30",
+    "ingresos": 28095000000.0,
+    "bpa": 0.39
+   },
+   {
+    "fin": "2025-12-31",
+    "ingresos": 24901000000.0,
+    "bpa": 0.23809523809523808
+   },
+   {
+    "fin": "2026-03-31",
+    "ingresos": 22387000000.0,
+    "bpa": 0.13
+   },
+   {
+    "fin": "2026-06-30",
+    "ingresos": 28236000000.0,
+    "bpa": 0.32
+   }
+  ],
+  "calidad": {
+   "nivel": "ámbar",
+   "errores": [],
+   "avisos": [
+    "FY2021: deuda financiera a largo plazo, valor calculado (no declarado): LongTermDebt − DebtCurrent",
+    "FY2021: BAI − impuestos ≠ beneficio neto (resultados de participadas, minoritarios u operaciones interrumpidas)",
+    "FY2022: deuda financiera a largo plazo, valor calculado (no declarado): LongTermDebt − DebtCurrent",
+    "FY2023: deuda financiera a largo plazo, valor calculado (no declarado): LongTermDebt − DebtCurrent",
+    "FY2024: deuda financiera a largo plazo, valor calculado (no declarado): LongTermDebt − DebtCurrent",
+    "FY2025: deuda financiera a largo plazo, valor calculado (no declarado): LongTermDebt − DebtCurrent",
+    "FY2025: BAI − impuestos ≠ beneficio neto (resultados de participadas, minoritarios u operaciones interrumpidas)",
+    "LTM a 2026-06-30: deuda financiera a largo plazo, valor calculado (no declarado): LongTermDebt − DebtCurrent",
+    "LTM a 2026-06-30: BAI − impuestos ≠ beneficio neto (resultados de participadas, minoritarios u operaciones interrumpidas)"
+   ]
+  }
+ },
+ "mercado_referencia": {
+  "cotizacion": 374.510009765625,
+  "valor_dcf": 8.586388488074222,
+  "precio_objetivo": 8.586388488074222
+ }
+}

@@ -1,7 +1,7 @@
 """Bloque R (propuestas aprobadas R2-R18): cada fórmula con valores calculados a mano, sin conexión."""
 
 from dataclasses import asdict, dataclass, replace
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 
@@ -283,3 +283,218 @@ def test_estimaciones_editables_del_bloque_r():
     est = _est(sbc_sobre_ventas=0.05, recompras_sobre_fcf=0.8)
     assert est.validar() == []
     assert replace(est, sbc_sobre_ventas=1.5).validar() and replace(est, multiplos_sotp={"A": -1.0}).validar()
+
+
+# --- A14: batería de regresión --------------------------------------------------------------------------------
+
+def test_regresion_compara_solo_cifras_de_la_sec(tmp_path):
+    from informes_warrants.informe import regresion
+
+    base = {"ticker": "X", "origen": {"filing": "a", "ultimo_periodico": "q1"},
+            "sec": {"ltm": {"ingresos": 100.0, "bpa": 1.5}, "segmentos": {"geografia": {"ejercicios": [2024, 2025]}}},
+            "mercado_referencia": {"cotizacion": 10.0}}
+    regresion.guardar(base, tmp_path)
+    assert regresion.cargar("x", tmp_path) == base and regresion.cargar("Y", tmp_path) is None
+    mercado = {**base, "mercado_referencia": {"cotizacion": 12.0}}
+    assert regresion.comparar(base, mercado)["diferencias"] == []  # la cotización no se compara
+    cambio = {**base, "sec": {**base["sec"], "ltm": {"ingresos": 101.0, "bpa": 1.5}}}
+    r = regresion.comparar(base, cambio)
+    assert r["diferencias"] == ["ltm.ingresos: 100.0 → 101.0"] and not r["nuevo_filing"]
+    assert regresion.comparar(base, {**cambio, "origen": {"filing": "a", "ultimo_periodico": "q2"}})["nuevo_filing"]
+
+
+def test_aviso_de_posible_doble_conteo_en_la_deuda_a_corto():
+    from informes_warrants.calculo.calidad import revisar
+
+    def avisos(concepto):
+        return [a for a in revisar(_estados({"deuda_cp": (10.0, concepto)})).avisos if "papel comercial" in a]
+
+    assert avisos("CommercialPaper + ShortTermBorrowings + LongTermDebtCurrent")
+    assert not avisos("CommercialPaper + LongTermDebtCurrent")
+
+
+# --- A1-bis (F7): LTM provisional por segmento -------------------------------------------------------------------
+
+def test_segmentos_ltm_provisional(monkeypatch):
+    from informes_warrants.calculo import normalizador as n
+
+    fin_fy, fecha_ltm = date(2025, 9, 27), date(2026, 6, 27)
+    ini = fin_fy + timedelta(days=1)
+    ini_ant = ini - timedelta(days=364)
+    fin_ant = fecha_ltm - timedelta(days=364)
+    hechos = [{"miembro": "x:AMember", "etiqueta": "A", "inicio": ini, "fin": fecha_ltm, "valor": 20.0},
+              {"miembro": "x:BMember", "etiqueta": "B", "inicio": ini, "fin": fecha_ltm, "valor": 10.0},
+              {"miembro": "x:AMember", "etiqueta": "A", "inicio": ini_ant, "fin": fin_ant, "valor": 15.0},
+              {"miembro": "x:BMember", "etiqueta": "B", "inicio": ini_ant, "fin": fin_ant, "valor": 12.0}]
+    monkeypatch.setattr(n, "_hechos_eje", lambda *a, **k: hechos)
+
+    def desglose():
+        return {"producto": n.Desglose("producto", "Revenues", {"A": {2025: 60.0}, "B": {2025: 40.0}}, ejercicios=[2025])}
+
+    d = desglose()
+    n.segmentos_ltm(d, None, "q", 2025, fin_fy, fecha_ltm, 103.0)
+    assert d["producto"].ltm == {"A": 65.0, "B": 38.0} and d["producto"].ltm_origen == "q"  # 60 + 20 − 15 ; 40 + 10 − 12
+    d = desglose()
+    n.segmentos_ltm(d, None, "q", 2025, fin_fy, fecha_ltm, 120.0)  # no cuadra con el total LTM: no se publica
+    assert not d["producto"].ltm and "no cuadra" in d["producto"].ltm_motivo
+    monkeypatch.setattr(n, "_hechos_eje", lambda *a, **k: hechos[:3])
+    d = desglose()
+    n.segmentos_ltm(d, None, "q", 2025, fin_fy, fecha_ltm, 103.0)
+    assert not d["producto"].ltm and "B" in d["producto"].ltm_motivo
+
+
+# --- A15: pulido ------------------------------------------------------------------------------------------------
+
+def test_nombre_legible_de_la_sec():
+    from informes_warrants.ingesta.nombres import nombre_legible
+
+    casos = {"IOVANCE BIOTHERAPEUTICS, INC.": "Iovance Biotherapeutics, Inc.", "AT&T INC.": "AT&T Inc.", "HP INC": "HP Inc",
+             "3M CO": "3M Co", "BANK OF AMERICA CORP /DE/": "Bank of America Corp", "Apple Inc.": "Apple Inc.",
+             "RIVIAN AUTOMOTIVE, INC. / DE": "Rivian Automotive, Inc.", "THE WALT DISNEY CO": "The Walt Disney Co",
+             "IBM": "IBM", "COCA-COLA CO": "Coca-Cola Co"}
+    for sec, informe in casos.items():
+        assert nombre_legible(sec) == informe, sec
+
+
+# --- A3: concentración de clientes -------------------------------------------------------------------------------
+
+class _Consulta:
+    def __init__(self, df):
+        self.df = df
+
+    def by_concept(self, *_):
+        return self
+
+    def by_dimension(self, *_):
+        return self
+
+    def to_dataframe(self):
+        return self.df
+
+
+class _XBRL:
+    def __init__(self, df):
+        self.facts = type("F", (), {"query": lambda _self: _Consulta(df)})()
+
+
+def test_concentracion_de_clientes():
+    import pandas as pd
+
+    from informes_warrants.calculo.normalizador import concentracion_clientes
+
+    def fila(cliente, base, tipo, valor, fin="2025-12-31", extra=None):
+        return {"dim_srt_MajorCustomersAxis": f"x:{cliente}Member", "dim_us-gaap_ConcentrationRiskByBenchmarkAxis": f"us-gaap:{base}",
+                "dim_us-gaap_ConcentrationRiskByTypeAxis": f"us-gaap:{tipo}", "dim_srt_StatementGeographicalAxis": extra,
+                "dimension_member_label": None, "period_end": fin, "numeric_value": valor}
+
+    df = pd.DataFrame([
+        fila("CustomerA", "RevenueFromContractWithCustomerMember", "CustomerConcentrationRiskMember", 0.17),
+        fila("CustomerA", "RevenueFromContractWithCustomerMember", "CustomerConcentrationRiskMember", 0.12, "2024-12-31"),
+        fila("OtherCustomers", "RevenueFromContractWithCustomerMember", "CustomerConcentrationRiskMember", 0.83),  # residuo
+        fila("VendorOne", "NonTradeReceivableMember", "CreditConcentrationRiskMember", 0.46),  # proveedor: otra base
+        fila("CustomerB", "TradeAccountsReceivableMember", "CreditConcentrationRiskMember", 0.30, extra="country:TW"),
+    ])
+    filas = concentracion_clientes(_XBRL(df), {2025: date(2025, 12, 31), 2024: date(2024, 12, 31)})
+    assert [(f["cliente"], f["base"], f["detalle"], f["valores"]) for f in filas] == [
+        ("Customer A", "Ingresos", "", {2025: 0.17, 2024: 0.12}),
+        ("Customer B", "Cuentas a cobrar", "Taiwán", {2025: 0.30}),
+    ]
+    assert concentracion_clientes(_XBRL(pd.DataFrame()), {}) == []
+
+
+# --- A9: vencimientos de la deuda --------------------------------------------------------------------------------
+
+def test_vencimientos_solo_si_cuadran_con_la_deuda():
+    from informes_warrants.calculo.normalizador import VENCIMIENTOS, vencimientos_deuda
+
+    def fuente(importes, **otros):
+        return _Fuente({**dict(zip(VENCIMIENTOS, importes, strict=True)), **otros})
+
+    ok = vencimientos_deuda(fuente([10.0, 20.0, None, 5.0, 5.0, 60.0], DebtInstrumentCarryingAmount=100.0), 2025)
+    assert ok["importes"][2] is None and ok["suma"] == 100.0 and ok["referencia"] == "DebtInstrumentCarryingAmount"
+    mal = vencimientos_deuda(fuente([10.0, 20.0, 0.0, 5.0, 5.0, 40.0], LongTermDebt=100.0), 2025)
+    assert mal["importes"] == [] and "no cuadran" in mal["motivo"]
+    assert vencimientos_deuda(fuente([None] * 6), 2025)["importes"] == []
+
+
+# --- A6: insiders --------------------------------------------------------------------------------------------------
+
+def test_actividad_de_insiders_y_compras_agrupadas():
+    from informes_warrants.calculo.insiders import actividad
+
+    def op(dia, nombre, tipo, acciones, precio, plan=False):
+        return {"fecha": date(2026, 3, dia), "nombre": nombre, "tipo": tipo, "acciones": acciones, "precio": precio,
+                "importe": acciones * precio, "plan_10b5_1": plan}
+
+    a = actividad([op(1, "Ana", "Compra", 100, 10.0), op(10, "Luis", "Compra", 50, 12.0), op(20, "Ana", "Venta", 30, 15.0, plan=True)])
+    assert (a["compras"], a["importe_compras"], a["ventas"], a["importe_ventas"]) == (2, 1600.0, 1, 450.0)
+    assert a["saldo"] == 1150.0 and a["ventas_con_plan"] == 1 and a["insiders"] == 2
+    assert a["agrupadas"]["compradores"] == ["Ana", "Luis"]  # dos insiders distintos en 14 días
+    separadas = actividad([op(1, "Ana", "Compra", 100, 10.0), op(25, "Luis", "Compra", 50, 12.0)])
+    assert separadas["agrupadas"] is None
+    assert actividad([])["saldo"] == 0
+
+
+# --- A8: historial de resultados y alarmas -----------------------------------------------------------------------
+
+def test_reaccion_a_5_sesiones_segun_la_hora_de_presentacion():
+    import pandas as pd
+
+    from informes_warrants.calculo.analitica import reaccion_resultados
+
+    idx = pd.bdate_range("2026-07-27", "2026-08-10", tz="America/New_York")
+    cierres = pd.Series(range(100, 100 + len(idx)), index=idx, dtype=float)
+    tras_cierre = reaccion_resultados("2026-07-30 20:31:00+00:00", cierres)  # 16:31 en Nueva York: cotiza el viernes
+    assert tras_cierre["primera_sesion"] == date(2026, 7, 31) and tras_cierre["reaccion"] == pytest.approx(108 / 103 - 1)
+    antes = reaccion_resultados("2026-07-30 12:00:00+00:00", cierres)  # 08:00: cotiza ese mismo día
+    assert antes["primera_sesion"] == date(2026, 7, 30) and antes["reaccion"] == pytest.approx(107 / 102 - 1)
+    assert reaccion_resultados("2026-08-07 12:00:00+00:00", cierres) is None  # aún no hay 5 sesiones
+
+
+def test_alarmas_solo_con_frases_afirmativas():
+    from informes_warrants.ingesta.eventos import CONTINUIDAD, CONTROL_NO_EFICAZ, _frases
+
+    texto = ("We could identify a material weakness in the future. Management concluded that our internal control over "
+             "financial reporting was not effective as of December 31, 2025. Factors raise substantial doubt about our "
+             "ability to continue as a going concern. If we fail to raise capital, there may be substantial doubt about "
+             "our ability to continue as a going concern.")
+    assert _frases(texto, CONTROL_NO_EFICAZ) == ["Management concluded that our internal control over financial reporting "
+                                                 "was not effective as of December 31, 2025."]
+    assert _frases(texto, CONTINUIDAD) == ["Factors raise substantial doubt about our ability to continue as a going concern."]
+
+
+# --- A5: competencia ---------------------------------------------------------------------------------------------
+
+def test_apartado_competition_literal():
+    from informes_warrants.ingesta.competencia import apartado_competencia
+
+    item1 = ("Products\n\nThe Company sells phones.\n\nCompetition\n\nThe markets are highly competitive.\n\n"
+             "Apple Inc. | 2025 Form 10-K | 2\n\nThe Company competes on price and\n\nquality of its products.\n\n"
+             "Supply of Components\n\nComponents are generally available.")
+    r = apartado_competencia(item1)
+    assert r["texto"] == "The markets are highly competitive.\n\nThe Company competes on price and quality of its products."
+    tsla = ("Competition\n\nAutomotive\n\nThe automotive market is highly competitive.\n\nEnergy Storage\n\n"
+            "The energy storage market is competitive too.\n\nIntellectual Property\n\nWe hold patents.")
+    assert apartado_competencia(tsla)["texto"] == ("**Automotive.**\n\nThe automotive market is highly competitive.\n\n"
+                                                   "**Energy Storage.**\n\nThe energy storage market is competitive too.")
+    assert apartado_competencia("Products\n\nWe sell oil.") is None
+
+
+def test_verificacion_de_la_traduccion():
+    from informes_warrants.ia.bloques import verificar_traduccion
+
+    original = "LinkedIn competes with AbelZeta Pharma. In 2025 revenue was $1,234.5 million, up 12%."
+    buena = "LinkedIn compite con AbelZeta Pharma. En 2025 los ingresos fueron de 1.234,5 millones de USD, un 12 % más."
+    assert verificar_traduccion(original, buena) == ""
+    assert "cifras" in verificar_traduccion(original, buena.replace("12 %", "13 %"))
+    assert "nombres propios" in verificar_traduccion(original, buena.replace("AbelZeta", "Abelzeta"))
+    assert "longitud" in verificar_traduccion(original, "LinkedIn y AbelZeta: 2025, 1.234,5, 12.")
+
+
+def test_cuotas_y_estabilidad_del_margen():
+    from informes_warrants.calculo.analitica import cuotas_de_ingresos, estabilidad_margen
+
+    assert cuotas_de_ingresos({"A": 60.0, "B": 30.0, "C": 10.0, "D": None}) == {"A": 0.6, "B": 0.3, "C": 0.1}
+    assert cuotas_de_ingresos({"A": 60.0}) == {}  # sin comparables no hay cuota
+    assert estabilidad_margen([0.30, 0.32, 0.28, None]) == pytest.approx(0.016329931618554522)
+    assert estabilidad_margen([0.30, 0.32]) is None

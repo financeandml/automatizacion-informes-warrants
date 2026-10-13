@@ -71,6 +71,10 @@ def revisar(e: EstadosNormalizados, ejercicios: list[int] | None = None, etiquet
             r.errores.append(f"{FY}: activo corriente mayor que el activo total")
         if patrimonio is not None and patrimonio < 0:
             r.avisos.append(f"{FY}: patrimonio negativo: ROE y P/BV no son interpretables")
+        dato_cp = e.datos.get("deuda_cp", {}).get(ej)
+        if dato_cp is not None and "CommercialPaper" in dato_cp.concepto and "ShortTermBorrowings" in dato_cp.concepto:
+            r.avisos.append(f"{FY}: la deuda a corto suma papel comercial y préstamos a corto: comprobar en el balance que los "
+                            "préstamos no incluyen ya el papel comercial")
         intereses, deuda = v("gasto_intereses"), (v("deuda_cp") or 0.0) + (v("deuda_lp") or 0.0)
         if intereses and intereses > 0 and (deuda <= 0 or intereses / deuda > TIPO_IMPLICITO_MAX):
             r.avisos.append(f"{FY}: gasto por intereses ({intereses / 1e6:,.0f} M) alto para la deuda declarada "

@@ -1,0 +1,159 @@
+{
+ "ticker": "AAPL",
+ "origen": {
+  "filing": "0000320193-25-000079",
+  "ultimo_periodico": "0000320193-26-000020",
+  "fecha_ltm": "2026-06-27",
+  "fecha": "2026-10-13"
+ },
+ "sec": {
+  "ltm": {
+   "ingresos": 466823000000.0,
+   "resultado_operativo": 154859000000.0,
+   "beneficio_neto": 128930000000.0,
+   "bpa_diluido": 8.762000604022814,
+   "acciones_diluidas": 14714676000.0,
+   "caja": 39544000000.0,
+   "deuda_cp": 13004000000.0,
+   "deuda_lp": 71340000000.0,
+   "patrimonio": 107520000000.0,
+   "flujo_operativo": 146724000000.0,
+   "capex": 10041000000.0
+  },
+  "fundamentales_ltm": {
+   "ebitda": 167959000000.0,
+   "fcf": 136683000000.0,
+   "fcf_tras_sbc": 122977000000.0,
+   "dfn": 21945000000.0,
+   "deuda_neta_ajustada": 21945000000.0
+  },
+  "acciones_del_dcf": 14594180000.0,
+  "anuales": {
+   "2021": {
+    "ingresos": 365817000000.0,
+    "resultado_operativo": 108949000000.0,
+    "beneficio_neto": 94680000000.0
+   },
+   "2022": {
+    "ingresos": 394328000000.0,
+    "resultado_operativo": 119437000000.0,
+    "beneficio_neto": 99803000000.0
+   },
+   "2023": {
+    "ingresos": 383285000000.0,
+    "resultado_operativo": 114301000000.0,
+    "beneficio_neto": 96995000000.0
+   },
+   "2024": {
+    "ingresos": 391035000000.0,
+    "resultado_operativo": 123216000000.0,
+    "beneficio_neto": 93736000000.0
+   },
+   "2025": {
+    "ingresos": 416161000000.0,
+    "resultado_operativo": 133050000000.0,
+    "beneficio_neto": 112010000000.0
+   }
+  },
+  "segmentos": {
+   "negocio": {
+    "ejercicios": [
+     2021,
+     2022,
+     2023,
+     2024,
+     2025
+    ],
+    "miembros": [
+     "Americas",
+     "Europe",
+     "Greater China",
+     "Japan",
+     "Rest of Asia Pacific"
+    ]
+   },
+   "producto": {
+    "ejercicios": [
+     2021,
+     2022,
+     2023,
+     2024,
+     2025
+    ],
+    "miembros": [
+     "Mac",
+     "Services",
+     "Wearables, Home and Accessories",
+     "iPad",
+     "iPhone"
+    ]
+   },
+   "geografia": {
+    "ejercicios": [
+     2021,
+     2022,
+     2023,
+     2024,
+     2025
+    ],
+    "miembros": [
+     "China",
+     "EE. UU.",
+     "Other countries"
+    ]
+   }
+  },
+  "trimestres": [
+   {
+    "fin": "2024-09-28",
+    "ingresos": 94930000000.0,
+    "bpa": 0.9563803961489075
+   },
+   {
+    "fin": "2024-12-28",
+    "ingresos": 124300000000.0,
+    "bpa": 2.4
+   },
+   {
+    "fin": "2025-03-29",
+    "ingresos": 95359000000.0,
+    "bpa": 1.65
+   },
+   {
+    "fin": "2025-06-28",
+    "ingresos": 94036000000.0,
+    "bpa": 1.57
+   },
+   {
+    "fin": "2025-09-27",
+    "ingresos": 102466000000.0,
+    "bpa": 1.830493478142211
+   },
+   {
+    "fin": "2025-12-27",
+    "ingresos": 143756000000.0,
+    "bpa": 2.84
+   },
+   {
+    "fin": "2026-03-28",
+    "ingresos": 111184000000.0,
+    "bpa": 2.01
+   },
+   {
+    "fin": "2026-06-27",
+    "ingresos": 109417000000.0,
+    "bpa": 2.02
+   }
+  ],
+  "calidad": {
+   "nivel": "verde",
+   "errores": [],
+   "avisos": []
+  }
+ },
+ "mercado_referencia": {
+  "cotizacion": 345.7550048828125,
+  "valor_dcf": 128.10074414285026,
+  "precio_objetivo": 128.10074414285026
+ }
+}

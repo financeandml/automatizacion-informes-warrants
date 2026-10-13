@@ -1,0 +1,150 @@
+{
+ "ticker": "JNJ",
+ "origen": {
+  "filing": "0000200406-26-000016",
+  "ultimo_periodico": "0000200406-26-000153",
+  "fecha_ltm": "2026-06-28",
+  "fecha": "2026-10-13"
+ },
+ "sec": {
+  "ltm": {
+   "ingresos": 97929000000.0,
+   "resultado_operativo": 26208000000.0,
+   "beneficio_neto": 21037000000.0,
+   "bpa_diluido": 8.621367976722265,
+   "acciones_diluidas": 2440100000.0,
+   "caja": 20422000000.0,
+   "deuda_cp": 11692000000.0,
+   "deuda_lp": 37344000000.0,
+   "patrimonio": 84971000000.0,
+   "flujo_operativo": 27608000000.0,
+   "capex": 5364000000.0
+  },
+  "fundamentales_ltm": {
+   "ebitda": 33959000000.0,
+   "fcf": 22244000000.0,
+   "fcf_tras_sbc": 20830000000.0,
+   "dfn": 28278000000.0,
+   "deuda_neta_ajustada": 28278000000.0
+  },
+  "acciones_del_dcf": 2409898597.0,
+  "anuales": {
+   "2021": {
+    "ingresos": 93775000000.0,
+    "resultado_operativo": 22959000000.0,
+    "beneficio_neto": 20878000000.0
+   },
+   "2022": {
+    "ingresos": 94943000000.0,
+    "resultado_operativo": 22001000000.0,
+    "beneficio_neto": 17941000000.0
+   },
+   "2023": {
+    "ingresos": 85159000000.0,
+    "resultado_operativo": 15834000000.0,
+    "beneficio_neto": 35153000000.0
+   },
+   "2024": {
+    "ingresos": 88821000000.0,
+    "resultado_operativo": 17442000000.0,
+    "beneficio_neto": 14066000000.0
+   },
+   "2025": {
+    "ingresos": 94193000000.0,
+    "resultado_operativo": 33552000000.0,
+    "beneficio_neto": 26804000000.0
+   }
+  },
+  "segmentos": {
+   "negocio": {
+    "ejercicios": [
+     2023,
+     2024,
+     2025
+    ],
+    "miembros": [
+     "Innovative Medicine",
+     "MedTech"
+    ]
+   },
+   "geografia": {
+    "ejercicios": [
+     2023,
+     2024,
+     2025
+    ],
+    "miembros": [
+     "Asia-Pacific, Africa",
+     "EE. UU.",
+     "Europe",
+     "Western Hemisphere excluding U.S."
+    ]
+   }
+  },
+  "trimestres": [
+   {
+    "fin": "2024-09-29",
+    "ingresos": 22471000000.0,
+    "bpa": 1.11
+   },
+   {
+    "fin": "2024-12-29",
+    "ingresos": 22520000000.0,
+    "bpa": 1.4124572887077518
+   },
+   {
+    "fin": "2025-03-30",
+    "ingresos": 21893000000.0,
+    "bpa": 4.54
+   },
+   {
+    "fin": "2025-06-29",
+    "ingresos": 23743000000.0,
+    "bpa": 2.29
+   },
+   {
+    "fin": "2025-09-28",
+    "ingresos": 23993000000.0,
+    "bpa": 2.12
+   },
+   {
+    "fin": "2025-12-28",
+    "ingresos": 24564000000.0,
+    "bpa": 2.105869762081172
+   },
+   {
+    "fin": "2026-03-29",
+    "ingresos": 24062000000.0,
+    "bpa": 2.14
+   },
+   {
+    "fin": "2026-06-28",
+    "ingresos": 25310000000.0,
+    "bpa": 2.27
+   }
+  ],
+  "calidad": {
+   "nivel": "ámbar",
+   "errores": [],
+   "avisos": [
+    "FY2021: resultado operativo (ebit), valor calculado (no declarado): IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest + InterestExpense",
+    "FY2021: patrimonio neto atribuible, valor calculado (no declarado): StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+    "FY2022: resultado operativo (ebit), valor calculado (no declarado): IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest + InterestExpense",
+    "FY2022: patrimonio neto atribuible, valor calculado (no declarado): StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+    "FY2023: resultado operativo (ebit), valor calculado (no declarado): IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest + InterestExpense",
+    "FY2023: patrimonio neto atribuible, valor calculado (no declarado): StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+    "FY2023: BAI − impuestos ≠ beneficio neto (resultados de participadas, minoritarios u operaciones interrumpidas)",
+    "FY2024: resultado operativo (ebit), valor calculado (no declarado): IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest + InterestExpenseNonoperating",
+    "FY2024: patrimonio neto atribuible, valor calculado (no declarado): StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+    "FY2025: resultado operativo (ebit), valor calculado (no declarado): IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest + InterestExpenseNonoperating",
+    "FY2025: patrimonio neto atribuible, valor calculado (no declarado): StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+    "LTM a 2026-06-28: resultado operativo (ebit), valor calculado (no declarado): IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest + InterestExpenseNonoperating"
+   ]
+  }
+ },
+ "mercado_referencia": {
+  "cotizacion": 251.41000366210938,
+  "valor_dcf": 328.36316647703563,
+  "precio_objetivo": 328.36316647703563
+ }
+}

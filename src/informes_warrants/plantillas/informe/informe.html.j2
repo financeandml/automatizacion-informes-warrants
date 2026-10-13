@@ -71,6 +71,7 @@
         <tr><th></th>{% for a in resumen_cabecera %}<th>{{ a }}</th>{% endfor %}{% for a in estimados_portada %}<th class="e">{{ a }}</th>{% endfor %}</tr>
         {% for fila in resumen %}<tr><td>{{ fila.nombre }}</td>{% for v in fila.valores %}<td{% if loop.index > 3 %} class="e"{% endif %}>{{ v }}</td>{% endfor %}</tr>{% endfor %}
       </table>
+      {% if ns_portada %}<div class="fuente">n.s.: no significativo (crecimiento de 1.000 % o más, desde una base casi nula).</div>{% endif %}
 
       <h3>Múltiplos ({{ etiqueta_ltm }})</h3>
       <table class="datos lateral-tabla">
@@ -115,23 +116,69 @@
   <div style="break-inside: avoid">
   <h3>{{ s.titulo }} (USD mn)</h3>
   <table class="datos">
-    <tr><th></th>{% for a in s.ejercicios %}<th>FY{{ a }}</th>{% endfor %}<th>Peso FY{{ s.ejercicios[-1] }}</th></tr>
-    {% for fila in s.filas %}<tr><td>{{ fila.nombre }}</td>{% for v in fila.valores %}<td>{{ v }}</td>{% endfor %}<td>{{ fila.peso }}</td></tr>{% endfor %}
-    <tr class="total"><td>Total (= ingresos consolidados)</td>{% for v in s.total %}<td>{{ v }}</td>{% endfor %}<td>100 %</td></tr>
-    {% if s.resultado %}<tr class="seccion"><td colspan="{{ s.ejercicios|length + 2 }}">Resultado operativo por segmento (margen del último ejercicio)</td></tr>
-    {% for fila in s.resultado %}<tr><td>{{ fila.nombre }}</td>{% for v in fila.valores %}<td>{{ v }}</td>{% endfor %}<td>{{ fila.margen }}</td></tr>{% endfor %}{% endif %}
+    <tr><th></th>{% for a in s.ejercicios %}<th>FY{{ a }}</th>{% endfor %}{% if s.ltm %}<th>{{ etiqueta_ltm }}*</th>{% endif %}<th>Peso FY{{ s.ejercicios[-1] }}</th></tr>
+    {% for fila in s.filas %}<tr><td>{{ fila.nombre }}</td>{% for v in fila.valores %}<td>{{ v }}</td>{% endfor %}{% if s.ltm %}<td>{{ fila.ltm }}</td>{% endif %}<td>{{ fila.peso }}</td></tr>{% endfor %}
+    <tr class="total"><td>Total (= ingresos consolidados)</td>{% for v in s.total %}<td>{{ v }}</td>{% endfor %}{% if s.ltm %}<td>{{ s.total_ltm }}</td>{% endif %}<td>100 %</td></tr>
+    {% if s.resultado %}<tr class="seccion"><td colspan="{{ s.ejercicios|length + 2 + (1 if s.ltm else 0) }}">Resultado operativo por segmento (margen del último ejercicio)</td></tr>
+    {% for fila in s.resultado %}<tr><td>{{ fila.nombre }}</td>{% for v in fila.valores %}<td>{{ v }}</td>{% endfor %}{% if s.ltm %}<td>—</td>{% endif %}<td>{{ fila.margen }}</td></tr>{% endfor %}{% endif %}
   </table>
-  <div class="fuente">XBRL de los 10-K ({{ s.origen }}). Solo los ejercicios en que los miembros declarados suman los ingresos consolidados; los subtotales que la empresa también declara no se cuentan dos veces.{% if s.rechazados %} Sin desglose en {{ s.rechazados }}: los miembros declarados no suman el total.{% endif %}</div>
+  <div class="fuente">XBRL de los 10-K ({{ s.origen }}). Solo los ejercicios en que los miembros declarados suman los ingresos consolidados; los subtotales que la empresa también declara no se cuentan dos veces.{% if s.rechazados %} Sin desglose en {{ s.rechazados }}: los miembros declarados no suman el total.{% endif %}{% if s.ltm %} *{{ etiqueta_ltm }} provisional: la empresa no publica el LTM por segmento; se calcula como último ejercicio + acumulado del año − acumulado del año anterior (10-Q {{ s.ltm_origen }}) y cuadra con los ingresos LTM consolidados.{% endif %}</div>
   </div>
   {% endfor %}
   {% if g.get("segmentos") %}<div class="grafico" style="width:calc(50% - 3mm)"><div class="titulo-g">{{ segmentos[0].titulo }} (USD mn)</div>{{ g.segmentos }}</div>{% endif %}
+  {% if concentracion %}
+  <div style="break-inside: avoid">
+  <h3>Concentración de clientes</h3>
+  <table class="datos">
+    <tr><th>Cliente (denominación de la empresa)</th><th>Base</th>{% for a in concentracion.anios %}<th>FY{{ a }}</th>{% endfor %}<th>Detalle declarado</th></tr>
+    {% for f in concentracion.filas %}<tr><td>{{ f.cliente }}</td><td>{{ f.base }}</td>{% for v in f.valores %}<td>{{ v }}</td>{% endfor %}<td>{{ f.detalle }}</td></tr>{% endfor %}
+  </table>
+  <div class="fuente">Porcentajes que la empresa declara en el XBRL del 10-K (concentración de riesgo por cliente, ASC 275 y ASC 280), sobre la base indicada. «Detalle declarado»: segmento o región al que la empresa atribuye el porcentaje.</div>
+  </div>
+  {% endif %}
   {{ t["negocio.pipeline"] }}
+  {% set comp = c.competencia %}
+  <h3>Competencia</h3>
+  {{ t["negocio.competencia"] }}
+  {% if comp.texto and comp.texto.valida %}<div class="fuente">Apartado «Competition» del Item 1 del 10-K, traducido al español por IA ({{ comp.texto.modelo }}) y verificado por código (mismas cifras y nombres propios que el original); los nombres de competidores, productos y marcas se dejan en su idioma.{% if comp.texto.recortado %} Extracto: el apartado continúa en el 10-K.{% endif %}</div>{% elif comp.texto %}<div class="fuente">Texto original del Item 1 del 10-K.</div>{% endif %}
+  {% if comp.cuotas %}
+  <div style="break-inside: avoid">
+  <table class="datos">
+    <tr><th>Empresa</th><th>Cuota de ingresos del grupo (LTM)</th></tr>
+    {% for tk, cuota in comp.cuotas|dictsort(by="value", reverse=True) %}<tr{% if tk == c.ticker %} class="total"{% endif %}><td>{{ c.empresa if tk == c.ticker else comp.nombres[tk] }} ({{ tk }})</td><td>{{ cuota|pct }}</td></tr>{% endfor %}
+  </table>
+  <div class="fuente">Ingresos LTM de la empresa y de los comparables del analista (mismo normalizador SEC), sobre su suma.</div>
+  </div>
+  {% endif %}
+  {% if comp.roic_menos_wacc is not none or comp.estabilidad is not none %}<p>{% if comp.roic_menos_wacc is not none %}El ROIC ({{ comp.roic|pct }}) {% if comp.roic_menos_wacc >= 0 %}supera{% else %}queda por debajo de{% endif %} el WACC del escenario base ({{ comp.wacc|pct }}) en {{ (comp.roic_menos_wacc|abs * 100)|num(1) }} pp{% if comp.roic_mediana is not none %}; la mediana del ROIC de sus comparables es del {{ comp.roic_mediana|pct }}{% endif %}.{% endif %}{% if comp.estabilidad is not none %} La desviación típica de su margen operativo en los últimos cinco ejercicios es de {{ (comp.estabilidad * 100)|num(1) }} pp{% if comp.estabilidad_mediana is not none %}, frente a {{ (comp.estabilidad_mediana * 100)|num(1) }} pp de mediana en sus comparables{% endif %}.{% endif %}</p>{% endif %}
   <h3>Posicionamiento competitivo</h3>
   {{ t["negocio.posicionamiento"] }}
   <h3>Industria y mercado</h3>
   {{ t["industria.mercado"] }}
   <div style="break-inside: avoid"><h2><span class="num">03</span>Gobierno corporativo</h2>
   {{ t["gobierno.consejo"] }}</div>
+  {% if insiders %}{% set ins = c.insiders %}{% set a = ins.actividad %}
+  <h3>Accionistas de más del 5 %</h3>
+  {% if insiders.proxy %}<table class="datos">
+    <tr><th>Accionista</th><th>Acciones (mn)</th><th>% del capital</th></tr>
+    {% for f in insiders.proxy %}<tr><td>{{ f.nombre }}</td><td>{{ f.acciones }}</td><td>{{ f.porcentaje }}</td></tr>{% endfor %}
+  </table>
+  <div class="fuente">Proxy DEF 14A del {{ ins.accionistas.proxy_fecha.strftime("%d/%m/%Y") }} (Item 403), tal como lo declara la empresa.</div>{% endif %}
+  {% if insiders.declaraciones %}<table class="datos">
+    <tr><th>Declaraciones 13D/13G posteriores al proxy</th><th>% declarado</th><th>Fecha del hecho</th><th>Formulario</th></tr>
+    {% for f in insiders.declaraciones %}<tr><td>{{ f.nombre }}</td><td>{{ f.porcentaje }}</td><td>{{ f.fecha }}</td><td>{{ f.formulario }}</td></tr>{% endfor %}
+  </table>{% endif %}
+  {% if not insiders.proxy and not insiders.declaraciones %}<p class="fuente">Sin accionistas de más del 5 % declarados en el último proxy ni en 13D/13G de los últimos 12 meses.</p>{% endif %}
+  <h3>Compras y ventas de insiders en mercado (12 meses)</h3>
+  <p>Entre el {{ ins.desde.strftime("%d/%m/%Y") }} y el {{ ins.hasta.strftime("%d/%m/%Y") }} ({{ ins.formularios }} Form 4), {% if a.compras or a.ventas %}{{ a.insiders }} insiders hicieron {{ a.compras }} compras ({{ (a.importe_compras / 1e6)|num(1) }} USD Mn) y {{ a.ventas }} ventas ({{ (a.importe_ventas / 1e6)|num(1) }} USD Mn) en mercado: saldo neto de {{ (a.saldo / 1e6)|num(1) }} USD Mn.{% if a.ventas_con_plan %} {{ a.ventas_con_plan }} de las ventas ({{ (a.importe_ventas_con_plan / 1e6)|num(1) }} USD Mn) se hicieron con un plan 10b5-1, programadas de antemano.{% endif %}{% if a.agrupadas %} Hubo compras agrupadas: {{ a.agrupadas.compradores|length }} insiders compraron entre el {{ a.agrupadas.desde.strftime("%d/%m/%Y") }} y el {{ a.agrupadas.hasta.strftime("%d/%m/%Y") }}.{% endif %}{% else %}no hubo compras ni ventas de insiders en mercado.{% endif %}{% if ins.retribucion.operaciones or ins.retenciones.operaciones %} Aparte, y sin ser compras ni ventas en mercado, recibieron {{ ins.retribucion.acciones|num(0) }} acciones como retribución ({{ ins.retribucion.operaciones }} concesiones o ejercicios) y entregaron {{ ins.retenciones.acciones|num(0) }} para pagar impuestos.{% endif %}</p>
+  {% if insiders.operaciones %}<table class="datos compacta">
+    <tr><th>Fecha</th><th>Insider</th><th>Cargo</th><th>Operación</th><th>Acciones</th><th>Precio (USD)</th><th>Importe (USD mn)</th><th>Plan 10b5-1</th></tr>
+    {% for o in insiders.operaciones %}<tr><td>{{ o.fecha }}</td><td>{{ o.nombre }}</td><td>{{ o.cargo|truncate(28, True, "…") }}</td><td>{{ o.tipo }}</td><td>{{ o.acciones }}</td><td>{{ o.precio }}</td><td>{{ o.importe }}</td><td>{{ o.plan }}</td></tr>{% endfor %}
+  </table>
+  <div class="fuente">Form 4 de la SEC: solo las operaciones en mercado (códigos P y S); las {{ insiders.operaciones|length }} de mayor importe. Cargo tal como figura en el formulario.</div>{% endif %}
+  {% set p = ins.participaciones %}{% if p %}
+  <p class="fuente" style="margin-top:2mm"><strong>Fuente externa, no auditada (yfinance, consulta del {{ p.consulta }}):</strong> insiders {{ p.insiders|pct }} del capital; instituciones {{ p.instituciones|pct }}{% if p.numero_instituciones %} ({{ p.numero_instituciones|num(0) }} instituciones){% endif %}.{% if p.principales %} Principales tenedores institucionales: {% for h in p.principales %}{{ h.nombre }} {{ h.porcentaje|pct }}{{ "; " if not loop.last else "" }}{% endfor %} (13F a {{ p.principales[0].fecha }}).{% endif %}</p>{% endif %}
+  {% endif %}
 </section>
 
 <!-- ============ 3. ANÁLISIS FINANCIERO ============ -->
@@ -144,6 +191,14 @@
     <div class="grafico"><div class="titulo-g">Rentabilidad sobre el capital</div>{{ g.rentabilidad }}</div>
     <div class="grafico"><div class="titulo-g">Márgenes</div>{{ g.margenes }}</div>
   </div>
+  {% if g.get("cascada") %}
+  <div class="grafico" style="width:100%; margin-top:3mm"><div class="titulo-g">Del EBITDA al flujo de caja libre (FY{{ c.filing.ejercicio }}, USD mn)</div>{{ g.cascada }}</div>
+  <div class="fuente">Partidas declaradas en el estado de flujos de efectivo; la remuneración en acciones se suma porque no es caja y se resta al final como coste. «Circulante y otros» es la diferencia hasta el flujo operativo declarado.</div>
+  {% endif %}
+  {% if g.get("vencimientos") %}
+  <div class="grafico" style="width:calc(50% - 3mm); margin-top:3mm"><div class="titulo-g">Vencimientos de la deuda (principal, USD mn)</div>{{ g.vencimientos }}</div>
+  <div class="fuente">Vencimientos de principal declarados en el 10-K; suman {{ (c.vencimientos.suma / 1e6)|num(0) }} USD mn, en línea con la deuda declarada ({{ (c.vencimientos.valor_referencia / 1e6)|num(0) }} USD mn). Un año sin barra no tiene dato declarado.</div>
+  {% endif %}
 
   {% for tabla in estados %}
   <h3>{{ tabla.titulo }}{% if tabla.titulo != "Ratios" %} (USD mn){% endif %}</h3>
@@ -160,6 +215,16 @@
     {% for fila in trimestres.filas %}<tr class="{{ fila.clase }}"><td>{{ fila.nombre }}</td>{% for v in fila.valores %}<td>{{ v }}</td>{% endfor %}</tr>{% endfor %}
   </table>
   <div class="fuente">Trimestres de los 10-Q y del 10-K (el cuarto trimestre = anual − nueve meses). BPA diluido declarado; el del cuarto trimestre, derivado (edgartools). Variación frente al mismo trimestre del año anterior.</div>
+  </div>
+  {% endif %}
+  {% if publicaciones %}
+  <div style="break-inside: avoid">
+  <h3>Publicaciones de resultados y reacción de la cotización</h3>
+  <table class="datos">
+    <tr><th>Fecha (8-K)</th><th>Trimestre</th><th>Ingresos (USD mn)</th><th>Var. interanual</th><th>BPA diluido (USD)</th><th>Primera sesión</th><th>Reacción 5 sesiones</th></tr>
+    {% for p in publicaciones %}<tr><td>{{ p.fecha }}</td><td>{{ p.trimestre }}</td><td>{{ p.ingresos }}</td><td>{{ p.variacion }}</td><td>{{ p.bpa }}</td><td>{{ p.sesion }}</td><td>{{ p.reaccion }}</td></tr>{% endfor %}
+  </table>
+  <div class="fuente">8-K con ítem 2.02 (resultados). Primera sesión: la del día si se presentó antes del cierre de Nueva York (16:00) y la siguiente si fue después. Reacción: cierre de la quinta sesión frente al cierre previo, sin comparar con índices.</div>
   </div>
   {% endif %}
   {% if c.notas %}<div class="fuente"><strong>Notas a los ratios ({{ etiqueta_ltm }}).</strong> {% for ratio, nota in c.notas %}{{ ratio }}: {{ nota }} {% endfor %}</div>{% endif %}
@@ -369,6 +434,13 @@
     {% for p in c.puntuaciones %}<tr><td>{{ p.nombre }}</td><td>{% if p.nombre == "Piotroski F" and p.valor is not none %}{{ p.valor|num(0) }} / 9{% elif p.valor is not none %}{{ "%.2f"|format(p.valor)|replace(".", ",")|replace("-", "−") }}{% else %}n.d.{% endif %}</td><td style="text-align:left">{{ p.lectura }}{% if p.faltan and p.valor is none %} (faltan: {{ p.faltan|join(", ") }}){% endif %}</td><td style="text-align:left">{{ p.modelo }}</td></tr>{% endfor %}
   </table>
   <div class="fuente">Altman Z (insolvencia), Beneish M (calidad del beneficio) y Piotroski F (solidez financiera), con las partidas del normalizador SEC. Definiciones en el anexo B.</div>
+  <h3>Alarmas de la SEC (5 años)</h3>
+  {% if c.alarmas %}<table class="datos">
+    <tr><th>Alarma</th><th>Fecha</th><th>Detalle (cita literal del filing)</th><th>Filing</th></tr>
+    {% for a in c.alarmas %}<tr><td>{{ a.tipo }}</td><td>{{ a.fecha.strftime("%d/%m/%Y") }}</td><td style="text-align:left">{{ a.detalle or "—" }}</td><td>{{ a.accession }}</td></tr>{% endfor %}
+  </table>
+  <div class="fuente">8-K ítems 4.01 y 4.02, 10-K/A, 10-Q/A, NT 10-K y NT 10-Q; frases del último 10-K sobre control interno no eficaz o dudas sobre la continuidad (sin las hipotéticas de los factores de riesgo). Las valora el analista.</div>
+  {% else %}<p>Sin alarmas: ningún cambio de auditor ni reexpresión (8-K 4.01 y 4.02), informe modificado o presentación tardía en 5 años, y el último 10-K no recoge control interno no eficaz ni dudas sobre la continuidad de la empresa.</p>{% endif %}
   {% endif %}
   {% if c.autonomia %}
   <h3>Autonomía de caja</h3>

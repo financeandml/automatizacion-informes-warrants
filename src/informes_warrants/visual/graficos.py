@@ -200,3 +200,31 @@ def base_100(series: dict[str, "object"]) -> str:
     ax.legend(loc="upper left", ncol=len(series), bbox_to_anchor=(0, 1.16))
     fig.autofmt_xdate(rotation=0, ha="center")
     return _svg(fig)
+
+
+def cascada(pasos: list[tuple[str, float, str]]) -> str:
+    """Cascada (USD mn): totales en burdeos sólido, aumentos en negro y disminuciones blancas con trama burdeos."""
+    fig, ax = plt.subplots(figsize=(ANCHO_CM * 2 / 2.54, ALTO_CM / 2.54), dpi=100)
+    ax.yaxis.grid(True, color=NEGRO, linewidth=0.15)
+    ax.set_axisbelow(True)
+    nivel = 0.0
+    for i, (_, valor, tipo) in enumerate(pasos):
+        if tipo == "total":
+            ax.bar(i, valor, 0.6, color=BURDEOS)
+            nivel = valor
+        else:
+            estilo = dict(color=NEGRO) if valor >= 0 else dict(color=BLANCO, edgecolor=BURDEOS, hatch="//////", linewidth=0.5)
+            ax.bar(i, valor, 0.6, bottom=nivel, **estilo)
+            nivel += valor
+    ax.set_xticks(range(len(pasos)), [n for n, _, _ in pasos], fontsize=5.4)
+    ax.yaxis.set_major_formatter(_miles)
+    ax.axhline(0, color=NEGRO, linewidth=0.4)
+    return _svg(fig)
+
+
+def vencimientos(etiquetas, importes) -> str:
+    """Perfil de vencimientos de la deuda (USD mn), barras burdeos; los años sin dato quedan vacíos."""
+    fig, ax = _figura()
+    ax.bar(etiquetas, [v or 0 for v in importes], 0.6, color=BURDEOS)
+    ax.yaxis.set_major_formatter(_miles)
+    return _svg(fig)
