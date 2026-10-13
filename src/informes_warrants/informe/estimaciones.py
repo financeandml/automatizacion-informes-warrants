@@ -51,6 +51,10 @@ class Estimaciones:
     sbc_sobre_ventas: float = 0.0  # remuneración en acciones / ventas
     recompras_sobre_fcf: float = 0.0  # recompras / FCF tras remuneración en acciones (si el FCF es positivo)
     multiplos_sotp: dict[str, float] = field(default_factory=dict)  # EV/EBIT por segmento (R14); vacío = mediana de comparables
+    # Calendario de catalizadores del analista (A4): [{"evento", "fecha" (AAAA-MM-DD o vacía), "base"}]; vacío = borrador del SaaS
+    calendario: list[dict] = field(default_factory=list)
+    # Catalizadores del analista (A4): [{"resumen", "cita"}]; vacío = la propuesta de la IA sobre el MD&A
+    catalizadores: list[dict] = field(default_factory=list)
 
     def validar(self) -> list[str]:
         """Errores de coherencia; una lista vacía significa que se pueden usar."""

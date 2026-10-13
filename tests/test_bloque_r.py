@@ -498,3 +498,59 @@ def test_cuotas_y_estabilidad_del_margen():
     assert cuotas_de_ingresos({"A": 60.0}) == {}  # sin comparables no hay cuota
     assert estabilidad_margen([0.30, 0.32, 0.28, None]) == pytest.approx(0.016329931618554522)
     assert estabilidad_margen([0.30, 0.32]) is None
+
+
+# --- A4: calendario de catalizadores --------------------------------------------------------------------------------
+
+def test_calendario_siempre_posterior_a_la_emision():
+    from informes_warrants.calculo.calendario import borrador, plazo_siguiente_informe, proxima_por_aniversario
+
+    hoy = date(2026, 10, 13)
+    resultados = [date(2025, 7, 31), date(2025, 10, 30), date(2026, 1, 29), date(2026, 4, 30), date(2026, 7, 30)]
+    assert proxima_por_aniversario(resultados[-4:], hoy) == date(2026, 10, 29)  # 30/10/2025 + 52 semanas
+    assert proxima_por_aniversario([date(2024, 2, 28)], hoy) == date(2027, 2, 24)  # + 3 × 52 semanas: las anteriores ya pasaron
+    assert proxima_por_aniversario([], hoy) is None
+    # AAPL: último trimestre cerrado el 27/06/2026; el siguiente cierre es el del ejercicio → 10-K a 60 días
+    plazo = plazo_siguiente_informe(date(2026, 6, 27), date(2025, 9, 27), "Large Accelerated Filer", hoy)
+    assert plazo["formulario"] == "10-K" and plazo["limite"] == date(2026, 9, 26) + timedelta(days=60)
+    eventos = borrador(hoy, resultados, [date(2026, 2, 24)], date(2026, 6, 27), date(2025, 9, 27), "Large Accelerated Filer",
+                       12_393e6, 2025)
+    assert [e["evento"] for e in eventos] == ["Próximos resultados (estimado)", "Junta anual de accionistas (estimada)",
+                                             "Vencimientos de deuda de FY26: 12.393 USD mn"]
+    assert all(e["fecha"] is None or e["fecha"] > hoy for e in eventos)
+
+
+def test_hechos_relevantes_del_8k():
+    from informes_warrants.ingesta.eventos import hechos_relevantes
+
+    eventos = [{"fecha": date(2026, 9, 1), "items": ["5.02"], "accession": "a"},
+               {"fecha": date(2026, 7, 30), "items": ["2.02", "9.01"], "accession": "b"},
+               {"fecha": date(2025, 1, 1), "items": ["1.01"], "accession": "c"}]
+    assert hechos_relevantes(eventos, date(2026, 10, 13)) == [
+        {"fecha": date(2026, 9, 1), "hechos": ["Cambios en el consejo o la alta dirección"], "accession": "a"}]
+
+
+# --- A2: hechos clave ----------------------------------------------------------------------------------------------
+
+def test_hechos_clave_por_reglas_uno_por_tema():
+    from informes_warrants.calculo.hechos_clave import observaciones, seleccionar
+
+    entradas = {"ingresos": 400e9, "crecimiento": 0.06, "variacion_margen_pb": 339, "margen_inicio": 0.298, "margen_fin": 0.332,
+                "anio_inicio": 2021, "principal": "margen bruto", "roic": 0.95, "wacc": 0.11, "roic_menos_wacc": 0.84,
+                "dfn": 21e9, "dfn_ebitda": 0.13, "potencial": -0.52, "precio_objetivo": 162.6, "recomendacion": "Vender",
+                "percentil": 1.0, "metrica_historica": "EV / EBITDA", "multiplo_actual": 35.7, "multiplo_mediana": 25.3,
+                "alarmas": [], "puntuaciones": {"Altman Z": "segura", "Beneish M": "sin indicios (M ≤ −1,78)"}}
+    hechos = seleccionar(observaciones(entradas))
+    assert len(hechos) == 4 and [h["tema"] for h in hechos] == ["crecimiento", "rentabilidad", "balance", "valoracion"]
+    assert next(h for h in hechos if h["tema"] == "rentabilidad")["clave"] == "margen"  # 339 pb: alta (ROIC − WACC: media)
+    # una alarma de la SEC es crítica y entra siempre, desplazando al tema menos relevante
+    con_alarma = seleccionar(observaciones({**entradas, "alarmas": [{"tipo": "Cambio de auditor", "fecha": date(2026, 1, 5)}]}))
+    assert [h["clave"] for h in con_alarma] == ["crecimiento", "margen", "potencial", "alarma"]  # sale el balance (0,13x: baja)
+    assert seleccionar(observaciones({})) == []
+
+
+def test_plazo_con_cierre_fiscal_el_29_de_febrero():
+    from informes_warrants.calculo.calendario import plazo_siguiente_informe
+
+    plazo = plazo_siguiente_informe(date(2026, 8, 29), date(2024, 2, 29), "Accelerated Filer", date(2026, 10, 13))
+    assert plazo["formulario"] == "10-Q" and plazo["limite"] > date(2026, 10, 13)

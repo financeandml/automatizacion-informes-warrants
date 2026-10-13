@@ -54,8 +54,11 @@ def _informe(args) -> None:
               f" (DCF por escenarios {c['valor_dcf'] or 0:,.2f} · múltiplos "
               + (f"{c['valor_multiplos']:,.2f}" if c["valor_multiplos"] is not None else "n.d.") + ")")
     print(f"Comparables: {', '.join(x['ticker'] for x in c['comparables']) or 'ninguno'} ({c['comparables_criterio']})")
+    from .informe.construir import AVISO_COMPARABLES
+
     for aviso in c["avisos_emision"]:  # internos del SaaS: no salen en el informe
-        print(f"Aviso antes de emitir: {aviso} (informes-warrants informe {c['ticker']} --comparables A,B,C)")
+        pista = f" (informes-warrants informe {c['ticker']} --comparables A,B,C)" if aviso == AVISO_COMPARABLES else ""
+        print(f"Aviso antes de emitir: {aviso}{pista}")
     print(f"Apartados pendientes del analista: {len(c['pendientes'])}")
 
 
@@ -105,14 +108,42 @@ def _riesgos(args) -> None:
 def _versiones(args) -> None:
     from .almacenamiento.almacen import Almacen
     from .almacenamiento.deteccion import detectar
+    from .almacenamiento.versiones import TransicionInvalida
+    from .informe.versionado import preparar, ultima_abierta
 
     almacen = Almacen()
     if args.accion == "detectar":
         nueva = detectar(args.ticker, almacen)
         print(f"Nueva versión pendiente de confirmar: {nueva.etiqueta}" if nueva else "No hay filings nuevos.")
+    elif args.accion in ("preparar", "confirmar", "emitir"):
+        v = ultima_abierta(almacen, args.ticker)
+        if v is None:
+            raise ValueError(f"{args.ticker.upper()} no tiene ninguna versión abierta: ejecuta antes «versiones detectar».")
+        try:
+            if args.accion == "preparar":
+                v, c = preparar(v, almacen, con_ia=not args.sin_ia)
+                print(f"{v.etiqueta}: PDF en {v.contenido['pdf']} · {len(c['pendientes'])} apartados pendientes del analista")
+                for aviso in v.avisos():
+                    print(f"Aviso antes de emitir: {aviso}")
+            else:
+                v = v.confirmar() if args.accion == "confirmar" else v.emitir()
+                almacen.guardar(v)
+                print(f"{v.etiqueta}: {v.estado.value}")
+        except TransicionInvalida as e:
+            raise ValueError(str(e)) from e
     for v in almacen.historial(args.ticker):
         print(f"{v.etiqueta:28} {v.estado.value:10} {v.accession} ({v.fecha_filing})")
     print(f"Base de datos: {almacen.ruta}")
+
+
+def _interfaz(args) -> None:
+    import subprocess
+    from pathlib import Path
+
+    app = Path(__file__).parent / "ui" / "app.py"
+    tema = ["--theme.base=light", "--theme.primaryColor=#2B0B02", "--theme.backgroundColor=#FFFFFF",
+            "--theme.secondaryBackgroundColor=#FFFFFF", "--theme.textColor=#000000"]  # los tres colores de la marca
+    subprocess.run([sys.executable, "-m", "streamlit", "run", str(app), "--browser.gatherUsageStats=false", *tema], check=False)
 
 
 def _regresion(args) -> None:
@@ -180,6 +211,9 @@ def main() -> None:
     p.add_argument("--comparar-con", help="Resumen JSON de un informe anterior: muestra qué cambió y por qué (R16)")
     p.set_defaults(func=_informe, sec=True)
 
+    p = sub.add_parser("interfaz", help="Abre la interfaz del analista en el navegador (Streamlit, en local)")
+    p.set_defaults(func=_interfaz, sec=False)
+
     p = sub.add_parser("regresion", help="Batería de regresión: cifras clave de las empresas de prueba frente a su instantánea")
     p.add_argument("tickers", nargs="*", help="Por defecto, las 10 empresas de prueba")
     p.add_argument("--actualizar", action="store_true", help="Guarda las cifras actuales como nueva referencia (tras revisarlas)")
@@ -200,8 +234,9 @@ def main() -> None:
     p.set_defaults(func=_riesgos, sec=True)
 
     p = sub.add_parser("versiones", help="Historial de versiones y detección de 10-Q/10-K nuevos")
-    p.add_argument("accion", choices=["lista", "detectar"])
+    p.add_argument("accion", choices=["lista", "detectar", "preparar", "confirmar", "emitir"])
     p.add_argument("ticker")
+    p.add_argument("--sin-ia", action="store_true", help="Al preparar, sin modelo de lenguaje")
     p.set_defaults(func=_versiones, sec=True)
 
     p = sub.add_parser("ia", help="Comprueba la conexión con el modelo de lenguaje")

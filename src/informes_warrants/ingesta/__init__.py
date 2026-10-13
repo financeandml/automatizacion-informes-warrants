@@ -5,5 +5,9 @@
 - comparables.py: propuesta de comparables por código SIC (solo SEC) y sus datos LTM.
 - gobierno.py: auditor y retribución (proxy DEF 14A).
 - riesgos.py: títulos del Item 1A y comparación con el informe anual anterior.
+- insiders.py: Form 4, accionistas de más del 5 % (proxy) y 13D/13G.
+- eventos.py: 8-K (resultados, hechos relevantes) y alarmas de la SEC.
+- competencia.py: apartado «Competition» del Item 1, literal.
+- nombres.py: nombre de la empresa legible (la SEC registra muchos en mayúsculas).
 - divisas.py: conversión a USD de los emisores extranjeros (20-F).
 """

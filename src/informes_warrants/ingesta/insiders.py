@@ -8,6 +8,7 @@ Reutiliza edgartools:
 - `TransactionSummary`: nombre, cargo y si la operación se hizo con un plan 10b5-1 (venta programada).
 - `ProxyStatement.beneficial_ownership` (Item 403 del proxy) y `Schedule13D/13G` (porcentaje del declarante).
 
+Sin las enmiendas 4/A (repiten las operaciones del Form 4 original y se contarían dos veces).
 Del proxy solo se toman los accionistas de más del 5 %: edgartools pone 0,50 % a consejeros y directivos cuando
 el proxy dice «*» (menos del 1 %), un dato que la empresa no declara. Cada dato que falta queda fuera (nunca 0).
 """
@@ -43,13 +44,24 @@ def _fecha(valor) -> date | None:
         return None
 
 
+def _fecha_us(valor) -> str:
+    """«03/31/2026» (formato de EE. UU. del 13D/G) → «31/03/2026»; si no se reconoce, tal cual."""
+    from datetime import datetime
+
+    texto = _texto(valor)
+    try:
+        return datetime.strptime(texto, "%m/%d/%Y").strftime("%d/%m/%Y")
+    except ValueError:
+        return texto
+
+
 def transacciones(empresa, hasta: date, dias: int = 365) -> dict:
     """Form 4 presentados en los `dias` anteriores a `hasta`: operaciones en mercado y resumen del resto."""
     desde = hasta - timedelta(days=dias)
     salida = {"desde": desde, "hasta": hasta, "formularios": 0, "operaciones": [],
               "retribucion": {"operaciones": 0, "acciones": 0.0}, "retenciones": {"operaciones": 0, "acciones": 0.0}}
     try:
-        filings = empresa.get_filings(form="4")
+        filings = empresa.get_filings(form="4", amendments=False)  # sin 4/A: repiten las operaciones del original
     except Exception as e:  # noqa: BLE001
         log.warning("Form 4 no disponibles: %s", e)
         return salida
@@ -127,6 +139,6 @@ def accionistas_principales(empresa, hasta: date, dias: int = 365) -> dict:
         if porcentaje is None or not personas:
             continue
         salida["declaraciones"].append({"nombre": _texto(getattr(personas[0], "name", "")), "porcentaje": porcentaje / 100,
-                                        "fecha_hecho": _texto(getattr(s, "event_date", "")), "formulario": filing.form,
+                                        "fecha_hecho": _fecha_us(getattr(s, "event_date", "")), "formulario": filing.form,
                                         "presentado": presentado})
     return salida

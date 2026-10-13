@@ -7,4 +7,7 @@
 - render.py: contexto → HTML → PDF.
 - cobertura.py y perfiles.py: qué plantilla usa cada empresa (general o sectorial).
 - bloque_fijo.py: los dos ajustes permitidos sobre las cifras (comparables y no recurrentes).
+- autoria.py: datos de autoría de cada usuario (fuera del repositorio).
+- cambios.py: resumen de cada informe y comparación con el anterior.
+- regresion.py: batería de regresión de las empresas de prueba (`informes-warrants regresion`).
 """

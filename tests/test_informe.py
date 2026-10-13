@@ -21,6 +21,7 @@ DATOS = {
     "margen_bruto": 0.47, "margen_operativo": 0.32, "roic": 0.55, "roe": 1.5, "fcf": 98000.0, "conversion_fcf": 0.88,
     "precio_objetivo_dcf": 240.0, "precio_objetivo_multiplos": 260.0, "wacc": 0.09, "g": 0.025,
     "auditor": "Ernst & Young LLP",
+    "hechos": [{"clave": "crecimiento", "tema": "crecimiento", "relevancia": "media", "ingresos": 416161e6, "crecimiento": 0.064}],
     "gobierno": None, "puente": {"total": 120.0, "contribuciones": {"margen bruto": 150.0, "I+D": -40.0, "otros": 10.0},
                                  "principal": "margen bruto"},
     "apalancamiento": 1.4, "uso": {"anios": 5, "retribucion": 500000e6, "retribucion_sobre_fcf": 1.02, "variacion_acciones": -0.12,

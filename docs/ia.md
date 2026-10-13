@@ -22,7 +22,7 @@ La IA tiene un papel mínimo: elige entre fragmentos literales numerados y resum
 |---|---|---|
 | 1 | Interfaz única para todos los proveedores (`openai` con URL base), `LLMSettings` desde `.env`, respaldo automático a Ollama | ✅ Hecho |
 | 2 | Instalar Ollama y `llama3.2:3b`; probar de principio a fin (`informes-warrants riesgos AAPL`: 27 riesgos → 5 resumidos con cita literal) | ✅ Hecho |
-| 3 | IA mínima: selección por número + cita verificada en el texto del 10-K; solo 2 bloques del informe | ✅ Hecho |
+| 3 | IA mínima: selección por número + cita verificada en el texto del 10-K; 3 bloques del informe (riesgos, catalizadores y, desde el 2026-10-13, la traducción verificada del apartado «Competition»: mismas cifras, nombres propios y longitud; si no pasa, original para el analista) | ✅ Hecho |
 | 4 | Groq con `GROQ_API_KEY`: llama4 ya no está disponible, así que se usa `openai/gpt-oss-120b`. `informes-warrants ia` → `groq · openai/gpt-oss-120b: listo` | ✅ Hecho |
 | 4b | **llama4 en OpenRouter**: crear una key en <https://openrouter.ai/keys>, añadir saldo (con 5 USD basta para miles de informes) y poner `OPENROUTER_API_KEY=...` en `.env`; pasa a ser el proveedor por defecto automáticamente | ⏳ Opcional, a decisión del usuario |
 | 5 | En el despliegue del SaaS, llama4 en servidor propio con GPU mediante vLLM (`LLM_PROVIDER=vllm`; ya soportado) si se quiere prescindir de Groq | Fase 8 del plan |

@@ -91,7 +91,7 @@ Tests *golden* con el 10-K FY2023 de AAPL (`tests/fixtures/aapl_10k_2023`).
 
 Definidos en detalle en [editor-y-versiones.md](editor-y-versiones.md). En resumen:
 
-- **Bloques:** 19 AUTO (código), 4 PLANTILLA (texto con datos), 2 IA (riesgos y catalizadores, con cita literal) y 7 ANALISTA (marcados con `[[ANALISTA: …]]`; bloquean la emisión).
+- **Bloques:** 19 AUTO (código), 5 PLANTILLA (texto con datos), 3 IA (riesgos y catalizadores, con cita literal; competencia, solo traducción verificada) y 8 ANALISTA (marcados con `[[ANALISTA: …]]`; bloquean la emisión).
 - **Izquierda, bloque fijo:** solo lectura, con la fuente de cada cifra. El analista solo puede ajustar los comparables y marcar partidas no recurrentes, siempre con motivo.
 - **Derecha, bloque editable:** Markdown con las plantillas ya rellenas, las estimaciones (recalculan proyección y DCF) y la recomendación, que el SaaS propone y el analista confirma.
 - **Vista previa en tiempo real:** HTML en cada cambio y PDF recompilado en segundo plano.
@@ -111,7 +111,7 @@ src/informes_warrants/
   plantillas/     # plantilla HTML/CSS, bloques Markdown, marca, fuentes (OFL) y texto legal
   ia/             # capa 4: uso mínimo del modelo de lenguaje
   almacenamiento/ # versiones: estados, herencia, comparación, SQLite, detección
-  ui/             # Streamlit en localhost (pendiente, fase 7)
+  ui/             # Streamlit en localhost: `informes-warrants interfaz` (A12)
 ```
 
 La lógica (capas 1-4) no depende de la UI, así que la interfaz se puede cambiar sin tocar el núcleo.
@@ -126,7 +126,7 @@ La lista detallada de tareas que faltan, en tres fases (primer uso real, perfecc
 | 1. Ingesta | ✅ 5 ejercicios + LTM normalizados (companyfacts) contrastados con el XBRL del 10-K, cotización, histórico, comportamiento vs SPY/ETF, Rf, comparables, gobierno, riesgos y texto del 10-K. Falta: *snapshot* por versión, vencimientos de deuda y segmentos | `informes-warrants informe AAPL` |
 | 2. Cálculo | ✅ Normalizador SEC, métricas propias, DCF, beta y semáforo, con tests *golden* del 10-K FY2023 de AAPL | Las cifras de AAPL cuadran al dólar con el 10-K |
 | 3. Visual | ✅ Gráficos SVG, tablas, plantilla HTML A4 y PDF de 10 páginas ([ejemplo](ejemplos/AAPL_FY2025_borrador.pdf)). Falta el PDF de las plantillas sectoriales (banca, seguros, REIT, BDC) | **Primer informe borrador PDF completo por CLI (MVP)** ✅ |
-| 4. IA | ✅ Proveedor, selección con cita literal y los 2 bloques de IA ([ia.md](ia.md)); los riesgos ya están en el informe; falta conectar los catalizadores del MD&A | `informes-warrants riesgos AAPL` |
+| 4. IA | ✅ Proveedor, selección con cita literal y los 3 bloques de IA ([ia.md](ia.md)): riesgos, catalizadores del MD&A y traducción del apartado «Competition», los tres en el informe | `informes-warrants riesgos AAPL` |
 | 5. Versiones | ✅ Estados, herencia, comparación, SQLite inmutable y detección; falta el snapshot y el PDF por versión (dependen de las fases 1-3) | `informes-warrants versiones detectar AAPL` |
 | 6. Rigor del contenido | Las 8 carencias y los apartados «parciales» del índice ([rigor-del-contenido.md](rigor-del-contenido.md)). ✅ Carencias 1-3 y 5-8 (LTM, escenarios, DCF inverso, BPA, comparables, SBC, gobierno, puntuaciones, cambios del Item 1A, notas y metodología). Pendiente: segmentos (plan cerrado), los apartados parciales del índice y el motor de valoración con los modelos que aportará el usuario ([requisitos F1](requisitos-pendientes.md#f-aportaciones-futuras-del-usuario-tareas-pendientes)) | PDF intermedio revisado en cada paso |
 | 7. UI | Streamlit: dashboard con estados, editor híbrido, vista previa (sobre los bloques ya cerrados en la fase 6) | Flujo completo en localhost |
@@ -139,7 +139,7 @@ La lista detallada de tareas que faltan, en tres fases (primer uso real, perfecc
 | UI | Streamlit en localhost | Usuario |
 | PDF | Plantilla HTML → WeasyPrint (GTK con MSYS2 en Windows) | equity-research-agent |
 | LLM | llama4 en OpenRouter (si hay key) > `gpt-oss-120b` en Groq (activo) > Ollama `llama3.2:3b` local; mismo código para todos los proveedores | [ia.md](ia.md) |
-| Uso de la IA | Mínimo: 2 bloques, solo elige y resume fragmentos literales | Usuario |
+| Uso de la IA | Mínimo: 3 bloques; elige y resume fragmentos literales o traduce uno ya extraído por código (competencia, 2026-10-13) | Usuario |
 | Editor | Markdown, vista previa en tiempo real, emisión con confirmación del analista | Usuario |
 | Recomendación | Sí: el SaaS la propone por potencial y el analista la confirma; se muestra siempre el precio objetivo calculado y el analista puede fijar el suyo | Usuario |
 | Comparables | La propuesta automática por SIC es orientativa y no entra en el precio objetivo; la valoración por múltiplos exige la lista del analista; sin ella, aviso antes de emitir (no bloquea ni sale en el informe). Motor de valoración completo: con los modelos que aportará el usuario | Usuario (2026-10-12) |

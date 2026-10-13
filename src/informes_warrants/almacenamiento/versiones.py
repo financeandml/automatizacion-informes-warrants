@@ -79,6 +79,8 @@ class Version:
         faltan = self.pendientes()
         if faltan:
             raise TransicionInvalida(f"Quedan {len(faltan)} apartados del analista sin completar.")
+        if (self.contenido.get("calidad") or {}).get("nivel") == "rojo":  # los datos de la SEC no cuadran
+            raise TransicionInvalida("La calidad de los datos está en rojo: " + "; ".join(self.contenido["calidad"].get("errores", [])))
         return replace(self, estado=Estado.EMITIDA, emitida=_ahora())
 
     def nueva_revision(self) -> "Version":

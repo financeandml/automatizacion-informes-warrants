@@ -60,6 +60,8 @@ Orden de desarrollo y por qué: primero los datos que usan los demás, luego la 
 
 ## Fase A: primer uso real (un analista, en su ordenador)
 
+**Estado (2026-10-13): cerrada.** Lo único abierto de la fase está fuera de ella: P2 (antigua A7), P4 (antigua A10) y la decisión F7 (LTM por segmento, provisional).
+
 **Decisiones del usuario para cerrar la fase A (2026-10-13):** orden A14 → A1-bis (F7 provisional) → A15 → A3 → A9 → A6 → A8 → A5 → A4 → A2 → PDF de revisión → A11 → A12 + A13. Todo sin alucinaciones (cifras por código y validadas; si no cuadran, no se muestran).
 - A2: 4 hechos por reglas sin etiqueta temática (patrón FRAA `insight_engine`); R1 se valorará después (P1).
 - A4: el calendario lo introduce preferentemente el analista; el SaaS prepara un borrador por empresa marcado «Revisar».
@@ -71,21 +73,21 @@ Objetivo: que el analista genere, complete, emita (PDF descargable) y versione i
 
 | # | Tarea | Decisiones del usuario y detalle | Estado |
 |---|---|---|---|
-| ~~A1~~ | ~~Segmentos y geografía~~ | Hecho con R14: los tres desgloses de 5 años, solo los ejercicios que suman el total. Las empresas no publican desgloses LTM en el XBRL: no hay columna LTM | Cerrado |
-| A2 | Apartado 2: resumen ejecutivo | 4 hechos clave por reglas (propuesta R1: etiquetas temáticas) | Lista para empezar |
-| A3 | Apartado 3: qué hace la empresa | Segmentos hechos (A1); falta la concentración de clientes | Lista para empezar |
-| A4 | Apartado 6: catalizadores | Bloque de IA del MD&A conectado; en el informe, la propuesta automática; editable en la interfaz (A12). Calendario: vencimientos de deuda (verificado), junta anual y próximos resultados estimados **siempre posteriores a la fecha de emisión**; hechos relevantes del 8-K de 12 meses. Pipeline de biotecnológicas: propuesta R4 | Lista para empezar |
-| A5 | Apartado 14: competencia | Párrafo «Competition» del Item 1 y cuotas entre los comparables del analista, en español; ROIC − WACC y estabilidad del margen frente a la mediana. Hecho: crecimiento de los comparables (R10) | Lista para empezar |
-| A6 | Apartado 18: insiders y accionistas | Form 4 de 12 meses: solo compras y ventas en mercado, separadas de la retribución en acciones; accionistas > 5 % (proxy y 13D/G) | Lista para empezar |
+| ~~A1~~ | ~~Segmentos y geografía~~ | Hecho con R14: los tres desgloses de 5 años, solo los ejercicios que suman el total. LTM por segmento provisional (A1-bis, decisión F7 abierta) | Cerrado |
+| ~~A2~~ | ~~Apartado 2: resumen ejecutivo~~ | 4 hechos clave por reglas, uno por tema, sin etiqueta (`calculo/hechos_clave.py`, patrón FRAA `insight_engine`); R1 en P1 | Cerrado (2026-10-13) |
+| ~~A3~~ | ~~Apartado 3: qué hace la empresa~~ | Segmentos (A1, con LTM provisional F7) y concentración de clientes declarada (`ConcentrationRiskPercentage1`) | Cerrado (2026-10-13) |
+| ~~A4~~ | ~~Apartado 6: catalizadores~~ | Bloque de IA del MD&A conectado; calendario en borrador «Revisar» (resultados y junta + 52 semanas, plazo legal según la categoría de presentador, vencimientos), siempre posterior a la emisión; hechos relevantes del 8-K de 12 meses. El analista lo sustituye con `Estimaciones.calendario` (en la interfaz, A12); aviso antes de emitir mientras sea borrador | Cerrado (2026-10-13) |
+| ~~A5~~ | ~~Apartado 14: competencia~~ | Apartado «Competition» extraído por código y traducido por el tercer bloque de IA con verificación (cifras, nombres propios, longitud); cuotas de ingresos, ROIC − WACC y estabilidad del margen frente a los comparables del analista | Cerrado (2026-10-13) |
+| ~~A6~~ | ~~Apartado 18: insiders y accionistas~~ | Form 4 de 12 meses (P/S en mercado, plan 10b5-1; retribución y retenciones aparte) con la lógica de FRAA `insider_activity`; >5 % del proxy y 13D/13G; participaciones de yfinance etiquetadas como externas | Cerrado (2026-10-13) |
 | ~~A7~~ | ~~Apartado 20: clasificación de riesgos~~ | Sacada de la fase A a P2 (decisión del usuario, 2026-10-13). Hecho: autonomía de caja y dilución (R2) | En P2 |
-| A8 | Apartado 21: historial de resultados | Resultados de la empresa; alarmas SEC (8-K 4.01/4.02, 10-K/A, NT 10-K/10-Q, debilidad material, *going concern*); reacción bursátil a 5 sesiones tras cada 8-K 2.02, sin comparar con índices; hecho: tabla de 8 trimestres (R3) | Lista para empezar |
-| A9 | Gráficos pendientes | Cascada EBITDA → FCF y perfil de vencimientos de deuda | Lista para empezar |
+| ~~A8~~ | ~~Apartado 21: historial de resultados~~ | Publicaciones (8-K 2.02) con su trimestre y la reacción a 5 sesiones según la hora de presentación; alarmas SEC de 5 años; tabla de 8 trimestres (R3) | Cerrado (2026-10-13) |
+| ~~A9~~ | ~~Gráficos pendientes~~ | Cascada EBITDA → FCF (cuadra con el flujo operativo declarado) y vencimientos de deuda (solo si cuadran con la deuda declarada) | Cerrado (2026-10-13) |
 | ~~A10~~ | ~~Emisores extranjeros en el PDF~~ | Aparcada en P4 (decisión del usuario, 2026-10-13) | En P4 |
-| A11 | Versiones conectadas al informe | Detectar 10-Q/10-K → construir → guardar contenido, *snapshot* de datos (JSON) y PDF por versión; herencia de lo que aportó el analista | Lista para empezar |
-| A12 | Interfaz Streamlit (un analista, en su ordenador) | Panel con estados; editor híbrido (cifras de solo lectura, textos en Markdown, estimaciones, escenarios, comparables y catalizadores editables); vista previa en tiempo real; avisos antes de emitir; botón «Confirmar emisión»; descarga del PDF | Tras A1-A11 |
-| A13 | Autoría | Hecho: campos, portada y `informes-warrants autoria` (R6), guardados fuera del repositorio. Falta la pantalla de configuración de la interfaz (A12) | Con A12 |
-| A14 | Batería de regresión | IOVA, ORCL, NFLX, AAPL y una muestra de sectores (MSFT, JNJ, XOM, TSLA, RIVN, KO) generadas en cada cambio, comparando cifras clave. Vigilar: la deuda a corto suma `CommercialPaper` + `ShortTermBorrowings`; si una empresa incluye el papel comercial dentro de los préstamos a corto, se contaría dos veces (no visto aún en ninguna) | Lista para empezar |
-| A15 | Pulido del PDF | Nombre de la empresa tal como lo registra la SEC: algunas en mayúsculas («IOVANCE BIOTHERAPEUTICS, INC.»); decidir si se normaliza sin estropear siglas (AT&T, IBM). Leyenda de «n.s.» en la portada (crecimiento ≥ 1.000 %) | Lista para empezar |
+| ~~A11~~ | ~~Versiones conectadas al informe~~ | `informe/versionado.py` sobre `almacenamiento/` tal cual: `versiones detectar/preparar/confirmar/emitir`; cada versión guarda textos, estimaciones, resumen (R16), instantánea de la SEC, avisos, calidad y su PDF; lo del analista se hereda y prevalece. La calidad en rojo bloquea la emisión | Cerrado (2026-10-13) |
+| ~~A12~~ | ~~Interfaz Streamlit (un analista, en su ordenador)~~ | `informes-warrants interfaz` (`ui/`): empresas y versiones; editor con textos en Markdown, estimaciones, escenarios, calendario y catalizadores, vista previa del informe al lado (sin volver a la SEC al editar); avisos antes de emitir, botón «Confirmar emisión del informe» y descarga del PDF. Estructura de FRAA `frontend` (MIT) | Cerrado (2026-10-13) |
+| ~~A13~~ | ~~Autoría~~ | Pantalla «Configuración» de la interfaz (interna; datos fuera del repositorio) sobre `autoria.py` | Cerrado (2026-10-13) |
+| ~~A14~~ | ~~Batería de regresión~~ | `informes-warrants regresion` sobre las 10 empresas de prueba (`tests/fixtures/regresion`): compara solo cifras de la SEC; aviso de calidad si la deuda a corto suma papel comercial y préstamos a corto | Cerrado (2026-10-13) |
+| ~~A15~~ | ~~Pulido del PDF~~ | Nombres de la SEC legibles (`ingesta/nombres.py`) y leyenda de «n.s.» en la portada | Cerrado (2026-10-13) |
 
 ## Fase B: perfeccionar el contenido y la valoración
 

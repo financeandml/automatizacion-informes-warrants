@@ -15,12 +15,17 @@ FIXTURE = Path(__file__).parent / "fixtures" / "aapl_10k_2023"
 
 
 def _componer(**extra):
+    return componer(**_datos(**extra))
+
+
+def _datos(**extra) -> dict:
+    """Argumentos de `componer` de prueba (lo que `reunir` traería de la SEC y del mercado)."""
     from edgar.xbrl import XBRL
 
     estados = normalizar(FuenteXBRL(XBRL.from_directory(FIXTURE), "0000320193-23-000106"), [2022, 2023], "AAPL")
     fechas = pd.date_range("2021-01-01", "2023-12-29", freq="B")
     serie = pd.Series(range(100, 100 + len(fechas)), index=fechas, dtype=float)
-    return componer(
+    return dict(
         ticker="AAPL", empresa="Apple Inc.", sic=3571, cobertura=clasificar("Operating Company", False),
         filing={"accession": "0000320193-23-000106", "fecha": "2023-11-03", "ejercicio": 2023},
         estados=estados, calidad=revisar(estados),
@@ -118,3 +123,71 @@ def test_historial_y_multiplos_historicos_en_el_informe():
     assert [h["senal"] for h in c["historial"]] == ["acertada"]  # cotización actual 190 frente a objetivo 170
     html = render.html(c)
     assert "Múltiplos frente a su propia historia" in html and "Comprar" in html
+
+
+def test_version_preparada_con_lo_del_analista(tmp_path, monkeypatch):
+    """A11: la versión guarda textos, estimaciones, resumen, instantánea y PDF; lo del analista prevalece."""
+    from informes_warrants.almacenamiento.almacen import Almacen
+    from informes_warrants.almacenamiento.versiones import Estado, TransicionInvalida, Version
+    from informes_warrants.informe import render, versionado
+
+    monkeypatch.setattr(render, "pdf", lambda c, destino: destino)
+    almacen = Almacen(tmp_path / "v.sqlite")
+    v = Version("AAPL", 2023, "FY", 1, "0000320193-23-000106", "2023-11-03",
+                contenido={"textos": {"conclusiones.perspectivas": "Mi tesis."}, "estimaciones": {"g": 0.02}})
+    almacen.guardar(v)
+    preparada, c = versionado.preparar(versionado.ultima_abierta(almacen, "AAPL"), almacen, con_ia=False, carpeta=tmp_path,
+                                       datos=_datos())
+    assert c["estimaciones"].g == 0.02  # se compone con las estimaciones del analista
+    assert c["textos"]["conclusiones.perspectivas"] == "Mi tesis."  # lo escrito por el analista prevalece
+    assert preparada.contenido["textos"]["conclusiones.perspectivas"] == "Mi tesis."
+    assert {"resumen", "instantanea", "pdf", "calidad", "avisos_emision"} <= set(preparada.contenido)
+    assert almacen.historial("AAPL")[0].contenido["pdf"].endswith("AAPL_FY2023_v1.pdf")
+    borrador = preparada.confirmar()
+    with pytest.raises(TransicionInvalida):  # quedan marcadores del analista: no se emite
+        borrador.emitir()
+    rojo = Version("AAPL", 2023, "FY", 2, "x", "2023-11-03", estado=Estado.BORRADOR,
+                   contenido={"textos": {}, "calidad": {"nivel": "rojo", "errores": ["activo ≠ pasivo + patrimonio"]}})
+    with pytest.raises(TransicionInvalida, match="rojo"):
+        rojo.emitir()
+
+
+# --- A12: interfaz (lógica sin Streamlit y prueba de humo de la app) -----------------------------------------------
+
+def test_logica_de_la_interfaz():
+    from informes_warrants.ui import logica
+
+    datos = _datos()
+    c = logica.recomponer(datos, None, {"conclusiones.perspectivas": "Mi tesis."},
+                          {"probabilidades": [0.2, 0.6, 0.2], "desencadenantes": {"base": "Se cumple el plan."}})
+    assert c["textos"]["conclusiones.perspectivas"] == "Mi tesis."
+    assert c["escenarios"].probabilidades == (0.2, 0.6, 0.2) and c["escenarios"].desencadenantes["base"] == "Se cumple el plan."
+    nuevas, errores = logica.editar(c["estimaciones"], g=0.03, tasa_fiscal=1.5)
+    assert nuevas.g == 0.03 and errores  # tasa fiscal fuera de rango
+    assert logica.a_pantalla("g", 0.025) == 2.5 and logica.de_pantalla("g", 2.5) == 0.025 and logica.a_pantalla("beta", 1.1) == 1.1
+    motivos = logica.motivos_para_no_emitir(c)
+    assert any(m.startswith("Pendiente del analista") for m in motivos)  # quedan marcadores: no se emite
+    assert set(logica.contenido_editable(c)) == {"textos", "estimaciones"}
+
+
+def test_la_interfaz_arranca(tmp_path, monkeypatch):
+    pytest.importorskip("streamlit")
+    from streamlit.testing.v1 import AppTest
+
+    from informes_warrants import ui
+
+    monkeypatch.setenv("EDGAR_IDENTITY", "Prueba prueba@ejemplo.com")
+    monkeypatch.setenv("INFORMES_DATA_DIR", str(tmp_path))
+    app = AppTest.from_file(str(Path(ui.__file__).parent / "app.py"), default_timeout=60).run()
+    assert not app.exception
+    assert any("ticker" in i.value for i in app.info)  # sin empresa elegida, pide el ticker
+    app.sidebar.radio[0].set_value("Configuración").run()
+    assert not app.exception and app.header[0].value == "Configuración"
+
+
+def test_el_html_de_terceros_no_se_ejecuta():
+    from informes_warrants.informe.render import _md
+
+    salida = str(_md("Texto <script>alert(1)</script> de AT&T y [[ANALISTA: completar]]\n\n> cita"))
+    assert "<script>" not in salida and "&lt;script" in salida  # se ve como texto, no se ejecuta
+    assert '<span class="pendiente">completar</span>' in salida and "<blockquote>" in salida and "AT&amp;T" in salida

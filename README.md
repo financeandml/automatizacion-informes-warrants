@@ -42,7 +42,7 @@ python -m venv .venv
 .venv\Scripts\activate          # Windows (en macOS/Linux: source .venv/bin/activate)
 
 # 2. Dependencias (pdf = WeasyPrint)
-pip install -e ".[dev,pdf]"
+pip install -e ".[dev,pdf,ui]"   # ui: interfaz del analista (Streamlit)
 
 # 3. Configuración
 copy .env.example .env          # rellena EDGAR_IDENTITY y la key del modelo (docs/ia.md)
@@ -70,7 +70,14 @@ ollama pull llama3.2:3b
 
 ## Uso
 
-Flujo del analista:
+Flujo del analista con la interfaz (`informes-warrants interfaz`, en el navegador):
+1. **Empresas y versiones:** escribe el ticker, detecta el 10-Q/10-K nuevo y confirma la versión.
+2. **Editor del informe:** carga los datos de la SEC una vez; edita textos (Markdown), estimaciones, escenarios,
+   calendario y catalizadores con la vista previa al lado; atiende los avisos y pulsa «Confirmar emisión del
+   informe» para emitir y descargar el PDF.
+3. **Configuración:** tu autoría (se guarda en tu carpeta de datos, no en el repositorio).
+
+Flujo equivalente por línea de comandos:
 1. Genera el borrador: `informes-warrants informe AAPL`.
 2. Revisa los recuadros «PENDIENTE DEL ANALISTA» y el aviso «REVISAR».
 3. **Introduce tu lista de comparables:** sin ella, la valoración por múltiplos no entra en el precio objetivo, que queda solo por DCF (el SaaS lo avisa antes de emitir, sin bloquear):
@@ -81,12 +88,17 @@ informes-warrants informe AAPL               # borrador del informe en PDF + vis
 informes-warrants informe AAPL --comparables MSFT,GOOGL,DELL   # con la lista de comparables del analista
 informes-warrants informe AAPL --comparar-con ruta/AAPL_FY2025_borrador_resumen.json  # qué cambió y por qué
 informes-warrants autoria --analista "Nombre" --correo nombre@empresa.com   # autoría de la portada (fuera del repo)
+informes-warrants regresion                  # batería de regresión: cifras de la SEC de las 10 empresas de prueba
 informes-warrants datos AAPL                 # estados financieros del último 10-K
 informes-warrants cobertura JPM              # plantilla: general, sectorial o «pendiente de validar»
 informes-warrants metricas JPM               # métricas del perfil sectorial con su fuente XBRL
 informes-warrants riesgos AAPL               # riesgos del 10-K y los 5 principales (IA)
 informes-warrants riesgos AAPL --sin-ia      # solo la lista literal
+informes-warrants interfaz                   # interfaz del analista (Streamlit, en local)
 informes-warrants versiones detectar AAPL    # propone la versión del último 10-Q/10-K
+informes-warrants versiones preparar AAPL    # construye el informe de la versión abierta y guarda su PDF
+informes-warrants versiones confirmar AAPL   # confirma la versión detectada
+informes-warrants versiones emitir AAPL      # emite (bloquean los apartados pendientes y la calidad en rojo)
 informes-warrants versiones lista AAPL       # historial de versiones
 informes-warrants ia                         # comprueba el modelo de lenguaje
 ```

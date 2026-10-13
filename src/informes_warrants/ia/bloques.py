@@ -21,7 +21,11 @@ MAX_CANDIDATOS = 60
 
 def frases_candidatas(texto_mdna: str) -> tuple[list[str], int]:
     """Frases prospectivas del MD&A y número total de frases con señal (para no ocultar el recorte)."""
-    frases = re.split(r"(?<=[.!?])\s+(?=[A-Z])", " ".join(texto_mdna.split()))
+    from ..ingesta.competencia import _es_encabezado
+
+    # sin las líneas de encabezado, que se pegaban a la frase siguiente («Europe Europe net sales…»)
+    sin_encabezados = " ".join(linea for linea in texto_mdna.splitlines() if not _es_encabezado(linea))
+    frases = re.split(r"(?<=[.!?])\s+(?=[A-Z])", " ".join(sin_encabezados.split()))
     con_senal = [f for f in frases if 60 <= len(f) <= 400 and SENALES.search(f)]
     return con_senal[:MAX_CANDIDATOS], len(con_senal)
 
@@ -48,7 +52,8 @@ def catalizadores(texto_mdna: str, cfg: LLMSettings | None = None) -> tuple[list
 SISTEMA_TRADUCCION = (
     "Eres un traductor financiero. Traduces del inglés al español de España, con registro formal de informe de "
     "análisis. No añades, quitas, resumes ni interpretas nada: traduces frase a frase. Dejas sin traducir los nombres "
-    "de empresas, productos, marcas y servicios, y no cambias ninguna cifra. Respondes solo con la traducción."
+    "propios de empresas, productos, marcas y servicios, y no cambias ninguna cifra. «The Company» y «the Company» no son "
+    "un nombre propio: tradúcelos como «la compañía». Respondes solo con la traducción."
 )
 # Nombres propios que deben quedar igual: con mayúscula interna (LinkedIn, AbelZeta, iPhone) o marca registrada
 # (Amtagvi®). Las siglas no cuentan: «AI» se traduce «IA» y «SUVs», «SUV».

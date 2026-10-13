@@ -106,6 +106,8 @@
 <!-- ============ 2. CONCLUSIONES, NEGOCIO Y GOBIERNO ============ -->
 <section class="salto">
   <h2><span class="num">01</span>Conclusiones</h2>
+  <h3>Hechos clave</h3>
+  {{ t["conclusiones.hechos_clave"] }}
   <h3>Perspectivas</h3>
   {{ t["conclusiones.perspectivas"] }}
   {{ t["conclusiones.fortalezas_riesgos"] }}
@@ -168,6 +170,8 @@
     <tr><th>Declaraciones 13D/13G posteriores al proxy</th><th>% declarado</th><th>Fecha del hecho</th><th>Formulario</th></tr>
     {% for f in insiders.declaraciones %}<tr><td>{{ f.nombre }}</td><td>{{ f.porcentaje }}</td><td>{{ f.fecha }}</td><td>{{ f.formulario }}</td></tr>{% endfor %}
   </table>{% endif %}
+  {% set p = ins.participaciones %}{% if p %}
+  <p class="fuente" style="margin-top:2mm"><strong>Fuente externa, no auditada (yfinance, consulta del {{ p.consulta }}):</strong> insiders {{ p.insiders|pct }} del capital; instituciones {{ p.instituciones|pct }}{% if p.numero_instituciones %} ({{ p.numero_instituciones|num(0) }} instituciones){% endif %}.{% if p.principales %} Principales tenedores institucionales: {% for h in p.principales %}{{ h.nombre }} {{ h.porcentaje|pct }}{{ "; " if not loop.last else "" }}{% endfor %} (13F a {{ p.principales[0].fecha }}).{% endif %}
   {% if not insiders.proxy and not insiders.declaraciones %}<p class="fuente">Sin accionistas de más del 5 % declarados en el último proxy ni en 13D/13G de los últimos 12 meses.</p>{% endif %}
   <h3>Compras y ventas de insiders en mercado (12 meses)</h3>
   <p>Entre el {{ ins.desde.strftime("%d/%m/%Y") }} y el {{ ins.hasta.strftime("%d/%m/%Y") }} ({{ ins.formularios }} Form 4), {% if a.compras or a.ventas %}{{ a.insiders }} insiders hicieron {{ a.compras }} compras ({{ (a.importe_compras / 1e6)|num(1) }} USD Mn) y {{ a.ventas }} ventas ({{ (a.importe_ventas / 1e6)|num(1) }} USD Mn) en mercado: saldo neto de {{ (a.saldo / 1e6)|num(1) }} USD Mn.{% if a.ventas_con_plan %} {{ a.ventas_con_plan }} de las ventas ({{ (a.importe_ventas_con_plan / 1e6)|num(1) }} USD Mn) se hicieron con un plan 10b5-1, programadas de antemano.{% endif %}{% if a.agrupadas %} Hubo compras agrupadas: {{ a.agrupadas.compradores|length }} insiders compraron entre el {{ a.agrupadas.desde.strftime("%d/%m/%Y") }} y el {{ a.agrupadas.hasta.strftime("%d/%m/%Y") }}.{% endif %}{% else %}no hubo compras ni ventas de insiders en mercado.{% endif %}{% if ins.retribucion.operaciones or ins.retenciones.operaciones %} Aparte, y sin ser compras ni ventas en mercado, recibieron {{ ins.retribucion.acciones|num(0) }} acciones como retribución ({{ ins.retribucion.operaciones }} concesiones o ejercicios) y entregaron {{ ins.retenciones.acciones|num(0) }} para pagar impuestos.{% endif %}</p>
@@ -176,8 +180,7 @@
     {% for o in insiders.operaciones %}<tr><td>{{ o.fecha }}</td><td>{{ o.nombre }}</td><td>{{ o.cargo|truncate(28, True, "…") }}</td><td>{{ o.tipo }}</td><td>{{ o.acciones }}</td><td>{{ o.precio }}</td><td>{{ o.importe }}</td><td>{{ o.plan }}</td></tr>{% endfor %}
   </table>
   <div class="fuente">Form 4 de la SEC: solo las operaciones en mercado (códigos P y S); las {{ insiders.operaciones|length }} de mayor importe. Cargo tal como figura en el formulario.</div>{% endif %}
-  {% set p = ins.participaciones %}{% if p %}
-  <p class="fuente" style="margin-top:2mm"><strong>Fuente externa, no auditada (yfinance, consulta del {{ p.consulta }}):</strong> insiders {{ p.insiders|pct }} del capital; instituciones {{ p.instituciones|pct }}{% if p.numero_instituciones %} ({{ p.numero_instituciones|num(0) }} instituciones){% endif %}.{% if p.principales %} Principales tenedores institucionales: {% for h in p.principales %}{{ h.nombre }} {{ h.porcentaje|pct }}{{ "; " if not loop.last else "" }}{% endfor %} (13F a {{ p.principales[0].fecha }}).{% endif %}</p>{% endif %}
+</p>{% endif %}
   {% endif %}
 </section>
 
@@ -217,6 +220,8 @@
   <div class="fuente">Trimestres de los 10-Q y del 10-K (el cuarto trimestre = anual − nueve meses). BPA diluido declarado; el del cuarto trimestre, derivado (edgartools). Variación frente al mismo trimestre del año anterior.</div>
   </div>
   {% endif %}
+
+  {% if c.notas %}<div class="fuente"><strong>Notas a los ratios ({{ etiqueta_ltm }}).</strong> {% for ratio, nota in c.notas %}{{ ratio }}: {{ nota }} {% endfor %}</div>{% endif %}
   {% if publicaciones %}
   <div style="break-inside: avoid">
   <h3>Publicaciones de resultados y reacción de la cotización</h3>
@@ -227,7 +232,6 @@
   <div class="fuente">8-K con ítem 2.02 (resultados). Primera sesión: la del día si se presentó antes del cierre de Nueva York (16:00) y la siguiente si fue después. Reacción: cierre de la quinta sesión frente al cierre previo, sin comparar con índices.</div>
   </div>
   {% endif %}
-  {% if c.notas %}<div class="fuente"><strong>Notas a los ratios ({{ etiqueta_ltm }}).</strong> {% for ratio, nota in c.notas %}{{ ratio }}: {{ nota }} {% endfor %}</div>{% endif %}
 </section>
 
 <!-- ============ 4. VALORACIÓN ============ -->
@@ -416,6 +420,31 @@
 <!-- ============ 6. RIESGOS ============ -->
 <section>
   <h2><span class="num">06</span>Análisis de riesgos</h2>
+  {% set cat = c.catalizadores %}
+  <h3>Catalizadores según la dirección</h3>
+  {% if cat.ia and cat.ia.lista %}<ul>{% for s in cat.ia.lista %}<li><strong>{{ s.resumen }}</strong><br><span class="cita">«{{ s.cita }}»</span></li>{% endfor %}</ul>
+  <div class="fuente">{% if cat.ia.modelo %}Selección y resumen: {{ cat.ia.modelo }}, entre {{ cat.ia.candidatos }} frases prospectivas literales del MD&amp;A (Item 7). Cada cita se ha verificado en el texto del 10-K.{% else %}Catalizadores del analista.{% endif %}</div>
+  {% else %}<p><span class="pendiente">catalizadores de crecimiento según el MD&amp;A (Item 7)</span></p>{% endif %}
+  {% if calendario %}
+  <div style="break-inside: avoid">
+  <h3>Calendario</h3>
+  {% if not cat.del_analista %}<p class="aviso-revisar"><span class="revisar">Revisar</span> Borrador del SaaS con fechas estimadas a partir de los filings de la SEC (todas posteriores a la fecha de emisión): el analista debe confirmarlo o introducir el suyo.</p>{% endif %}
+  <table class="datos">
+    <tr><th>Evento</th><th>Fecha</th><th>Base</th></tr>
+    {% for e in calendario %}<tr><td>{{ e.evento }}</td><td>{{ e.fecha }}</td><td style="text-align:left">{{ e.base }}</td></tr>{% endfor %}
+  </table>
+  </div>
+  {% endif %}
+  {% if cat.hechos %}
+  <div style="break-inside: avoid">
+  <h3>Hechos relevantes de los últimos 12 meses (8-K)</h3>
+  <table class="datos">
+    <tr><th>Fecha</th><th>Hecho comunicado</th><th>Filing</th></tr>
+    {% for h in cat.hechos %}<tr><td>{{ h.fecha.strftime("%d/%m/%Y") }}</td><td style="text-align:left">{{ h.hechos|join("; ") }}</td><td>{{ h.accession }}</td></tr>{% endfor %}
+  </table>
+  <div class="fuente">Ítems de cada 8-K según las instrucciones de la SEC; los de resultados (2.02) están en el apartado 04 y los anexos (9.01) no se listan.</div>
+  </div>
+  {% endif %}
   <h3>Riesgos principales</h3>
   {% if c.riesgos %}<ul>{% for r in c.riesgos %}<li><strong>{{ r.resumen }}</strong><br><span class="cita">«{{ r.cita }}»</span></li>{% endfor %}</ul>
   <div class="fuente">Selección y resumen: {{ c.riesgos[0].modelo }}, entre los títulos literales del Item 1A. Cada cita se ha verificado en el texto del 10-K.</div>

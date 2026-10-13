@@ -4,6 +4,7 @@ La misma plantilla HTML sirve para la vista previa y para el PDF. Aquí solo se 
 las cifras vienen ya calculadas del motor matemático.
 """
 
+import functools
 from datetime import date
 from pathlib import Path
 
@@ -28,8 +29,12 @@ _env.filters.update(num=_num, pct=_pct, var=_var)
 
 
 def _md(texto: str) -> Markup:
-    """Markdown → HTML; cada marcador [[ANALISTA: …]] queda como recuadro visible del borrador."""
-    con_marcas = MARCADOR.sub(lambda m: f'<span class="pendiente">{m.group(1).strip()}</span>', texto)
+    """Markdown → HTML; cada marcador [[ANALISTA: …]] queda como recuadro visible del borrador.
+
+    Los textos traen contenido de terceros (10-K, IA, analista): el HTML que contengan se muestra como texto y
+    nunca se ejecuta (Markdown deja pasar HTML en bruto). Las plantillas de sección no usan HTML propio."""
+    seguro = texto.replace("&", "&amp;").replace("<", "&lt;")
+    con_marcas = MARCADOR.sub(lambda m: f'<span class="pendiente">{m.group(1).strip()}</span>', seguro)
     return Markup(markdown.markdown(con_marcas))
 
 
@@ -217,6 +222,17 @@ def _concentracion(c) -> dict | None:
                                       for f in filas]}
 
 
+def _calendario(c) -> list[dict]:
+    """Calendario de catalizadores: el del analista o el borrador del SaaS (fechas ya posteriores a la emisión)."""
+    filas = []
+    for e in (c.get("catalizadores") or {}).get("calendario") or []:
+        fecha = e.get("fecha")
+        if isinstance(fecha, str) and fecha:
+            fecha = date.fromisoformat(fecha[:10])
+        filas.append({"evento": e.get("evento", ""), "fecha": fecha.strftime("%d/%m/%Y") if fecha else "—", "base": e.get("base", "")})
+    return filas
+
+
 def _publicaciones(c) -> list[dict]:
     filas = []
     for p in reversed(c.get("publicaciones") or []):
@@ -396,7 +412,8 @@ def html(c: dict) -> str:
         estimados_portada=c["etiquetas_estimadas"][:ESTIMADOS_PORTADA], proyeccion=_proyeccion(c),
         comparables=_comparables(c), multiplos_def=MULTIPLOS, definiciones=DEFINICIONES, segmentos=_segmentos(c),
         trimestres=_trimestres(c), concentracion=_concentracion(c),
-        insiders=_insiders(c), publicaciones=_publicaciones(c), flujo_balance=_flujo_balance(c), historicos=_historicos(c),
+        insiders=_insiders(c), publicaciones=_publicaciones(c),
+        calendario=_calendario(c), flujo_balance=_flujo_balance(c), historicos=_historicos(c),
         umbral_comprar=UMBRAL_COMPRAR, umbral_vender=UMBRAL_VENDER,
         estados=[{"titulo": t, "filas": _filas(c, filas)} for t, filas in ESTADOS], trazas=trazas,
         horizontes=["1m", "3m", "12m", "YTD", "3a", "5a"], claves_horizonte=["1m", "3m", "12m", "ytd", "3a", "5a"],
@@ -417,3 +434,26 @@ def pdf(c: dict, destino: Path) -> Path:
     html_a_pdf(contenido, destino, base_url=DIR_INFORME)
     return destino
 
+
+
+@functools.lru_cache(maxsize=1)
+def _recursos_incrustados() -> tuple[str, dict[str, str]]:
+    """Hoja de estilos con las fuentes incrustadas y logos como data URI (una vez por proceso)."""
+    import base64
+
+    css = (DIR_INFORME / "estilo.css").read_text(encoding="utf-8")
+    for fuente in ("Inter", "Montserrat"):
+        datos = base64.b64encode((DIR / "fuentes" / f"{fuente}.ttf").read_bytes()).decode()
+        css = css.replace(f'url("../fuentes/{fuente}.ttf")', f'url("data:font/ttf;base64,{datos}")')
+    logos = {f"../marca/{n}.svg": "data:image/svg+xml;base64," + base64.b64encode((DIR / "marca" / f"{n}.svg").read_bytes()).decode()
+             for n in ("logo", "nombre")}
+    return css, logos
+
+
+def html_autonomo(c: dict) -> str:
+    """El mismo HTML del informe, autónomo (estilos, fuentes y logos dentro): vista previa de la interfaz (A12)."""
+    css, logos = _recursos_incrustados()
+    contenido = html(c).replace('<link rel="stylesheet" href="estilo.css">', f"<style>{css}</style>")
+    for ruta, uri in logos.items():
+        contenido = contenido.replace(f'src="{ruta}"', f'src="{uri}"')
+    return contenido

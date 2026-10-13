@@ -17,12 +17,12 @@ La maquetación aprobada es la del [ejemplo](ejemplos/AAPL_FY2025_borrador.pdf).
 | Descargo de responsabilidad | Hecho | Al final del PDF y una línea en cada pie (`plantillas/legal/descargo.md`) |
 | **A. Resumen ejecutivo y contexto de la tesis** | | |
 | 1. Ficha de empresa | Hecho | Portada: mercado (con valor contable por acción, capital flotante y volumen en acciones), datos financieros (2 FY + LTM + 3 estimados), múltiplos LTM, comportamiento en bolsa, rango pesimista-optimista y autoría |
-| 2. Resumen ejecutivo y contexto de la tesis | Parcial | Titular automático, recomendación e indicadores; faltan los «hechos clave» por reglas; la tesis es del analista |
+| 2. Resumen ejecutivo y contexto de la tesis | Hecho | Titular automático, recomendación, indicadores y 4 hechos clave por reglas (sección 01); la tesis es del analista. Etiquetas temáticas: R1 (P1) |
 | **B. Perfil corporativo y modelo de negocio** | | |
-| 3. ¿Qué hace la empresa? | Parcial (avanzado) | Cita del Item 1; segmentos (con resultado operativo), producto y geografía de 5 años validados contra el total, gráfico y origen del crecimiento. Falta la concentración de clientes |
+| 3. ¿Qué hace la empresa? | Hecho | Cita del Item 1; segmentos (con resultado operativo), producto y geografía de 5 años validados contra el total, con LTM provisional (F7); gráfico, origen del crecimiento y concentración de clientes declarada |
 | 4. Estructura corporativa | Ejecutable | Filiales (Exhibit 21), accionistas > 5 % (proxy, 13D/G): verificado en AAPL |
 | 5. Equipo directivo | Ejecutable | La retribución ya está en «Gobierno»; faltan cargos y trayectoria |
-| 6. Pipeline y catalizadores | Parcial | Bloque de catalizadores del MD&A hecho (`ia/bloques.py`), sin conectar; falta el calendario (vencimientos, junta, resultados). Pipeline de biotecnológicas: campo del analista (solo en SIC 2833-2836 y 8731) |
+| 6. Pipeline y catalizadores | Hecho | Catalizadores del MD&A (IA con cita); calendario en borrador «Revisar» con fechas siempre posteriores a la emisión (lo confirma o introduce el analista); hechos relevantes del 8-K de 12 meses; pipeline de biotecnológicas: campo del analista |
 | **C. Análisis fundamental y métricas financieras** | | |
 | 7. Estado de resultados | Hecho | 5 FY + LTM; últimos 8 trimestres; proyección hasta el BPA (`calculo/proyeccion.py`) |
 | 8. Balance de situación | Hecho | 5 FY + LTM; DFN; balance resumido proyectado que cuadra cada año |
@@ -32,17 +32,17 @@ La maquetación aprobada es la del [ejemplo](ejemplos/AAPL_FY2025_borrador.pdf).
 | 12. Criterios de valoración personales | Ejecutable | Necesita los umbrales del fondo |
 | **D. Mercado objetivo y posicionamiento competitivo** | | |
 | 13. Tamaño de mercado (TAM/SAM/SOM) | Analista | Sin fuente pública rigurosa |
-| 14. Análisis competitivo | Parcial | Tabla de comparables; faltan el párrafo «Competition» del Item 1, las cuotas entre comparables y la evidencia de ventaja competitiva |
+| 14. Análisis competitivo | Hecho | Apartado «Competition» del Item 1 traducido (IA verificada), cuotas de ingresos, ROIC − WACC y estabilidad del margen frente a los comparables del analista, tabla de comparables; la valoración de la ventaja competitiva es del analista |
 | **E. Opciones y flujo de derivados** | | |
 | 15. Cadena de opciones | Externo | yfinance (sin auditar) |
 | 16. Posicionamiento institucional en derivados | Externo | *Sweeps*: datos de pago; *dark pool*: FINRA, con retraso |
 | 17. Volatilidad implícita | Externo | yfinance; el ranking de volatilidad necesita historial propio |
 | **F. Posicionamiento institucional y fondos** | | |
-| 18. Accionistas institucionales e insiders | Parcial | Form 4 de 12 meses (compras y ventas en mercado, separadas de la retribución) y accionistas > 5 %, verificados en AAPL (faltan en el PDF); 13F por emisor: ejecutable (datos trimestrales de la SEC) |
+| 18. Accionistas institucionales e insiders | Parcial (avanzado) | Form 4 de 12 meses (compras y ventas en mercado, plan 10b5-1, retribución aparte), accionistas > 5 % (proxy y 13D/13G) y participación institucional de yfinance (externa). Falta: 13F por emisor desde la SEC |
 | 19. Posicionamiento en corto | Externo | FINRA / yfinance |
 | **G. Riesgos y *due diligence*** | | |
 | 20. Riesgos principales | Parcial (avanzado) | 5 principales con cita (IA), cambios frente al 10-K anterior, Altman, Beneish y Piotroski y autonomía de caja (si consume caja); la clasificación por tipo, aparcada (R5) |
-| 21. Historial de resultados anteriores | Parcial | Resultados de la empresa: alarmas SEC verificadas (8-K 4.01/4.02, 10-K/A), falta en el PDF; reacción bursátil a 5 sesiones tras cada publicación de resultados, sin comparar (idea: ai-hedge-fund `event_study`) |
+| 21. Historial de resultados anteriores | Hecho | Publicaciones de resultados (8-K 2.02) con su trimestre y la reacción a 5 sesiones, sin comparar; alarmas de la SEC de 5 años |
 | **H. Tesis de inversión y gestión de la posición** | | |
 | 22. Tesis de inversión consolidada | Analista | Plantilla que ate cada asunción a una cifra del modelo |
 | 23. Checklist de entrada | Ejecutable | Umbrales del apartado 12 + casillas del analista |
@@ -53,7 +53,7 @@ La maquetación aprobada es la del [ejemplo](ejemplos/AAPL_FY2025_borrador.pdf).
 
 ## Bloques actuales del informe
 
-El PDF de hoy se compone de los 32 bloques de [`informe/secciones.py`](../src/informes_warrants/informe/secciones.py): 19 AUTO, 4 PLANTILLA, 2 IA y 7 ANALISTA (detalle en [editor-y-versiones.md](editor-y-versiones.md)). Siguen el índice del informe de referencia inicial (Lighthouse/IEAF sobre Treelogic, solo como índice de contenidos):
+El PDF de hoy se compone de los 35 bloques de [`informe/secciones.py`](../src/informes_warrants/informe/secciones.py): 19 AUTO, 5 PLANTILLA, 3 IA y 8 ANALISTA (detalle en [editor-y-versiones.md](editor-y-versiones.md)). Siguen el índice del informe de referencia inicial (Lighthouse/IEAF sobre Treelogic, solo como índice de contenidos):
 - §1 portada
 - §2 conclusiones
 - §3 gráficos

@@ -18,6 +18,7 @@ explican su variación. Aquí se descompone por código, sin IA, para que las pl
 """
 
 PB = 10_000  # de tanto por uno a puntos básicos
+MARGEN_SIGNIFICATIVO = 1.0  # un margen por encima de ±100 % sale de unas ventas casi nulas: el puente no se calcula
 
 
 def _ratio(valor, ventas):
@@ -31,6 +32,8 @@ def puente_margen(inicio: dict, fin: dict, gasto_inicio: dict, gasto_fin: dict) 
     """
     mo0, mo1, mb0, mb1 = inicio.get("margen_operativo"), fin.get("margen_operativo"), inicio.get("margen_bruto"), fin.get("margen_bruto")
     if None in (mo0, mo1, mb0, mb1):
+        return None
+    if any(abs(m) > MARGEN_SIGNIFICATIVO for m in (mo0, mo1)):  # ventas casi nulas (IOVA 2023: −38.735 %): no significa nada
         return None
     total = (mo1 - mo0) * PB
     bruto = (mb1 - mb0) * PB

@@ -43,6 +43,8 @@ BLOQUES: tuple[Bloque, ...] = (
     Bloque("portada.multiplos", "1", "Ratios y múltiplos", Tipo.AUTO, "Capa 2"),
     Bloque("portada.comportamiento", "1", "Comportamiento relativo en bolsa", Tipo.AUTO, "Precios vs S&P 500 y ETF sectorial"),
     # §2 Conclusiones
+    Bloque("conclusiones.hechos_clave", "2", "Hechos clave (4)", Tipo.PLANTILLA,
+           "Reglas sobre la analítica (patrón FRAA insight_engine)", "hechos_clave.md.j2"),
     Bloque("conclusiones.situacion", "2", "A) Situación actual", Tipo.PLANTILLA, "Histórico XBRL", "situacion.md.j2"),
     Bloque("conclusiones.perspectivas", "2", "B) Perspectivas", Tipo.ANALISTA,
            "Plantilla con las estimaciones; el analista explica el porqué", "perspectivas.md.j2"),

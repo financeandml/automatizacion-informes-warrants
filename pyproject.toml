@@ -24,6 +24,7 @@ dependencies = [
 
 [project.optional-dependencies]
 pdf = ["weasyprint>=62"]  # en Windows necesita GTK (ver README)
+ui = ["streamlit>=1.38"]   # interfaz del analista (A12): `informes-warrants interfaz`
 dev = ["pytest>=8", "ruff>=0.6"]
 
 [project.scripts]

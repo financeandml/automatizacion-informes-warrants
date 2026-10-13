@@ -27,6 +27,8 @@ from ..calculo.analitica import (
 )
 from ..calculo.calidad import revisar
 from ..calculo.dcf import beta, crecimiento_implicito, valorar_escenarios, wacc_implicito
+from ..calculo.hechos_clave import observaciones as observaciones_clave
+from ..calculo.hechos_clave import seleccionar as seleccionar_hechos
 from ..calculo.historial import historial as historial_recomendaciones
 from ..calculo.historico import METRICAS as METRICAS_HISTORICAS
 from ..calculo.historico import Anual, banda
@@ -70,6 +72,7 @@ from .secciones import BLOQUES, Tipo
 log = logging.getLogger(__name__)
 ANIOS = 5
 PARTIDAS_CONTRASTE = ("ingresos", "resultado_operativo", "beneficio_neto", "activos", "patrimonio", "flujo_operativo")
+AVISO_CALENDARIO = "Calendario de catalizadores en borrador: confírmalo o introduce el tuyo antes de emitir."
 AVISO_COMPARABLES = "Comparables automáticos: introduce tu lista para incluir los múltiplos en el precio objetivo."
 MESES = ("ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic")
 
@@ -197,7 +200,7 @@ def componer(*, ticker: str, empresa: str, sic, cobertura, filing: dict, estados
              texto_negocio: str, fecha: str | None = None, estimaciones: Estimaciones | None = None,
              escenarios: Escenarios | None = None, estados_ltm=None, fecha_ltm: str | None = None, rf=None,
              comparables: list[dict] | None = None, comparables_criterio: str = "", comparables_del_analista: bool = False,
-             gobierno=None, insiders: dict | None = None, competencia_texto: dict | None = None,
+             gobierno=None, insiders: dict | None = None, competencia_texto: dict | None = None, catalizadores: dict | None = None,
              eventos: list | None = None, alarmas: list | None = None,
              riesgos_cambios: dict | None = None, acciones_origen: str = "", trimestres_lista: list | None = None,
              segmentos_dict: dict | None = None, concentracion: list | None = None, vencimientos: dict | None = None,
@@ -245,6 +248,13 @@ def componer(*, ticker: str, empresa: str, sic, cobertura, filing: dict, estados
     avisos_valoracion = []
     # Avisos antes de emitir: el SaaS los muestra al analista, no bloquean la emisión y no salen en el informe.
     avisos_emision = [] if comparables_del_analista else [AVISO_COMPARABLES]
+    catalizadores = {"calendario": [], "hechos": [], "ia": None, **(catalizadores or {}), "del_analista": bool(base.calendario)}
+    if base.calendario:  # el analista manda: sustituye al borrador del SaaS
+        catalizadores["calendario"] = base.calendario
+    if base.catalizadores:  # y a la propuesta de la IA
+        catalizadores["ia"] = {"lista": base.catalizadores, "modelo": None, "candidatos": None}
+    elif catalizadores.get("calendario"):
+        avisos_emision.append(AVISO_CALENDARIO)
     try:
         r_esc = valorar_escenarios(esc, f_ltm["ingresos"], dfn, deuda, minoritarios, acciones, mercado.capitalizacion)
         valor = r_esc.resultados["Base"]
@@ -343,7 +353,30 @@ def componer(*, ticker: str, empresa: str, sic, cobertura, filing: dict, estados
 
     anio_ini = ejercicios[0]
     etiquetas = etiquetas_estimadas(fecha_ltm, ejercicio, len(base.crecimiento_ventas))
+    # Hechos clave (A2): reglas sobre lo ya calculado
+    banda_hist = next((bandas[k] for k in ("ev_ebitda", "per") if bandas.get(k) and bandas[k].n), None)
+    por_ingresos = [x for x in (concentracion or []) if x["base"] == "Ingresos" and not x["detalle"]]
+    principal_cliente = None
+    if por_ingresos:
+        anio = max(por_ingresos[0]["valores"])
+        principal_cliente = {"cliente": por_ingresos[0]["cliente"], "porcentaje": por_ingresos[0]["valores"][anio], "anio": anio}
+    hechos = seleccionar_hechos(observaciones_clave({
+        "ingresos": f_ltm.get("ingresos"), "crecimiento": f_ltm.get("crecimiento_ingresos"),
+        "variacion_margen_pb": puente["total"] if puente else None, "margen_inicio": fund[ejercicios[0]]["margen_operativo"],
+        "margen_fin": f_ltm.get("margen_operativo"), "anio_inicio": ejercicios[0], "principal": puente["principal"] if puente else None,
+        "roic": f_ltm.get("roic"), "wacc": valor.wacc if valor else None,
+        "roic_menos_wacc": f_ltm["roic"] - valor.wacc if valor and f_ltm.get("roic") is not None else None,
+        "meses_caja": autonomia["meses"] if autonomia else None, "dfn": f_ltm.get("dfn"), "dfn_ebitda": f_ltm.get("dfn_ebitda"),
+        "potencial": potencial, "precio_objetivo": precio_objetivo, "recomendacion": propuesta,
+        "percentil": banda_hist.percentil_actual if banda_hist else None,
+        "metrica_historica": METRICAS_HISTORICAS[banda_hist.metrica] if banda_hist else None,
+        "multiplo_actual": banda_hist.actual if banda_hist else None, "multiplo_mediana": banda_hist.mediana if banda_hist else None,
+        "alarmas": alarmas or [], "puntuaciones": {p.nombre: p.lectura for p in puntuaciones},
+        "cliente_principal": principal_cliente,
+        "compras_agrupadas": (insiders or {}).get("actividad", {}).get("agrupadas"),
+    }))
     datos = {
+        "hechos": hechos,
         "empresa": empresa, "ticker": ticker, "ejercicio": f"FY{ejercicio}",
         "recomendacion_propuesta": propuesta, "precio_objetivo": precio_objetivo, "precio": cotizacion.precio,
         "potencial": potencial, "potencial_dcf": potencial_dcf, "ventas": f["ingresos"] / 1e6,
@@ -396,6 +429,7 @@ def componer(*, ticker: str, empresa: str, sic, cobertura, filing: dict, estados
         "puente": puente, "apalancamiento": apalancamiento, "uso": uso, "notas": notas,
         "cascada": cascada_ebitda_fcf(estados, ejercicio, f), "vencimientos": vencimientos or {"importes": [], "motivo": ""},
         "puntuaciones": puntuaciones, "gobierno": gobierno, "riesgos_cambios": riesgos_cambios, "insiders": insiders,
+        "catalizadores": catalizadores,
         "competencia": _competencia(competencia_texto, ticker, f_ltm, fund, ejercicios, comps if comparables_del_analista else [],
                                     valor.wacc if valor else None),
         "publicaciones": _publicaciones(eventos or [], trimestres_lista or [], series_bolsa.get(ticker)), "alarmas": alarmas or [],
@@ -463,17 +497,24 @@ def _insiders(empresa, ticker: str) -> dict:
 
 
 def construir(ticker: str, con_ia: bool = True, comparables: list[str] | None = None, anterior: dict | None = None,
-              historial_resumenes: list[dict] | None = None) -> dict:
-    """Reúne los datos (SEC, mercado, IA opcional) y compone el informe. Requiere EDGAR_IDENTITY y red.
+              historial_resumenes: list[dict] | None = None, estimaciones: Estimaciones | None = None) -> dict:
+    """Reúne los datos (SEC, mercado, IA opcional) y compone el informe. Requiere EDGAR_IDENTITY y red."""
+    return componer(**reunir(ticker, con_ia, comparables, anterior, historial_resumenes, estimaciones))
+
+
+def reunir(ticker: str, con_ia: bool = True, comparables: list[str] | None = None, anterior: dict | None = None,
+           historial_resumenes: list[dict] | None = None, estimaciones: Estimaciones | None = None) -> dict:
+    """Datos del informe (SEC, mercado, IA opcional), listos para `componer`. Requiere EDGAR_IDENTITY y red.
 
     `comparables`: lista del analista; sin ella, el SaaS propone una por código SIC (marcada «Revisar»).
     `anterior`: resumen del informe anterior (R16). `historial_resumenes`: resúmenes de las versiones emitidas (R17).
     """
     from edgar import Company
 
+    from ..calculo.calendario import borrador as borrador_calendario
     from ..ingesta import comparables as ingesta_comparables
     from ..ingesta.competencia import apartado_competencia
-    from ..ingesta.eventos import ANIOS_ALARMAS, eventos_8k
+    from ..ingesta.eventos import ANIOS_ALARMAS, categoria_presentador, eventos_8k, hechos_relevantes
     from ..ingesta.eventos import alarmas as alarmas_sec
     from ..ingesta.gobierno import gobierno as datos_gobierno
     from ..ingesta.mercado import INDICE, comportamiento, cotizacion, etf_sectorial, historico, precios_semanales, tipo_libre_riesgo
@@ -569,7 +610,25 @@ def construir(ticker: str, con_ia: bool = True, comparables: list[str] | None = 
         flotante = (facts.public_float, getattr(facts.public_float_fact, "period_end", None))
 
     eventos = eventos_8k(empresa, date.today() - timedelta(days=365 * ANIOS_ALARMAS))
-    texto_negocio = filing.obj().business or ""
+    tenk = filing.obj()
+    texto_negocio = tenk.business or ""
+    hoy = date.today()
+    venc = vencimientos_deuda(fuente_anual, ejercicio)
+    catalizadores = {
+        "calendario": borrador_calendario(
+            hoy, [e["fecha"] for e in eventos if "2.02" in e["items"]], [e["fecha"] for e in eventos if "5.07" in e["items"]],
+            date.fromisoformat(fecha_ltm) if fecha_ltm else cierres.get(ejercicio), cierres.get(ejercicio),
+            categoria_presentador(xbrl), venc["importes"][0] if venc.get("importes") else None, ejercicio),
+        "hechos": hechos_relevantes(eventos, hoy), "ia": None}
+    if con_ia and (tenk.management_discussion or ""):  # bloque de IA del MD&A: elige y resume frases literales
+        from ..ia.bloques import catalizadores as catalizadores_ia
+
+        try:
+            elegidos, cfg, candidatos = catalizadores_ia(tenk.management_discussion)
+            catalizadores["ia"] = {"lista": [{"resumen": s.resumen, "cita": s.cita} for s in elegidos],
+                                   "modelo": f"{cfg.proveedor} · {cfg.modelo}", "candidatos": candidatos}
+        except Exception as e:  # noqa: BLE001  (sin modelo: el bloque queda para el analista)
+            log.warning("Catalizadores del MD&A sin IA: %s", e)
     competencia_texto = None
     literal = apartado_competencia(texto_negocio)
     if literal:  # A5: tercer bloque de IA, solo traduce el texto literal; sin IA, el original para el analista
@@ -595,8 +654,8 @@ def construir(ticker: str, con_ia: bool = True, comparables: list[str] | None = 
         elegidos, cfg = riesgos_principales(riesgos_lista, texto_1a)
         riesgos = [{"resumen": s.resumen, "cita": s.cita, "modelo": f"{cfg.proveedor} · {cfg.modelo}"} for s in elegidos]
 
-    return componer(
-        ticker=ticker, empresa=nombre_legible(empresa.name), sic=empresa.sic, cobertura=cobertura,
+    return dict(  # argumentos de `componer`: la interfaz los guarda y recompone el informe sin red al editar (A12)
+        ticker=ticker, empresa=nombre_legible(empresa.name), sic=empresa.sic, cobertura=cobertura, estimaciones=estimaciones,
         filing={"accession": filing.accession_no, "fecha": str(filing.filing_date), "ejercicio": ejercicio,
                 "ultimo_periodico": periodico.accession_no if periodico is not None else None,
                 "ultimo_periodico_formulario": periodico.form if periodico is not None else None},
@@ -608,7 +667,7 @@ def construir(ticker: str, con_ia: bool = True, comparables: list[str] | None = 
         comparables_criterio=criterio, comparables_del_analista=del_analista, gobierno=datos_gobierno(empresa, xbrl),
         insiders=_insiders(empresa, ticker), eventos=eventos, alarmas=alarmas_sec(empresa, date.today(), filing, eventos),
         riesgos_cambios=cambios, acciones_origen=acciones_origen, trimestres_lista=lista_trimestres, segmentos_dict=desgloses,
-        concentracion=concentracion_clientes(xbrl, cierres), vencimientos=vencimientos_deuda(fuente_anual, ejercicio),
+        concentracion=concentracion_clientes(xbrl, cierres), vencimientos=venc, catalizadores=catalizadores,
         precios_semanales=precios_semanales(ticker), fechas_disponibles=disponibles, anterior=anterior,
         historial_resumenes=historial_resumenes, autoria=cargar_autoria(),
         capital_flotante=flotante if flotante[0] else None,

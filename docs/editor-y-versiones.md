@@ -20,6 +20,8 @@ Regla: **usar la IA lo menos posible**. Cada bloque se resuelve con la primera o
 
 ## Edición
 
+Implementado en `ui/` (A12, `informes-warrants interfaz`) y `informe/versionado.py` (A11). La interfaz reúne una vez los datos de la SEC y del mercado (`reunir`) y recompone el informe sin red en cada cambio (`componer`); el analista puede sustituir los bloques ANALISTA y cualquier bloque que el SaaS dejó con un marcador.
+
 - Markdown, con vista previa en tiempo real.
   - La vista HTML se regenera en cada cambio con la misma plantilla que el PDF (milisegundos).
   - El PDF se recompila en segundo plano: WeasyPrint tarda unos 2 s por documento.
@@ -49,6 +51,8 @@ Son los supuestos que mueven la proyección, el BPA estimado y el DCF ([estimaci
 | Precio objetivo del analista | Vacío (manda el del modelo) | Decisión del usuario |
 
 **Escenarios** (`Escenarios`): pesimista, base y optimista. Cada uno es un juego completo de estimaciones editable, con su desencadenante (`desencadenantes`; por defecto, sus supuestos en una frase). Por defecto, el pesimista y el optimista son la base ∓ 1 desviación típica histórica del crecimiento (2-5 pp) y del margen (1-3 pp), con probabilidades 25/50/25. El valor DCF es la media ponderada.
+
+**Calendario de catalizadores** (`calendario`, A4): lo introduce preferentemente el analista. Mientras esté vacío, el informe muestra el borrador del SaaS marcado «Revisar» (fechas estimadas a partir de los filings, siempre posteriores a la emisión) y hay un aviso antes de emitir, que no bloquea.
 
 **Comparables:** el SaaS propone una lista por SIC y tamaño, marcada «Revisar», **solo orientativa**: no entra en el precio objetivo (que queda por DCF) y genera un **aviso antes de emitir**, que no bloquea la emisión ni aparece en el informe (`Version.avisos()`). El analista introduce su lista (`construir(..., comparables=[...])`, o `--comparables` en la CLI) para que la valoración por múltiplos entre en el precio objetivo.
 

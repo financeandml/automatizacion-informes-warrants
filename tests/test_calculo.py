@@ -348,3 +348,11 @@ def test_cascada_ebitda_fcf_golden(aapl):
     # la cascada cuadra: EBITDA + variaciones hasta el flujo operativo = flujo operativo declarado
     hasta_flujo = pasos[:[n for n, _, _ in pasos].index("Flujo operativo")]
     assert sum(v for _, v, _ in hasta_flujo) == pytest.approx(110543 * M)
+
+
+def test_puente_del_margen_no_significativo_con_ventas_casi_nulas():
+    from informes_warrants.calculo.analitica import puente_margen
+
+    inicio = {"margen_operativo": -387.35, "margen_bruto": -50.0, "ingresos": 1e6}
+    fin = {"margen_operativo": -0.927, "margen_bruto": 0.3, "ingresos": 325e6}
+    assert puente_margen(inicio, fin, {"id": 1.0, "gastos_generales": 1.0}, {"id": 1.0, "gastos_generales": 1.0}) is None

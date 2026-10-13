@@ -38,7 +38,7 @@ def resumen(c: dict) -> dict:
     }
 
 
-def _estimaciones(d: dict) -> Estimaciones:
+def estimaciones_desde_dict(d: dict) -> Estimaciones:
     validos = {f.name for f in fields(Estimaciones)}
     return Estimaciones(**{k: v for k, v in d.items() if k in validos})
 
@@ -50,7 +50,7 @@ def comparar(anterior: dict, actual: dict) -> dict:
     cambios = [{"campo": n, "antes": anterior.get(k), "ahora": actual.get(k)} for n, k in campos if anterior.get(k) != actual.get(k)]
     atribucion = None
     if anterior.get("datos_dcf") and actual.get("datos_dcf") and anterior.get("dcf_base") and actual.get("dcf_base"):
-        est_ant, est_act = _estimaciones(anterior["estimaciones"]), _estimaciones(actual["estimaciones"])
+        est_ant, est_act = estimaciones_desde_dict(anterior["estimaciones"]), estimaciones_desde_dict(actual["estimaciones"])
         try:
             atribucion = atribucion_secuencial(est_ant, est_act, actual["datos_dcf"], anterior["dcf_base"], GRUPOS)
         except (ValueError, TypeError):

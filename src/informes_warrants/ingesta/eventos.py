@@ -31,7 +31,7 @@ MAX_FRASES = 3
 def eventos_8k(empresa, desde: date) -> list[dict]:
     """8-K presentados desde `desde`: fecha, hora de aceptación (UTC), ítems y accession."""
     try:
-        df = empresa.get_filings(form="8-K").to_pandas()
+        df = empresa.get_filings(form="8-K", amendments=False).to_pandas()  # sin 8-K/A: no duplican publicaciones
     except Exception as e:  # noqa: BLE001
         log.warning("8-K no disponibles: %s", e)
         return []
@@ -80,3 +80,41 @@ def alarmas(empresa, hoy: date, filing_10k=None, eventos: list[dict] | None = No
                                      ("Continuidad de la empresa (10-K)", texto, CONTINUIDAD)):
             salida += [{"tipo": tipo, "fecha": fecha, "detalle": frase, "accession": accession} for frase in _frases(fuente, patron)]
     return sorted(salida, key=lambda a: a["fecha"], reverse=True)
+
+
+# Ítems del Form 8-K (instrucciones de la SEC), en español; sin 2.02 (resultados, aparte) ni 9.01 (anexos)
+ITEMS_8K = {
+    "1.01": "Acuerdo material", "1.02": "Fin de un acuerdo material", "1.03": "Quiebra o administración judicial",
+    "1.04": "Seguridad en minas", "1.05": "Incidente de ciberseguridad material",
+    "2.01": "Compra o venta de activos significativa", "2.03": "Nueva obligación financiera",
+    "2.04": "Hecho que acelera una obligación financiera", "2.05": "Costes de salida o reestructuración",
+    "2.06": "Deterioro de valor material", "3.01": "Aviso de exclusión de cotización o incumplimiento de normas del mercado",
+    "3.02": "Venta de acciones no registrada", "3.03": "Cambio en los derechos de los accionistas",
+    "4.01": "Cambio de auditor", "4.02": "Cuentas publicadas no fiables (reexpresión)", "5.01": "Cambio de control",
+    "5.02": "Cambios en el consejo o la alta dirección", "5.03": "Cambio de estatutos o de ejercicio fiscal",
+    "5.07": "Votaciones de la junta de accionistas", "7.01": "Información difundida al mercado (Regulation FD)",
+    "8.01": "Otros hechos relevantes",
+}
+SIN_HECHO = {"2.02", "9.01"}
+
+
+def hechos_relevantes(eventos: list[dict], hoy: date, dias: int = 365) -> list[dict]:
+    """8-K de los últimos 12 meses con la descripción de cada ítem (los de resultados y anexos, aparte)."""
+    desde = hoy - timedelta(days=dias)
+    salida = []
+    for e in eventos:
+        if e["fecha"] < desde:
+            continue
+        descripciones = [ITEMS_8K.get(i, f"Ítem {i}") for i in e["items"] if i not in SIN_HECHO]
+        if descripciones:
+            salida.append({"fecha": e["fecha"], "hechos": descripciones, "accession": e["accession"]})
+    return sorted(salida, key=lambda h: h["fecha"], reverse=True)
+
+
+def categoria_presentador(xbrl) -> str | None:
+    """Categoría de presentador de la portada del 10-K (dei:EntityFilerCategory): fija los plazos legales."""
+    try:
+        df = xbrl.facts.query().by_concept("EntityFilerCategory").to_dataframe()
+    except Exception:  # noqa: BLE001
+        return None
+    return str(df["value"].iloc[0]) if df is not None and not df.empty else None

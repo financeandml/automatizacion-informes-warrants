@@ -19,12 +19,19 @@ DEFINICIONES: tuple[tuple[str, str, str], ...] = (
      "(el del cuarto, derivado). Variación frente al mismo trimestre del año anterior."),
     ("Datos", "Segmentos y geografía", "Desgloses del XBRL de los 10-K (segmento, producto o servicio y geografía). Solo se "
      "publica un ejercicio si los miembros declarados por la empresa suman los ingresos consolidados (±1 %); los "
-     "subtotales no se cuentan dos veces."),
+     "subtotales no se cuentan dos veces. LTM por segmento provisional: último ejercicio + acumulado del año − acumulado del "
+     "año anterior (10-Q), solo si cuadra con los ingresos LTM."),
+    ("Datos", "Concentración de clientes", "Porcentajes que la empresa declara (ConcentrationRiskPercentage1), sobre ingresos o "
+     "cuentas a cobrar; sin proveedores ni residuos («otros clientes»)."),
     ("Márgenes", "EBITDA", "Resultado operativo (EBIT) declarado + amortizaciones del estado de flujos."),
     ("Márgenes", "Margen bruto, EBITDA, operativo y neto", "Cada partida sobre los ingresos."),
     ("Caja", "FCF", "Flujo de caja operativo − capex."),
     ("Caja", "FCF tras SBC", "FCF − remuneración en acciones (se trata como coste). Base de P/FCF y de la rentabilidad FCF."),
     ("Caja", "Conversión de FCF", "FCF / beneficio neto."),
+    ("Caja", "Del EBITDA al FCF", "EBITDA − impuestos pagados − intereses pagados + remuneración en acciones ± circulante y otros "
+     "(diferencia hasta el flujo operativo declarado) − capex = FCF."),
+    ("Balance", "Vencimientos de deuda", "Principal declarado por año en el 10-K; solo si suma lo mismo (±2 %) que la deuda "
+     "declarada."),
     ("Balance", "Deuda financiera neta (DFN)", "Deuda a corto + deuda a largo − caja − inversiones financieras a corto plazo. "
      "Negativa = caja neta."),
     ("Rentabilidad", "ROE", "Beneficio neto / patrimonio neto atribuible."),
@@ -60,6 +67,18 @@ DEFINICIONES: tuple[tuple[str, str, str], ...] = (
      "Zonas: segura, gris, riesgo."),
     ("Riesgos", "Beneish M", "Ocho índices de calidad del beneficio; M > −1,78 indica manipulación probable."),
     ("Riesgos", "Piotroski F", "Nueve pruebas de rentabilidad, apalancamiento y eficiencia (0-9)."),
+    ("Competencia", "Cuota de ingresos", "Ingresos LTM de cada empresa / suma de la empresa y sus comparables del analista."),
+    ("Competencia", "Estabilidad del margen", "Desviación típica del margen operativo de los 5 últimos ejercicios (pp)."),
+    ("Insiders", "Compras y ventas en mercado", "Form 4 de 12 meses, códigos P y S; la retribución en acciones (A, M) y las "
+     "retenciones fiscales (F), aparte. Compras agrupadas: 2 o más insiders comprando en 14 días."),
+    ("Historial", "Reacción a los resultados", "Cierre de la 5.ª sesión / cierre previo − 1; la 1.ª sesión es la del día del 8-K "
+     "(ítem 2.02) si se presentó antes de las 16:00 de Nueva York, o la siguiente."),
+    ("Historial", "Alarmas de la SEC", "8-K 4.01 y 4.02, 10-K/A, 10-Q/A, NT 10-K y NT 10-Q de 5 años y frases del 10-K sobre "
+     "control interno no eficaz o dudas sobre la continuidad."),
+    ("Resumen", "Hechos clave", "4 observaciones por reglas sobre la analítica, ordenadas por relevancia, como mucho una por "
+     "tema (crecimiento, rentabilidad, balance, valoración, riesgos)."),
+    ("Calendario", "Fechas estimadas", "Resultados y junta: el mismo evento de hace un año + 52 semanas (8-K 2.02 y 5.07); "
+     "plazo legal del 10-Q/10-K según la categoría de presentador. Siempre posteriores a la emisión."),
     ("Riesgos", "Autonomía de caja", "Solo si el FCF LTM es negativo: meses = (caja + inversiones a corto plazo) / −FCF × 12."),
     ("Riesgos", "Cambios en los factores de riesgo", "Comparación de los títulos del Item 1A con los del informe anual "
      "anterior por similitud de texto: nuevos, eliminados y modificados."),

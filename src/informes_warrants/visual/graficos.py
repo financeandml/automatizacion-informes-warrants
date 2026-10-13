@@ -216,7 +216,9 @@ def cascada(pasos: list[tuple[str, float, str]]) -> str:
             estilo = dict(color=NEGRO) if valor >= 0 else dict(color=BLANCO, edgecolor=BURDEOS, hatch="//////", linewidth=0.5)
             ax.bar(i, valor, 0.6, bottom=nivel, **estilo)
             nivel += valor
-    ax.set_xticks(range(len(pasos)), [n for n, _, _ in pasos], fontsize=5.4)
+    import textwrap
+
+    ax.set_xticks(range(len(pasos)), [textwrap.fill(n, 13) for n, _, _ in pasos], fontsize=5.4)
     ax.yaxis.set_major_formatter(_miles)
     ax.axhline(0, color=NEGRO, linewidth=0.4)
     return _svg(fig)
