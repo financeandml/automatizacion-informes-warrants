@@ -29,6 +29,7 @@ from ..calculo.analitica import (
 )
 from ..calculo.calidad import revisar
 from ..calculo.dcf import beta, crecimiento_implicito, valorar_escenarios, wacc_implicito
+from ..calculo.derivados import lectura_cortos, mercado_de_opciones
 from ..calculo.hechos_clave import observaciones as observaciones_clave
 from ..calculo.hechos_clave import seleccionar as seleccionar_hechos
 from ..calculo.historial import historial as historial_recomendaciones
@@ -203,7 +204,8 @@ def componer(*, ticker: str, empresa: str, sic, cobertura, filing: dict, estados
              escenarios: Escenarios | None = None, estados_ltm=None, fecha_ltm: str | None = None, rf=None,
              comparables: list[dict] | None = None, comparables_criterio: str = "", comparables_del_analista: bool = False,
              gobierno=None, insiders: dict | None = None, competencia_texto: dict | None = None, catalizadores: dict | None = None,
-             borradores_ia: dict | None = None, filiales: dict | None = None,
+             borradores_ia: dict | None = None, filiales: dict | None = None, opciones_cadena: dict | None = None,
+             cortos: dict | None = None,
              eventos: list | None = None, alarmas: list | None = None,
              riesgos_cambios: dict | None = None, acciones_origen: str = "", trimestres_lista: list | None = None,
              segmentos_dict: dict | None = None, concentracion: list | None = None, vencimientos: dict | None = None,
@@ -436,6 +438,8 @@ def componer(*, ticker: str, empresa: str, sic, cobertura, filing: dict, estados
         "cascada": cascada_ebitda_fcf(estados, ejercicio, f), "vencimientos": vencimientos or {"importes": [], "motivo": ""},
         "puntuaciones": puntuaciones, "gobierno": gobierno, "riesgos_cambios": riesgos_cambios, "insiders": insiders,
         "catalizadores": catalizadores, "filiales": filiales,
+        "opciones": mercado_de_opciones(opciones_cadena, cotizacion.precio, series_bolsa.get(ticker)),  # externos (B5)
+        "cortos": {**cortos, "lectura": lectura_cortos(cortos.get("sobre_flotante"))} if cortos else None,
         "equipo": _equipo(insiders, series_bolsa.get(ticker)),
         "cambios_direccion": [e for e in (eventos or []) if "5.02" in e["items"] and (date.today() - e["fecha"]).days <= 730],
         "competencia": _competencia(competencia_texto, ticker, f_ltm, fund, ejercicios, comps if comparables_del_analista else [],
@@ -533,6 +537,7 @@ def reunir(ticker: str, con_ia: bool = True, comparables: list[str] | None = Non
     from ..calculo.calendario import borrador as borrador_calendario
     from ..ingesta import comparables as ingesta_comparables
     from ..ingesta.competencia import apartado_competencia
+    from ..ingesta.derivados import cadena_opciones, posiciones_cortas
     from ..ingesta.directivos import filiales as filiales_10k
     from ..ingesta.eventos import ANIOS_ALARMAS, categoria_presentador, eventos_8k, hechos_relevantes
     from ..ingesta.eventos import alarmas as alarmas_sec
@@ -688,6 +693,7 @@ def reunir(ticker: str, con_ia: bool = True, comparables: list[str] | None = Non
         insiders=_insiders(empresa, ticker), eventos=eventos, alarmas=alarmas_sec(empresa, date.today(), filing, eventos),
         riesgos_cambios=cambios, acciones_origen=acciones_origen, trimestres_lista=lista_trimestres, segmentos_dict=desgloses,
         concentracion=concentracion_clientes(xbrl, cierres), vencimientos=venc, catalizadores=catalizadores, filiales=filiales_10k(tenk),
+        opciones_cadena=cadena_opciones(ticker), cortos=posiciones_cortas(ticker),
         precios_semanales=precios_semanales(ticker), fechas_disponibles=disponibles, anterior=anterior,
         historial_resumenes=historial_resumenes, autoria=cargar_autoria(),
         capital_flotante=flotante if flotante[0] else None,

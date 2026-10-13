@@ -81,6 +81,11 @@ DEFINICIONES: tuple[tuple[str, str, str], ...] = (
      "tema (crecimiento, rentabilidad, balance, valoración, riesgos)."),
     ("Calendario", "Fechas estimadas", "Resultados y junta: el mismo evento de hace un año + 52 semanas (8-K 2.02 y 5.07); "
      "plazo legal del 10-Q/10-K según la categoría de presentador. Siempre posteriores a la emisión."),
+    ("Opciones (externo)", "Ratio put/call y volatilidad", "Volumen (y posiciones abiertas) de puts / calls; volatilidad "
+     "implícita ponderada por volumen frente a la realizada a 30 días (√252 × desviación de los rendimientos diarios). "
+     "Max pain: precio con el menor pago total a los compradores. Fuente: yfinance, no auditada."),
+    ("Cortos (externo)", "Posiciones cortas", "Acciones en corto declaradas (FINRA vía yfinance), sobre el capital flotante y "
+     "días para cubrir al volumen medio. Fuente no auditada."),
     ("Riesgos", "Autonomía de caja", "Solo si el FCF LTM es negativo: meses = (caja + inversiones a corto plazo) / −FCF × 12."),
     ("Riesgos", "Cambios en los factores de riesgo", "Comparación de los títulos del Item 1A con los del informe anual "
      "anterior por similitud de texto: nuevos, eliminados y modificados."),

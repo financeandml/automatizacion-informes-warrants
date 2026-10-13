@@ -512,6 +512,26 @@
   </table>
   <div class="fuente">Solo para empresas que consumen caja. No incluye financiación futura (ampliaciones, deuda o cobros por acuerdos).</div>
   {% endif %}
+  {% set op = c.opciones %}{% set ct = c.cortos %}
+  {% if op or ct %}
+  <div style="break-inside: avoid">
+  <h3>Mercado de opciones y posiciones cortas</h3>
+  <p class="aviso-revisar"><span class="revisar">Fuente externa</span> Datos de yfinance, no auditados (consulta del {{ (op or ct).consulta }}): se usan solo para estos apartados, nunca en las cifras financieras ni en la valoración.</p>
+  {% if op %}<table class="datos">
+    <tr><th>Opciones (vencimientos hasta {{ op.vencimientos[-1] }})</th><th></th></tr>
+    <tr><td>Ratio put/call por volumen / por posiciones abiertas</td><td>{{ op.put_call.volumen|num(2) }} / {{ op.put_call.posiciones|num(2) }}</td></tr>
+    <tr><td>Volatilidad implícita (ponderada por volumen): calls / puts / total</td><td>{{ op.iv_calls|pct }} / {{ op.iv_puts|pct }} / {{ op.iv|pct }}</td></tr>
+    <tr><td>Volatilidad realizada a 30 días (cotizaciones propias) y ratio implícita / realizada</td><td>{{ op.realizada_30d|pct }} · {{ op.iv_sobre_realizada|num(2) }}x</td></tr>
+    <tr><td>Max pain del vencimiento {{ op.vencimiento_proximo }} (USD)</td><td>{{ op.max_pain|num(2) }}</td></tr>
+  </table>
+  {% if op.inusual %}<table class="datos compacta">
+    <tr><th>Actividad inusual</th><th>Strike (USD)</th><th>Vencimiento</th><th>Volumen</th><th>Posiciones abiertas</th><th>Prima estimada (USD mn)</th><th>Distancia al strike</th></tr>
+    {% for f in op.inusual %}<tr><td>{{ f.tipo }}</td><td>{{ f.strike|num(2) }}</td><td>{{ f.vencimiento }}</td><td>{{ f.volumen|num(0) }}</td><td>{{ f.posiciones|num(0) }}</td><td>{{ (f.prima_estimada / 1e6)|num(1) }}</td><td>{{ f.distancia|var }}</td></tr>{% endfor %}
+  </table>{% endif %}{% endif %}
+  {% if ct %}<p>Posiciones cortas{% if ct.fecha %} a {{ ct.fecha }}{% endif %}: {{ (ct.acciones / 1e6)|num(1) }} millones de acciones{% if ct.sobre_flotante is not none %}, el {{ ct.sobre_flotante|pct }} del capital flotante (nivel {{ ct.lectura }}){% endif %}{% if ct.dias_para_cubrir %}; {{ ct.dias_para_cubrir|num(1) }} días para cubrir al volumen medio{% endif %}{% if ct.acciones_mes_anterior %} ({{ (ct.acciones / ct.acciones_mes_anterior - 1)|var }} frente al mes anterior){% endif %}.</p>{% endif %}
+  <div class="fuente">Cálculos sobre la cadena de opciones como financial-research-analyst-agent (put/call, volatilidad ponderada, max pain, actividad inusual: volumen ≥ 500 y más del doble de las posiciones abiertas). Nivel de cortos: bajo &lt; 5 %, moderado &lt; 10 %, elevado &lt; 25 %, muy elevado ≥ 25 % del flotante.</div>
+  </div>
+  {% endif %}
   <h3>Factores de riesgo declarados en el 10-K ({{ c.riesgos_lista|length }})</h3>
   <div class="dos-col" style="font-size:6.2pt"><ol>{% for r in c.riesgos_lista %}<li>{{ r }}</li>{% endfor %}</ol></div>
 

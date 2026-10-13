@@ -607,3 +607,27 @@ def test_rentabilidad_desde_el_alta_y_filiales():
     f = filiales(type("T", (), {"subsidiaries": lista})())
     assert f["total"] == 3 and f["lista"][0]["nombre"] == "Apple Asia LLC" and f["jurisdicciones"][0] == ("Delaware, U.S.", 2)
     assert filiales(type("T", (), {"subsidiaries": None})()) is None
+
+
+# --- B5: opciones y posiciones cortas (fuente externa) ------------------------------------------------------------
+
+def test_mercado_de_opciones_a_mano():
+    import pandas as pd
+
+    from informes_warrants.calculo.derivados import lectura_cortos, max_pain, mercado_de_opciones, put_call, volatilidad_realizada
+
+    calls = pd.DataFrame({"strike": [90.0, 100.0, 110.0], "volume": [100, 200, 1200], "openInterest": [1000, 500, 300],
+                          "impliedVolatility": [0.30, 0.25, 0.40], "lastPrice": [11.0, 3.0, 1.0], "vencimiento": ["2026-11-20"] * 3})
+    puts = pd.DataFrame({"strike": [90.0, 100.0, 110.0], "volume": [300, 100, 0], "openInterest": [800, 400, 100],
+                         "impliedVolatility": [0.35, 0.30, 0.20], "lastPrice": [1.0, 3.0, 10.0], "vencimiento": ["2026-11-20"] * 3})
+    pc = put_call(calls, puts)
+    assert pc["volumen"] == pytest.approx(400 / 1500) and pc["posiciones"] == pytest.approx(1300 / 1800)
+    # lo que cobran los compradores: a 90 → 0 + (100−90)·400 + (110−90)·100 = 6.000; a 100 → 10·1000 + 10·100 = 11.000;
+    # a 110 → 20·1000 + 10·500 = 25.000 → max pain (el mínimo) = 90
+    assert max_pain(calls, puts) == 90.0
+    m = mercado_de_opciones({"vencimientos": ["2026-11-20"], "calls": calls, "puts": puts, "consulta": "2026-10-14"}, 100.0,
+                            [100 * (1.01 ** i) for i in range(30)])
+    assert m["iv_calls"] == pytest.approx((0.30 * 100 + 0.25 * 200 + 0.40 * 1200) / 1500)
+    assert [f["strike"] for f in m["inusual"]] == [110.0]  # 1.200 contratos > 2 × 300 abiertos
+    assert volatilidad_realizada([100 * (1.01 ** i) for i in range(30)]) == pytest.approx(0.0, abs=1e-9)  # sin dispersión
+    assert lectura_cortos(0.12) == "elevado" and lectura_cortos(0.02) == "bajo" and lectura_cortos(None) is None

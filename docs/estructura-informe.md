@@ -34,12 +34,12 @@ La maquetación aprobada es la del [ejemplo](ejemplos/AAPL_FY2025_borrador.pdf).
 | 13. Tamaño de mercado (TAM/SAM/SOM) | Analista | Sin fuente pública rigurosa |
 | 14. Análisis competitivo | Hecho | Apartado «Competition» del Item 1 traducido (IA verificada), cuotas de ingresos, ROIC − WACC y estabilidad del margen frente a los comparables del analista, tabla de comparables; la valoración de la ventaja competitiva es del analista |
 | **E. Opciones y flujo de derivados** | | |
-| 15. Cadena de opciones | Externo | yfinance (sin auditar) |
-| 16. Posicionamiento institucional en derivados | Externo | *Sweeps*: datos de pago; *dark pool*: FINRA, con retraso |
-| 17. Volatilidad implícita | Externo | yfinance; el ranking de volatilidad necesita historial propio |
+| 15. Cadena de opciones | Hecho (externo) | Put/call por volumen y posiciones, max pain y actividad inusual (yfinance, no auditado), en la sección 06 |
+| 16. Posicionamiento institucional en derivados | Externo | *Sweeps* y *dark pool* necesitan una fuente de pago o FINRA con retraso: fuera por ahora |
+| 17. Volatilidad implícita | Hecho (externo) | Implícita ponderada (calls, puts) frente a la realizada a 30 días con cotizaciones propias; el ranking histórico necesita guardar historial |
 | **F. Posicionamiento institucional y fondos** | | |
 | 18. Accionistas institucionales e insiders | Parcial (avanzado) | Form 4 de 12 meses (compras y ventas en mercado, plan 10b5-1, retribución aparte), accionistas > 5 % (proxy y 13D/13G) y participación institucional de yfinance (externa). Falta: 13F por emisor desde la SEC |
-| 19. Posicionamiento en corto | Externo | FINRA / yfinance |
+| 19. Posicionamiento en corto | Hecho (externo) | Acciones en corto, % del flotante, días para cubrir y variación mensual (FINRA vía yfinance, no auditado) |
 | **G. Riesgos y *due diligence*** | | |
 | 20. Riesgos principales | Parcial (avanzado) | 5 principales con cita (IA), cambios frente al 10-K anterior, Altman, Beneish y Piotroski y autonomía de caja (si consume caja); la clasificación por tipo, aparcada (R5) |
 | 21. Historial de resultados anteriores | Hecho | Publicaciones de resultados (8-K 2.02) con su trimestre y la reacción a 5 sesiones, sin comparar; alarmas de la SEC de 5 años |
