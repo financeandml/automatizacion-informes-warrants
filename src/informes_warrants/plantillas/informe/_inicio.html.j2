@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>{{ c.empresa }} ({{ c.ticker }}) · Warrants & Co.</title>
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+<span class="cabecera-dato">{{ c.empresa }} ({{ c.ticker }}) · {{ fecha_larga }}</span>
+
+<!-- ============ 1. PORTADA ============ -->
+<section class="portada">
+  <div class="masthead">
+    <div class="marca"><img class="logo" src="../marca/logo.svg"><img class="nombre" src="../marca/nombre.svg"></div>
+    <div class="tipo">Apertura de posición · Renta variable EEUU<span>{{ fecha_larga }} · Cotización a {{ c.cotizacion.fecha }}</span></div>
+  </div>
+
+  <div class="titulo">
+    <h1>{{ c.empresa }}</h1>
+    <div class="sub"><strong>{{ c.ticker }}</strong> · SIC {{ c.sic }} · Índice sectorial {{ c.etf }} · Último 10-K: FY{{ c.filing.ejercicio }} ({{ c.filing.fecha }})</div>
+  </div>
+

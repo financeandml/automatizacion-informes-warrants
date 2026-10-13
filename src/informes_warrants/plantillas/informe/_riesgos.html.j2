@@ -1,0 +1,88 @@
+  <h2><span class="num">06</span>Análisis de riesgos</h2>
+  {% set cat = c.catalizadores %}
+  <h3>Catalizadores según la dirección</h3>
+  {% if cat.ia and cat.ia.lista %}<ul>{% for s in cat.ia.lista %}<li><strong>{{ s.resumen }}</strong><br><span class="cita">«{{ s.cita }}»</span></li>{% endfor %}</ul>
+  <div class="fuente">{% if cat.ia.modelo %}Selección y resumen: {{ cat.ia.modelo }}, entre {{ cat.ia.candidatos }} frases prospectivas literales del MD&amp;A (Item 7). Cada cita se ha verificado en el texto del 10-K.{% else %}Catalizadores del analista.{% endif %}</div>
+  {% else %}<p><span class="pendiente">catalizadores de crecimiento según el MD&amp;A (Item 7)</span></p>{% endif %}
+  {% if calendario %}
+  <div style="break-inside: avoid">
+  <h3>Calendario</h3>
+  {% if not cat.del_analista %}<p class="aviso-revisar"><span class="revisar">Revisar</span> Borrador del SaaS con fechas estimadas a partir de los filings de la SEC (todas posteriores a la fecha de emisión): el analista debe confirmarlo o introducir el suyo.</p>{% endif %}
+  <table class="datos">
+    <tr><th>Evento</th><th>Fecha</th><th>Base</th></tr>
+    {% for e in calendario %}<tr><td>{{ e.evento }}</td><td>{{ e.fecha }}</td><td style="text-align:left">{{ e.base }}</td></tr>{% endfor %}
+  </table>
+  </div>
+  {% endif %}
+  {% if cat.hechos %}
+  <div style="break-inside: avoid">
+  <h3>Hechos relevantes de los últimos 12 meses (8-K)</h3>
+  <table class="datos">
+    <tr><th>Fecha</th><th>Hecho comunicado</th><th>Filing</th></tr>
+    {% for h in cat.hechos %}<tr><td>{{ h.fecha.strftime("%d/%m/%Y") }}</td><td style="text-align:left">{{ h.hechos|join("; ") }}</td><td>{{ h.accession }}</td></tr>{% endfor %}
+  </table>
+  <div class="fuente">Ítems de cada 8-K según las instrucciones de la SEC; los de resultados (2.02) están en el apartado 04 y los anexos (9.01) no se listan.</div>
+  </div>
+  {% endif %}
+  <h3>Riesgos principales</h3>
+  {% if c.riesgos %}<ul>{% for r in c.riesgos %}<li><strong>{{ r.resumen }}</strong><br><span class="cita">«{{ r.cita }}»</span></li>{% endfor %}</ul>
+  <div class="fuente">Selección y resumen: {{ c.riesgos[0].modelo }}, entre los títulos literales del Item 1A. Cada cita se ha verificado en el texto del 10-K.</div>
+  {% else %}<p><span class="pendiente">resume los riesgos principales del Item 1A</span></p>{% endif %}
+  {% if c.riesgos_cambios %}{% set rc = c.riesgos_cambios %}
+  <h3>Cambios frente al informe anual anterior</h3>
+  <p>Factores nuevos o reformulados: {{ rc.nuevos|length }} · eliminados: {{ rc.eliminados|length }} · modificados: {{ rc.modificados|length }} · sin cambios: {{ rc.sin_cambios }}.</p>
+  {% if rc.nuevos %}<p><strong>Nuevos o reformulados:</strong></p><ul>{% for r in rc.nuevos %}<li>{{ r.titulo }}{% if r.posible_origen %} <span class="fuente">(posible reformulación de: «{{ r.posible_origen }}»)</span>{% endif %}</li>{% endfor %}</ul>{% endif %}
+  {% if rc.eliminados %}<p><strong>Eliminados:</strong></p><ul>{% for r in rc.eliminados %}<li>{{ r }}</li>{% endfor %}</ul>{% endif %}
+  <div class="fuente">Comparación por similitud de texto de los títulos del Item 1A (sin IA). Las reformulaciones las confirma el analista.</div>
+  {% endif %}
+  {% if c.puntuaciones %}
+  <h3>Puntuaciones de riesgo contable (FY{{ c.filing.ejercicio }})</h3>
+  <table class="datos">
+    <tr><th>Puntuación</th><th>Valor</th><th style="text-align:left">Lectura</th><th style="text-align:left">Modelo</th></tr>
+    {% for p in c.puntuaciones %}<tr><td>{{ p.nombre }}</td><td>{% if p.nombre == "Piotroski F" and p.valor is not none %}{{ p.valor|num(0) }} / 9{% elif p.valor is not none %}{{ "%.2f"|format(p.valor)|replace(".", ",")|replace("-", "−") }}{% else %}n.d.{% endif %}</td><td style="text-align:left">{{ p.lectura }}{% if p.faltan and p.valor is none %} (faltan: {{ p.faltan|join(", ") }}){% endif %}</td><td style="text-align:left">{{ p.modelo }}</td></tr>{% endfor %}
+  </table>
+  <div class="fuente">Altman Z (insolvencia), Beneish M (calidad del beneficio) y Piotroski F (solidez financiera), con las partidas del normalizador SEC. Definiciones en el anexo B.</div>
+  <h3>Alarmas de la SEC (5 años)</h3>
+  {% if c.alarmas %}<table class="datos">
+    <tr><th>Alarma</th><th>Fecha</th><th>Detalle (cita literal del filing)</th><th>Filing</th></tr>
+    {% for a in c.alarmas %}<tr><td>{{ a.tipo }}</td><td>{{ a.fecha.strftime("%d/%m/%Y") }}</td><td style="text-align:left">{{ a.detalle or "—" }}</td><td>{{ a.accession }}</td></tr>{% endfor %}
+  </table>
+  <div class="fuente">8-K ítems 4.01 y 4.02, 10-K/A, 10-Q/A, NT 10-K y NT 10-Q; frases del último 10-K sobre control interno no eficaz o dudas sobre la continuidad (sin las hipotéticas de los factores de riesgo). Las valora el analista.</div>
+  {% else %}<p>Sin alarmas: ningún cambio de auditor ni reexpresión (8-K 4.01 y 4.02), informe modificado o presentación tardía en 5 años, y el último 10-K no recoge control interno no eficaz ni dudas sobre la continuidad de la empresa.</p>{% endif %}
+  {% endif %}
+  {% if c.autonomia %}
+  <h3>Autonomía de caja</h3>
+  <table class="datos">
+    <tr><td>Caja e inversiones a corto plazo (USD mn)</td><td>{{ (c.autonomia.liquidez/1e6)|num(0) }}</td></tr>
+    <tr><td>Consumo de caja de los últimos doce meses (flujo operativo − capex, USD mn)</td><td>{{ (c.autonomia.consumo_anual/1e6)|num(0) }}</td></tr>
+    <tr class="total"><td>Meses de caja al ritmo actual</td><td>{{ c.autonomia.meses|num(0) }}</td></tr>
+    {% if c.autonomia.dilucion_anual is not none %}<tr><td>Variación anual de las acciones diluidas ({{ c.autonomia.anios_dilucion }} años)</td><td>{{ c.autonomia.dilucion_anual|var }}</td></tr>{% endif %}
+  </table>
+  <div class="fuente">Solo para empresas que consumen caja. No incluye financiación futura (ampliaciones, deuda o cobros por acuerdos).</div>
+  {% endif %}
+  {% set op = c.opciones %}{% set ct = c.cortos %}
+  {% if op or ct %}
+  <div style="break-inside: avoid">
+  <h3>Mercado de opciones y posiciones cortas</h3>
+  <p class="aviso-revisar"><span class="revisar">Fuente externa</span> Datos de yfinance, no auditados (consulta del {{ (op or ct).consulta }}): se usan solo para estos apartados, nunca en las cifras financieras ni en la valoración.</p>
+  {% if op %}<table class="datos">
+    <tr><th>Opciones (vencimientos hasta {{ op.vencimientos[-1] }})</th><th></th></tr>
+    <tr><td>Ratio put/call por volumen / por posiciones abiertas</td><td>{{ op.put_call.volumen|num(2) }} / {{ op.put_call.posiciones|num(2) }}</td></tr>
+    <tr><td>Volatilidad implícita (ponderada por volumen): calls / puts / total</td><td>{{ op.iv_calls|pct }} / {{ op.iv_puts|pct }} / {{ op.iv|pct }}</td></tr>
+    <tr><td>Volatilidad realizada a 30 días (cotizaciones propias) y ratio implícita / realizada</td><td>{{ op.realizada_30d|pct }} · {{ op.iv_sobre_realizada|num(2) }}x</td></tr>
+    <tr><td>Max pain del vencimiento {{ op.vencimiento_proximo }} (USD)</td><td>{{ op.max_pain|num(2) }}</td></tr>
+  </table>
+  {% if op.inusual %}<table class="datos compacta">
+    <tr><th>Actividad inusual</th><th>Strike (USD)</th><th>Vencimiento</th><th>Volumen</th><th>Posiciones abiertas</th><th>Prima estimada (USD mn)</th><th>Distancia al strike</th></tr>
+    {% for f in op.inusual %}<tr><td>{{ f.tipo }}</td><td>{{ f.strike|num(2) }}</td><td>{{ f.vencimiento }}</td><td>{{ f.volumen|num(0) }}</td><td>{{ f.posiciones|num(0) }}</td><td>{{ (f.prima_estimada / 1e6)|num(1) }}</td><td>{{ f.distancia|var }}</td></tr>{% endfor %}
+  </table>{% endif %}{% endif %}
+  {% if ct %}<p>Posiciones cortas{% if ct.fecha %} a {{ ct.fecha }}{% endif %}: {{ (ct.acciones / 1e6)|num(1) }} millones de acciones{% if ct.sobre_flotante is not none %}, el {{ ct.sobre_flotante|pct }} del capital flotante (nivel {{ ct.lectura }}){% endif %}{% if ct.dias_para_cubrir %}; {{ ct.dias_para_cubrir|num(1) }} días para cubrir al volumen medio{% endif %}{% if ct.acciones_mes_anterior %} ({{ (ct.acciones / ct.acciones_mes_anterior - 1)|var }} frente al mes anterior){% endif %}.</p>{% endif %}
+  <div class="fuente">Cálculos sobre la cadena de opciones como financial-research-analyst-agent (put/call, volatilidad ponderada, max pain, actividad inusual: volumen ≥ 500 y más del doble de las posiciones abiertas). Nivel de cortos: bajo &lt; 5 %, moderado &lt; 10 %, elevado &lt; 25 %, muy elevado ≥ 25 % del flotante.</div>
+  </div>
+  {% endif %}
+  <h3>Factores de riesgo declarados en el 10-K ({{ c.riesgos_lista|length }})</h3>
+  <div class="dos-col" style="font-size:6.2pt"><ol>{% for r in c.riesgos_lista %}<li>{{ r }}</li>{% endfor %}</ol></div>
+
+
+</section>
+

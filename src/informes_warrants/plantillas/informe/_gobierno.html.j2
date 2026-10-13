@@ -1,0 +1,48 @@
+  <div style="break-inside: avoid"><h2><span class="num">03</span>Gobierno corporativo</h2>
+  {{ t["gobierno.consejo"] }}</div>
+  {% if c.filiales %}{% set fl_ = c.filiales %}
+  <div style="break-inside: avoid">
+  <h3>Estructura corporativa</h3>
+  <p>{{ fl_.total }} filiales significativas declaradas en el Exhibit 21 del 10-K{% if fl_.jurisdicciones %}; las jurisdicciones más frecuentes: {% for j, n in fl_.jurisdicciones %}{{ j }} ({{ n }}){{ ", " if not loop.last else "" }}{% endfor %}{% endif %}.</p>
+  <table class="datos">
+    <tr><th>Filial</th><th>Jurisdicción</th></tr>
+    {% for f in fl_.lista %}<tr><td>{{ f.nombre }}</td><td>{{ f.jurisdiccion }}</td></tr>{% endfor %}
+  </table>
+  {% if fl_.total > fl_.lista|length %}<div class="fuente">Las {{ fl_.lista|length }} primeras de {{ fl_.total }}, en el orden del Exhibit 21.</div>{% endif %}
+  </div>
+  {% endif %}
+  {% if c.equipo %}
+  <div style="break-inside: avoid">
+  <h3>Equipo directivo y consejeros</h3>
+  <table class="datos compacta">
+    <tr><th>Nombre</th><th>Cargo declarado</th><th>Insider desde (Form 3)</th><th>Rentabilidad de la acción desde entonces</th></tr>
+    {% for p in c.equipo %}<tr><td>{{ p.nombre }}</td><td>{{ p.cargo|truncate(40, True, "…") or "—" }}</td><td>{{ p.alta.strftime("%d/%m/%Y") if p.alta else "—" }}</td><td>{{ p.rentabilidad|var if p.rentabilidad is not none else "—" }}</td></tr>{% endfor %}
+  </table>
+  <div class="fuente">Directivos y consejeros que presentaron Form 4 en los últimos 12 meses, con el cargo tal como lo declaran. Alta: su Form 3 (declaración inicial), si está entre los más recientes; rentabilidad con cotizaciones ajustadas, solo si la serie llega a esa fecha.{% if c.cambios_direccion %} Cambios en el consejo o la alta dirección (8-K ítem 5.02) en 24 meses: {% for e in c.cambios_direccion %}{{ e.fecha.strftime("%d/%m/%Y") }}{{ ", " if not loop.last else "" }}{% endfor %}.{% endif %}</div>
+  </div>
+  {% endif %}
+  {% if insiders %}{% set ins = c.insiders %}{% set a = ins.actividad %}
+  <h3>Accionistas de más del 5 %</h3>
+  {% if insiders.proxy %}<table class="datos">
+    <tr><th>Accionista</th><th>Acciones (mn)</th><th>% del capital</th></tr>
+    {% for f in insiders.proxy %}<tr><td>{{ f.nombre }}</td><td>{{ f.acciones }}</td><td>{{ f.porcentaje }}</td></tr>{% endfor %}
+  </table>
+  <div class="fuente">Proxy DEF 14A del {{ ins.accionistas.proxy_fecha.strftime("%d/%m/%Y") }} (Item 403), tal como lo declara la empresa.</div>{% endif %}
+  {% if insiders.declaraciones %}<table class="datos">
+    <tr><th>Declaraciones 13D/13G posteriores al proxy</th><th>% declarado</th><th>Fecha del hecho</th><th>Formulario</th></tr>
+    {% for f in insiders.declaraciones %}<tr><td>{{ f.nombre }}</td><td>{{ f.porcentaje }}</td><td>{{ f.fecha }}</td><td>{{ f.formulario }}</td></tr>{% endfor %}
+  </table>{% endif %}
+  {% set p = ins.participaciones %}{% if p %}
+  <p class="fuente" style="margin-top:2mm"><strong>Fuente externa, no auditada (yfinance, consulta del {{ p.consulta }}):</strong> insiders {{ p.insiders|pct }} del capital; instituciones {{ p.instituciones|pct }}{% if p.numero_instituciones %} ({{ p.numero_instituciones|num(0) }} instituciones){% endif %}.{% if p.principales %} Principales tenedores institucionales: {% for h in p.principales %}{{ h.nombre }} {{ h.porcentaje|pct }}{{ "; " if not loop.last else "" }}{% endfor %} (13F a {{ p.principales[0].fecha }}).{% endif %}
+  {% if not insiders.proxy and not insiders.declaraciones %}<p class="fuente">Sin accionistas de más del 5 % declarados en el último proxy ni en 13D/13G de los últimos 12 meses.</p>{% endif %}
+  <h3>Compras y ventas de insiders en mercado (12 meses)</h3>
+  <p>Entre el {{ ins.desde.strftime("%d/%m/%Y") }} y el {{ ins.hasta.strftime("%d/%m/%Y") }} ({{ ins.formularios }} Form 4), {% if a.compras or a.ventas %}{{ a.insiders }} insiders hicieron {{ a.compras }} compras ({{ (a.importe_compras / 1e6)|num(1) }} USD Mn) y {{ a.ventas }} ventas ({{ (a.importe_ventas / 1e6)|num(1) }} USD Mn) en mercado: saldo neto de {{ (a.saldo / 1e6)|num(1) }} USD Mn.{% if a.ventas_con_plan %} {{ a.ventas_con_plan }} de las ventas ({{ (a.importe_ventas_con_plan / 1e6)|num(1) }} USD Mn) se hicieron con un plan 10b5-1, programadas de antemano.{% endif %}{% if a.agrupadas %} Hubo compras agrupadas: {{ a.agrupadas.compradores|length }} insiders compraron entre el {{ a.agrupadas.desde.strftime("%d/%m/%Y") }} y el {{ a.agrupadas.hasta.strftime("%d/%m/%Y") }}.{% endif %}{% else %}no hubo compras ni ventas de insiders en mercado.{% endif %}{% if ins.retribucion.operaciones or ins.retenciones.operaciones %} Aparte, y sin ser compras ni ventas en mercado, recibieron {{ ins.retribucion.acciones|num(0) }} acciones como retribución ({{ ins.retribucion.operaciones }} concesiones o ejercicios) y entregaron {{ ins.retenciones.acciones|num(0) }} para pagar impuestos.{% endif %}</p>
+  {% if insiders.operaciones %}<table class="datos compacta">
+    <tr><th>Fecha</th><th>Insider</th><th>Cargo</th><th>Operación</th><th>Acciones</th><th>Precio (USD)</th><th>Importe (USD mn)</th><th>Plan 10b5-1</th></tr>
+    {% for o in insiders.operaciones %}<tr><td>{{ o.fecha }}</td><td>{{ o.nombre }}</td><td>{{ o.cargo|truncate(28, True, "…") }}</td><td>{{ o.tipo }}</td><td>{{ o.acciones }}</td><td>{{ o.precio }}</td><td>{{ o.importe }}</td><td>{{ o.plan }}</td></tr>{% endfor %}
+  </table>
+  <div class="fuente">Form 4 de la SEC: solo las operaciones en mercado (códigos P y S); las {{ insiders.operaciones|length }} de mayor importe. Cargo tal como figura en el formulario.</div>{% endif %}
+</p>{% endif %}
+  {% endif %}
+</section>
+

@@ -1,0 +1,13 @@
+      <div class="recomendacion">
+        <div class="etiqueta">Recomendación</div>
+        <div class="valor">{{ c.recomendacion }}</div>
+        <table>
+          <tr><td>Precio objetivo{% if c.estimaciones.precio_objetivo_analista %} (analista){% endif %}</td><td class="n">{{ c.precio_objetivo|num(2) }} USD</td></tr>
+          {% if c.estimaciones.precio_objetivo_analista %}<tr><td>Precio objetivo del modelo</td><td class="n">{{ c.precio_modelo|num(2) }} USD</td></tr>{% endif %}
+          {% if c.valor_dcf is not none %}<tr><td>Valor DCF (escenarios)</td><td class="n">{{ c.valor_dcf|num(2) }} USD</td></tr>{% endif %}
+          {% if c.valor_multiplos is not none %}<tr><td>Valor por múltiplos</td><td class="n">{{ c.valor_multiplos|num(2) }} USD</td></tr>{% endif %}
+          <tr><td>Cotización</td><td class="n">{{ c.cotizacion.precio|num(2) }} USD</td></tr>
+          <tr><td>Potencial</td><td class="n">{{ c.potencial|var }}</td></tr>
+          {% if c.rango_dcf[0] is not none %}<tr><td>Rango (pesimista – optimista)</td><td class="n">{{ c.rango_dcf[0]|num(0) }} – {{ c.rango_dcf[1]|num(0) }} USD</td></tr>{% endif %}
+        </table>
+      </div>

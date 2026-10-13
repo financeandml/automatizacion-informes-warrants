@@ -1,0 +1,14 @@
+      <h3>Comportamiento en bolsa</h3>
+      <table class="datos">
+        <tr><th></th>{% for h in horizontes %}<th>{{ h }}</th>{% endfor %}</tr>
+        {% for nombre, fila in c.comportamiento.items() %}<tr><td>{{ etiquetas_comportamiento[nombre] }}</td>{% for h in claves_horizonte %}<td>{{ fila[h]|pct }}</td>{% endfor %}</tr>{% endfor %}
+      </table>
+      <div class="fuente">Relativo: diferencia en puntos porcentuales.</div>
+      {% if c.autoria and c.autoria.rellena %}<h3>Autoría</h3>
+      <table class="datos lateral-tabla">
+        {% if c.autoria.analista %}<tr><td>Analista</td><td>{{ c.autoria.analista }}</td></tr>{% endif %}
+        {% if c.autoria.correo %}<tr><td>Correo</td><td>{{ c.autoria.correo }}</td></tr>{% endif %}
+        {% if c.autoria.telefono %}<tr><td>Teléfono</td><td>{{ c.autoria.telefono }}</td></tr>{% endif %}
+        {% if c.autoria.empresa %}<tr><td>Entidad</td><td>{{ c.autoria.empresa }}</td></tr>{% endif %}
+        {% if c.autoria.contacto_empresa %}<tr><td>Contacto</td><td>{{ c.autoria.contacto_empresa }}</td></tr>{% endif %}
+      </table>{% endif %}
