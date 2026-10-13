@@ -586,3 +586,24 @@ def test_marcadores_con_borrador_siguen_pendientes():
     assert con == "Tesis: [[IA: titular de la tesis || Crece con caja neta.]] y [[ANALISTA: riesgo principal]]"
     assert pendientes(con) == ["riesgo principal", "revisar el borrador de la IA (titular de la tesis)"]
     assert sin_marcas_ia(con) == "Tesis: Crece con caja neta. y [[ANALISTA: riesgo principal]]"
+
+
+# --- B3: estructura corporativa y equipo directivo ---------------------------------------------------------------
+
+def test_rentabilidad_desde_el_alta_y_filiales():
+    import pandas as pd
+
+    from informes_warrants.calculo.analitica import rentabilidad_desde
+    from informes_warrants.ingesta.directivos import filiales
+
+    idx = pd.bdate_range("2024-01-01", "2026-10-09", tz="America/New_York")
+    cierres = pd.Series([100.0] * (len(idx) - 1) + [150.0], index=idx)
+    assert rentabilidad_desde(cierres, date(2025, 1, 10)) == pytest.approx(0.5)
+    assert rentabilidad_desde(cierres, date(2020, 1, 1)) is None  # la serie no llega: no se extrapola
+    df = pd.DataFrame([{"name": "Apple  Asia LLC", "jurisdiction": "Delaware, U.S."},
+                       {"name": "Apple Canada Inc.", "jurisdiction": "Canada"},
+                       {"name": "Apple Inc. (Delaware)", "jurisdiction": "Delaware, U.S."}])
+    lista = type("L", (), {"to_dataframe": lambda self: df})()
+    f = filiales(type("T", (), {"subsidiaries": lista})())
+    assert f["total"] == 3 and f["lista"][0]["nombre"] == "Apple Asia LLC" and f["jurisdicciones"][0] == ("Delaware, U.S.", 2)
+    assert filiales(type("T", (), {"subsidiaries": None})()) is None

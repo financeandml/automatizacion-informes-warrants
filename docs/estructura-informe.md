@@ -20,8 +20,8 @@ La maquetación aprobada es la del [ejemplo](ejemplos/AAPL_FY2025_borrador.pdf).
 | 2. Resumen ejecutivo y contexto de la tesis | Hecho | Titular automático, recomendación, indicadores y 4 hechos clave por reglas (sección 01); la tesis es del analista. Etiquetas temáticas: R1 (P1) |
 | **B. Perfil corporativo y modelo de negocio** | | |
 | 3. ¿Qué hace la empresa? | Hecho | Cita del Item 1; segmentos (con resultado operativo), producto y geografía de 5 años validados contra el total, con LTM provisional (F7); gráfico, origen del crecimiento y concentración de clientes declarada |
-| 4. Estructura corporativa | Ejecutable | Filiales (Exhibit 21), accionistas > 5 % (proxy, 13D/G): verificado en AAPL |
-| 5. Equipo directivo | Ejecutable | La retribución ya está en «Gobierno»; faltan cargos y trayectoria |
+| 4. Estructura corporativa | Hecho | Filiales del Exhibit 21 con sus jurisdicciones y accionistas > 5 % (proxy, 13D/G), en la sección 03 |
+| 5. Equipo directivo | Parcial (avanzado) | Quien presenta Form 4 con su cargo, alta como insider (Form 3), rentabilidad de la acción desde entonces y cambios del 8-K 5.02; la trayectoria es del analista |
 | 6. Pipeline y catalizadores | Hecho | Catalizadores del MD&A (IA con cita); calendario en borrador «Revisar» con fechas siempre posteriores a la emisión (lo confirma o introduce el analista); hechos relevantes del 8-K de 12 meses; pipeline de biotecnológicas: campo del analista |
 | **C. Análisis fundamental y métricas financieras** | | |
 | 7. Estado de resultados | Hecho | 5 FY + LTM; últimos 8 trimestres; proyección hasta el BPA (`calculo/proyeccion.py`) |

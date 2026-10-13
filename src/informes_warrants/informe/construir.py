@@ -24,6 +24,7 @@ from ..calculo.analitica import (
     estabilidad_margen,
     puente_margen,
     reaccion_resultados,
+    rentabilidad_desde,
     uso_del_capital,
 )
 from ..calculo.calidad import revisar
@@ -202,7 +203,7 @@ def componer(*, ticker: str, empresa: str, sic, cobertura, filing: dict, estados
              escenarios: Escenarios | None = None, estados_ltm=None, fecha_ltm: str | None = None, rf=None,
              comparables: list[dict] | None = None, comparables_criterio: str = "", comparables_del_analista: bool = False,
              gobierno=None, insiders: dict | None = None, competencia_texto: dict | None = None, catalizadores: dict | None = None,
-             borradores_ia: dict | None = None,
+             borradores_ia: dict | None = None, filiales: dict | None = None,
              eventos: list | None = None, alarmas: list | None = None,
              riesgos_cambios: dict | None = None, acciones_origen: str = "", trimestres_lista: list | None = None,
              segmentos_dict: dict | None = None, concentracion: list | None = None, vencimientos: dict | None = None,
@@ -434,7 +435,9 @@ def componer(*, ticker: str, empresa: str, sic, cobertura, filing: dict, estados
         "dupont": {**{f"FY{a}": dupont(estados, a) for a in ejercicios[-3:]}, "LTM": dupont(ltm, LTM)},
         "cascada": cascada_ebitda_fcf(estados, ejercicio, f), "vencimientos": vencimientos or {"importes": [], "motivo": ""},
         "puntuaciones": puntuaciones, "gobierno": gobierno, "riesgos_cambios": riesgos_cambios, "insiders": insiders,
-        "catalizadores": catalizadores,
+        "catalizadores": catalizadores, "filiales": filiales,
+        "equipo": _equipo(insiders, series_bolsa.get(ticker)),
+        "cambios_direccion": [e for e in (eventos or []) if "5.02" in e["items"] and (date.today() - e["fecha"]).days <= 730],
         "competencia": _competencia(competencia_texto, ticker, f_ltm, fund, ejercicios, comps if comparables_del_analista else [],
                                     valor.wacc if valor else None),
         "publicaciones": _publicaciones(eventos or [], trimestres_lista or [], series_bolsa.get(ticker)), "alarmas": alarmas or [],
@@ -476,6 +479,16 @@ def _competencia(texto: dict | None, ticker: str, f_ltm: dict, fund: dict, ejerc
     }
 
 
+def _equipo(insiders: dict | None, cierres) -> list[dict]:
+    """Apartado 5 (B3): quien presentó Form 4 en 12 meses, con su cargo declarado, su alta como insider (Form 3) y la
+    rentabilidad de la acción desde entonces (solo si la serie de cotizaciones llega a esa fecha)."""
+    if not insiders:
+        return []
+    altas = insiders.get("altas") or {}
+    return sorted(({"nombre": n, "cargo": cargo, "alta": altas.get(n), "rentabilidad": rentabilidad_desde(cierres, altas.get(n))}
+                   for n, cargo in (insiders.get("personas") or {}).items()), key=lambda p: (p["alta"] or date.max))
+
+
 MAX_PUBLICACIONES = 8
 
 
@@ -492,13 +505,14 @@ def _publicaciones(eventos: list[dict], trimestres_lista: list[dict], cierres) -
 def _insiders(empresa, ticker: str) -> dict:
     """Apartado 18 (A6): Form 4 de 12 meses, accionistas de más del 5 % y participaciones de yfinance (externas)."""
     from ..calculo.insiders import actividad
+    from ..ingesta.directivos import altas_como_insider
     from ..ingesta.insiders import accionistas_principales, transacciones
     from ..ingesta.mercado import participaciones
 
     hoy = date.today()
     tr = transacciones(empresa, hoy)
     return {**tr, "actividad": actividad(tr["operaciones"]), "accionistas": accionistas_principales(empresa, hoy),
-            "participaciones": participaciones(ticker)}
+            "participaciones": participaciones(ticker), "altas": altas_como_insider(empresa, list(tr["personas"]))}
 
 
 def construir(ticker: str, con_ia: bool = True, comparables: list[str] | None = None, anterior: dict | None = None,
@@ -519,6 +533,7 @@ def reunir(ticker: str, con_ia: bool = True, comparables: list[str] | None = Non
     from ..calculo.calendario import borrador as borrador_calendario
     from ..ingesta import comparables as ingesta_comparables
     from ..ingesta.competencia import apartado_competencia
+    from ..ingesta.directivos import filiales as filiales_10k
     from ..ingesta.eventos import ANIOS_ALARMAS, categoria_presentador, eventos_8k, hechos_relevantes
     from ..ingesta.eventos import alarmas as alarmas_sec
     from ..ingesta.gobierno import gobierno as datos_gobierno
@@ -672,7 +687,7 @@ def reunir(ticker: str, con_ia: bool = True, comparables: list[str] | None = Non
         comparables_criterio=criterio, comparables_del_analista=del_analista, gobierno=datos_gobierno(empresa, xbrl),
         insiders=_insiders(empresa, ticker), eventos=eventos, alarmas=alarmas_sec(empresa, date.today(), filing, eventos),
         riesgos_cambios=cambios, acciones_origen=acciones_origen, trimestres_lista=lista_trimestres, segmentos_dict=desgloses,
-        concentracion=concentracion_clientes(xbrl, cierres), vencimientos=venc, catalizadores=catalizadores,
+        concentracion=concentracion_clientes(xbrl, cierres), vencimientos=venc, catalizadores=catalizadores, filiales=filiales_10k(tenk),
         precios_semanales=precios_semanales(ticker), fechas_disponibles=disponibles, anterior=anterior,
         historial_resumenes=historial_resumenes, autoria=cargar_autoria(),
         capital_flotante=flotante if flotante[0] else None,

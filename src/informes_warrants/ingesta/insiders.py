@@ -58,7 +58,7 @@ def _fecha_us(valor) -> str:
 def transacciones(empresa, hasta: date, dias: int = 365) -> dict:
     """Form 4 presentados en los `dias` anteriores a `hasta`: operaciones en mercado y resumen del resto."""
     desde = hasta - timedelta(days=dias)
-    salida = {"desde": desde, "hasta": hasta, "formularios": 0, "operaciones": [],
+    salida = {"desde": desde, "hasta": hasta, "formularios": 0, "operaciones": [], "personas": {},
               "retribucion": {"operaciones": 0, "acciones": 0.0}, "retenciones": {"operaciones": 0, "acciones": 0.0}}
     try:
         filings = empresa.get_filings(form="4", amendments=False)  # sin 4/A: repiten las operaciones del original
@@ -79,6 +79,9 @@ def transacciones(empresa, hasta: date, dias: int = 365) -> dict:
             log.warning("Form 4 %s ilegible: %s", filing.accession_no, e)
             continue
         salida["formularios"] += 1
+        nombre = _texto(resumen.insider_name)
+        if nombre and nombre not in salida["personas"]:  # el más reciente manda (vienen del más nuevo al más antiguo)
+            salida["personas"][nombre] = _texto(resumen.position)
         for fila in (form4.market_trades.to_dict("records") if form4.market_trades is not None else []):
             tipo, acciones, precio = TIPOS_MERCADO.get(fila.get("Code")), _numero(fila.get("Shares")), _numero(fila.get("Price"))
             if tipo is None or not acciones:

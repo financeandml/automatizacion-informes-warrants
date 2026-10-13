@@ -159,6 +159,27 @@
   {{ t["industria.mercado"] }}
   <div style="break-inside: avoid"><h2><span class="num">03</span>Gobierno corporativo</h2>
   {{ t["gobierno.consejo"] }}</div>
+  {% if c.filiales %}{% set fl_ = c.filiales %}
+  <div style="break-inside: avoid">
+  <h3>Estructura corporativa</h3>
+  <p>{{ fl_.total }} filiales significativas declaradas en el Exhibit 21 del 10-K{% if fl_.jurisdicciones %}; las jurisdicciones más frecuentes: {% for j, n in fl_.jurisdicciones %}{{ j }} ({{ n }}){{ ", " if not loop.last else "" }}{% endfor %}{% endif %}.</p>
+  <table class="datos">
+    <tr><th>Filial</th><th>Jurisdicción</th></tr>
+    {% for f in fl_.lista %}<tr><td>{{ f.nombre }}</td><td>{{ f.jurisdiccion }}</td></tr>{% endfor %}
+  </table>
+  {% if fl_.total > fl_.lista|length %}<div class="fuente">Las {{ fl_.lista|length }} primeras de {{ fl_.total }}, en el orden del Exhibit 21.</div>{% endif %}
+  </div>
+  {% endif %}
+  {% if c.equipo %}
+  <div style="break-inside: avoid">
+  <h3>Equipo directivo y consejeros</h3>
+  <table class="datos compacta">
+    <tr><th>Nombre</th><th>Cargo declarado</th><th>Insider desde (Form 3)</th><th>Rentabilidad de la acción desde entonces</th></tr>
+    {% for p in c.equipo %}<tr><td>{{ p.nombre }}</td><td>{{ p.cargo|truncate(40, True, "…") or "—" }}</td><td>{{ p.alta.strftime("%d/%m/%Y") if p.alta else "—" }}</td><td>{{ p.rentabilidad|var if p.rentabilidad is not none else "—" }}</td></tr>{% endfor %}
+  </table>
+  <div class="fuente">Directivos y consejeros que presentaron Form 4 en los últimos 12 meses, con el cargo tal como lo declaran. Alta: su Form 3 (declaración inicial), si está entre los más recientes; rentabilidad con cotizaciones ajustadas, solo si la serie llega a esa fecha.{% if c.cambios_direccion %} Cambios en el consejo o la alta dirección (8-K ítem 5.02) en 24 meses: {% for e in c.cambios_direccion %}{{ e.fecha.strftime("%d/%m/%Y") }}{{ ", " if not loop.last else "" }}{% endfor %}.{% endif %}</div>
+  </div>
+  {% endif %}
   {% if insiders %}{% set ins = c.insiders %}{% set a = ins.actividad %}
   <h3>Accionistas de más del 5 %</h3>
   {% if insiders.proxy %}<table class="datos">

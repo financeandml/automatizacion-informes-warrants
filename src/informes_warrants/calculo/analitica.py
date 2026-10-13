@@ -210,3 +210,18 @@ def dupont(e, clave: int) -> dict | None:
               "carga_fiscal": bn / bai if bai else None, "carga_financiera": bai / ebit if bai is not None and ebit else None,
               "margen_operativo": ebit / ventas if ebit is not None else None}
     return salida
+
+
+def rentabilidad_desde(cierres, fecha) -> float | None:
+    """Rentabilidad de la acción desde `fecha` hasta el último cierre (B3: desde el alta de cada directivo).
+
+    None si la serie no llega tan atrás (no se extrapola). `cierres`: serie diaria ajustada (dividendos y splits)."""
+    import pandas as pd
+
+    if cierres is None or not len(cierres) or fecha is None:
+        return None
+    indice = pd.DatetimeIndex(cierres.index).tz_localize(None) if cierres.index.tz is not None else pd.DatetimeIndex(cierres.index)
+    posteriores = [i for i, d in enumerate(indice) if d.date() >= fecha]
+    if not posteriores or indice[0].date() > fecha:
+        return None
+    return float(cierres.iloc[-1]) / float(cierres.iloc[posteriores[0]]) - 1
