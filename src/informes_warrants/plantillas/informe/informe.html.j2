@@ -210,6 +210,16 @@
     {% for fila in tabla.filas %}<tr class="{{ fila.clase }}"><td>{{ fila.nombre }}</td>{% for v in fila.valores %}<td>{{ v }}</td>{% endfor %}</tr>{% endfor %}
   </table>
   {% endfor %}
+  {% if dupont %}
+  <div style="break-inside: avoid">
+  <h3>Descomposición DuPont del ROE</h3>
+  <table class="datos">
+    <tr><th></th>{% for p in dupont.cabecera %}<th>{{ p }}</th>{% endfor %}</tr>
+    {% for f in dupont.filas %}<tr class="{{ f.clase }}"><td>{{ f.nombre }}</td>{% for v in f.valores %}<td>{{ v }}</td>{% endfor %}</tr>{% endfor %}
+  </table>
+  <div class="fuente">ROE = margen neto × rotación de activos × apalancamiento = carga fiscal × carga financiera × margen operativo × rotación × apalancamiento, con los saldos de cierre del periodo (los mismos del ROE del informe). Sin cálculo si el patrimonio es negativo.</div>
+  </div>
+  {% endif %}
   {% if trimestres %}
   <div style="break-inside: avoid">
   <h3>Últimos {{ trimestres.cabecera|length }} trimestres (USD mn)</h3>

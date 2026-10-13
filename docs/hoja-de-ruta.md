@@ -101,7 +101,7 @@ Objetivo: que el analista genere, complete, emita (PDF descargable) y versione i
 | B4 | Apartados 12 y 23-25 | Criterios, checklist, gestión del riesgo y seguimiento con los parámetros que fija el analista bajo su responsabilidad; pruebas históricas internas con vectorbt | Lista para empezar |
 | B5 | Apartados 15-17 y 19 | Opciones, volatilidad implícita y posiciones en corto con fuentes externas etiquetadas «no auditadas» (aprobado **solo** para esto); 13F por emisor desde la SEC | Lista para empezar |
 | B6 | Reorganizar el PDF según el índice A-I | Más adelante, por decisión del usuario (hoy se mantienen las secciones 01-06); con tabla de contenidos | Aplazado |
-| B7 | Cambios sobre lo «hecho» | DuPont (R9, R13 y R18 ya hechos) | Al final |
+| ~~B7~~ | ~~Cambios sobre lo «hecho»~~ | DuPont en 3 y 5 factores (`analitica.dupont`, fórmulas de edgar_analytics `DuPontDecomposition`, MIT) en la sección 04 (R9, R13 y R18 ya hechos) | Cerrado (2026-10-14) |
 | ~~B8~~ | ~~Historial de nuestras recomendaciones en el apartado 21~~ | Descartado: el apartado 21 es de la empresa. El historial de recomendaciones como aviso legal es la propuesta R17 | Descartado |
 | B9 | Comparación entre versiones en la interfaz | Diferencias de textos, estimaciones y recomendación. Hecho: resumen por informe, comparación y atribución del cambio de valor (R16, `--comparar-con`) | Tras A11 y A12 |
 

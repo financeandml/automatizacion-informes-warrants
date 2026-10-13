@@ -10,6 +10,8 @@ explican su variación. Aquí se descompone por código, sin IA, para que las pl
   Uso del capital (suma del periodo): dividendos + recompras sobre FCF tras remuneración en acciones;
     variación de las acciones diluidas; capex / D&A
   Contribución de cada segmento al crecimiento: puntos de crecimiento de las ventas de cada segmento
+  DuPont (B7): ROE = margen neto · rotación de activos · apalancamiento (y en 5 factores, con las cargas fiscal y
+    financiera y el margen operativo)
   Competencia (A5): cuota de ingresos entre la empresa y sus comparables; estabilidad del margen operativo =
     desviación típica de los 5 últimos ejercicios (pp)
   Cascada EBITDA → FCF (A9): EBITDA − impuestos pagados − intereses pagados + remuneración en acciones
@@ -186,3 +188,25 @@ def estabilidad_margen(margenes: list[float | None]) -> float | None:
 
     validos = [m for m in margenes if m is not None]
     return statistics.pstdev(validos) if len(validos) >= MINIMO_ANIOS_ESTABILIDAD else None
+
+
+def dupont(e, clave: int) -> dict | None:
+    """Descomposición DuPont del ROE en 3 y 5 factores (B7).
+
+    Fórmulas de edgar_analytics `scores.py` `DuPontDecomposition` (Copyright (c) 2025 Zohar Babin, licencia MIT),
+    sobre las partidas del normalizador:
+      ROE = margen neto · rotación de activos · apalancamiento = BN/ventas · ventas/activo · activo/patrimonio
+          = carga fiscal · carga financiera · margen operativo · rotación · apalancamiento
+          = BN/BAI · BAI/EBIT · EBIT/ventas · ventas/activo · activo/patrimonio
+    Con patrimonio ≤ 0 no se calcula (como edgar_analytics: el ROE no es interpretable). Mismos saldos de cierre que el
+    ROE del informe, así que el producto coincide con él.
+    """
+    v = lambda p: e.valor(p, clave)  # noqa: E731
+    bn, ventas, activo, patrimonio, ebit, bai = (v(p) for p in ("beneficio_neto", "ingresos", "activos", "patrimonio",
+                                                                 "resultado_operativo", "bai"))
+    if None in (bn, ventas, activo, patrimonio) or not ventas or not activo or patrimonio <= 0:
+        return None
+    salida = {"margen_neto": bn / ventas, "rotacion": ventas / activo, "apalancamiento": activo / patrimonio, "roe": bn / patrimonio,
+              "carga_fiscal": bn / bai if bai else None, "carga_financiera": bai / ebit if bai is not None and ebit else None,
+              "margen_operativo": ebit / ventas if ebit is not None else None}
+    return salida

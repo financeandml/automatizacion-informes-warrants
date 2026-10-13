@@ -356,3 +356,14 @@ def test_puente_del_margen_no_significativo_con_ventas_casi_nulas():
     inicio = {"margen_operativo": -387.35, "margen_bruto": -50.0, "ingresos": 1e6}
     fin = {"margen_operativo": -0.927, "margen_bruto": 0.3, "ingresos": 325e6}
     assert puente_margen(inicio, fin, {"id": 1.0, "gastos_generales": 1.0}, {"id": 1.0, "gastos_generales": 1.0}) is None
+
+
+def test_dupont_golden(aapl):
+    """AAPL FY2023: BN 96.995 / ventas 383.285 · ventas / activo 352.583 · activo / patrimonio 62.146 = ROE."""
+    from informes_warrants.calculo.analitica import dupont
+
+    d = dupont(aapl, 2023)
+    assert d["margen_neto"] == pytest.approx(96995 / 383285) and d["apalancamiento"] == pytest.approx(352583 / 62146)
+    assert d["margen_neto"] * d["rotacion"] * d["apalancamiento"] == pytest.approx(d["roe"])
+    cinco = d["carga_fiscal"] * d["carga_financiera"] * d["margen_operativo"] * d["rotacion"] * d["apalancamiento"]
+    assert cinco == pytest.approx(d["roe"]) and d["roe"] == pytest.approx(96995 / 62146)

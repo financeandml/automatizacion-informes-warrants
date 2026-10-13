@@ -246,6 +246,22 @@ def _publicaciones(c) -> list[dict]:
     return filas
 
 
+FACTORES_DUPONT = (("margen_neto", "Margen neto (BN / ventas)", "%"), ("rotacion", "Rotación de activos (ventas / activo)", "x"),
+                   ("apalancamiento", "Apalancamiento (activo / patrimonio)", "x"), ("roe", "ROE", "%"),
+                   ("carga_fiscal", "Carga fiscal (BN / BAI)", "x"), ("carga_financiera", "Carga financiera (BAI / EBIT)", "x"),
+                   ("margen_operativo", "Margen operativo (EBIT / ventas)", "%"))
+
+
+def _dupont(c) -> dict | None:
+    periodos = {k: v for k, v in (c.get("dupont") or {}).items() if v}
+    if not periodos:
+        return None
+    fmt = lambda v, tipo: "—" if v is None else _pct(v) if tipo == "%" else _num(v, 2)  # noqa: E731
+    return {"cabecera": [etiqueta_ltm(c) if k == "LTM" else k for k in periodos],
+            "filas": [{"nombre": n, "valores": [fmt(d[k], t) for d in periodos.values()], "clase": "total" if k == "roe" else ""}
+                      for k, n, t in FACTORES_DUPONT]}
+
+
 MAX_OPERACIONES_INSIDERS = 10
 
 
@@ -414,7 +430,7 @@ def html(c: dict) -> str:
         estimados_portada=c["etiquetas_estimadas"][:ESTIMADOS_PORTADA], proyeccion=_proyeccion(c),
         comparables=_comparables(c), multiplos_def=MULTIPLOS, definiciones=DEFINICIONES, segmentos=_segmentos(c),
         trimestres=_trimestres(c), concentracion=_concentracion(c),
-        insiders=_insiders(c), publicaciones=_publicaciones(c),
+        insiders=_insiders(c), publicaciones=_publicaciones(c), dupont=_dupont(c),
         calendario=_calendario(c), flujo_balance=_flujo_balance(c), historicos=_historicos(c),
         umbral_comprar=UMBRAL_COMPRAR, umbral_vender=UMBRAL_VENDER,
         estados=[{"titulo": t, "filas": _filas(c, filas)} for t, filas in ESTADOS], trazas=trazas,

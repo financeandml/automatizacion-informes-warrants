@@ -37,6 +37,8 @@ DEFINICIONES: tuple[tuple[str, str, str], ...] = (
     ("Rentabilidad", "ROE", "Beneficio neto / patrimonio neto atribuible."),
     ("Rentabilidad", "ROIC", "EBIT · (1 − tipo efectivo) / (patrimonio + minoritarios + DFN)."),
     ("Rentabilidad", "ROCE", "EBIT / (activo total − pasivo corriente)."),
+    ("Rentabilidad", "DuPont", "ROE = margen neto × rotación de activos × apalancamiento (activo / patrimonio); en 5 factores, "
+     "carga fiscal (BN / BAI) × carga financiera (BAI / EBIT) × margen operativo × rotación × apalancamiento."),
     ("Múltiplos", "EV", "Capitalización + deuda + minoritarios − caja − inversiones a corto plazo + acciones preferentes + "
      "pasivo neto por pensiones + patrimonio temporal + arrendamientos financieros (si la deuda no los incluye). Los "
      "arrendamientos operativos no se suman: su coste ya está dentro del EBITDA (US GAAP)."),
