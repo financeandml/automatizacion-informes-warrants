@@ -28,6 +28,9 @@ class Gobierno:
     retribucion_mediana_empleado: float | None = None
     tsr: float | None = None  # valor de 100 USD invertidos al inicio del periodo de la tabla
     tsr_comparables: float | None = None
+    # Con varios primeros ejecutivos en el ejercicio (ORCL FY2026: tres), el proxy declara uno por uno (con dimensión)
+    # y edgartools devuelve solo el primero: se guardan todos y el informe no atribuye a «el primer ejecutivo» uno solo.
+    retribuciones_ceo: list[float] = field(default_factory=list)
     avisos: list[str] = field(default_factory=list)
 
 
@@ -42,6 +45,18 @@ def _numero(valor):
         return None if valor is None or valor != valor else float(valor)  # NaN → None
     except (TypeError, ValueError):
         return None
+
+
+def retribuciones_primeros_ejecutivos(filing, fin_ejercicio: str) -> list[float]:
+    """Retribución total de cada primer ejecutivo del ejercicio (ecd:PeoTotalCompAmt con dimensión), de mayor a menor."""
+    try:
+        df = filing.xbrl().facts.query().by_concept("PeoTotalCompAmt").to_dataframe()
+    except Exception:  # noqa: BLE001  (sin XBRL del proxy: se usa la fila de edgartools)
+        return []
+    if df is None or df.empty or "is_dimensioned" not in df:
+        return []
+    del_anio = df[(df["period_end"].astype(str).str[:10] == fin_ejercicio[:10]) & df["is_dimensioned"].astype(bool)]
+    return sorted((float(v) for v in del_anio["numeric_value"].dropna()), reverse=True)
 
 
 def gobierno(empresa, xbrl_10k) -> Gobierno:
@@ -73,6 +88,7 @@ def gobierno(empresa, xbrl_10k) -> Gobierno:
             g.retribucion_ceo = _numero(fila.get("peo_total_comp"))
             g.retribucion_ceo_efectiva = _numero(fila.get("peo_actually_paid_comp"))
             g.retribucion_media_directivos = _numero(fila.get("neo_avg_total_comp"))
+            g.retribuciones_ceo = retribuciones_primeros_ejecutivos(filing, g.ejercicio_retribucion)
         pvp = _ultima_fila(proxy.pay_vs_performance)
         if pvp is not None:
             g.tsr, g.tsr_comparables = _numero(pvp.get("total_shareholder_return")), _numero(pvp.get("peer_group_tsr"))

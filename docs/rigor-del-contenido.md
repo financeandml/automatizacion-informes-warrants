@@ -19,7 +19,7 @@ Implementado y verificado contra la SEC (97 tests, 23 contra la SEC real; ejempl
 | 1 | Remuneración en acciones (SBC) | ✅ Coste: el FCFF parte del EBIT (que ya la resta) y no la suma; P/FCF y FCF yield sobre el FCF tras SBC | `calculo/metricas.py`, `calculo/dcf.py` |
 | 2 | Datos desfasados | ✅ LTM (cuatro últimos trimestres) en el normalizador; múltiplos, DCF y proyección sobre el LTM; periodos estimados de doce meses («jun-27e») | `calculo/normalizador.py` `FuenteLTM` |
 | 3 | Estimaciones hasta el BPA | ✅ Proyección línea a línea (resultado financiero, impuestos, minoritarios, acciones, BPA, DPA, FCF por acción) coherente con el DCF. El contraste con el consenso queda aparcado (fuente externa) | `calculo/proyeccion.py` |
-| 4 | Segmentos y geografía | ⏳ Tarea pendiente con plan cerrado (abajo) | — |
+| 4 | Segmentos y geografía | ✅ Segmento (con resultado operativo), producto y geografía de 5 años, solo los ejercicios que suman el total; gráfico y origen del crecimiento (bloque R, 2026-10-12). Pendiente: concentración de clientes (A3) y la decisión F7 sobre el LTM por segmento | `calculo/normalizador.segmentos`, `calculo/analitica.contribucion_segmentos` |
 | 5 | Texto analítico | ✅ Puente del margen operativo por partidas (pb), apalancamiento operativo y uso del capital, redactados por reglas; la contribución por segmento llegará con la carencia 4 | `calculo/analitica.py`, `plantillas/secciones/financiero.md.j2` |
 | 6 | Gobierno | ✅ Auditor (dei), retribución del CEO y de los directivos, retribución efectiva, *pay ratio* y rentabilidad para el accionista frente a sus comparables (proxy). El consejo sigue siendo tarea del analista | `ingesta/gobierno.py`, `plantillas/secciones/gobierno.md.j2` |
 | 7 | Riesgos cuantitativos | ✅ Altman Z, Beneish M y Piotroski F (golden con el 10-K FY2023 de AAPL); comparación del Item 1A con el año anterior (calibrada: AAPL 2025 vs 2024 = 1 nuevo, 2 eliminados, 5 modificados, 21 iguales) | `calculo/puntuaciones.py`, `ingesta/riesgos.py` `comparar_riesgos` |
@@ -276,9 +276,9 @@ Cada paso termina con tests *golden* frente a la SEC, documentación, commit y u
 | **4.7 Fuentes y metodología** | Anexo automático y notas de contexto de los ratios | Carencia 8, apartado 26 |
 | **Al final** | Cambios en lo ya hecho: columnas LTM en los apartados 7-9, BPA estimado en la portada, DuPont en el 11 | Regla del usuario |
 
-## Tarea pendiente: segmentos y geografía (plan)
+## Segmentos y geografía (plan, hecho el 2026-10-12)
 
-Verificado con AAPL, MSFT y JNJ (carencia 4). Pasos, cada uno con test *golden*:
+Hecho salvo el LTM por segmento (paso 4, decisión F7 de [requisitos-pendientes.md](requisitos-pendientes.md)) y la concentración de clientes (paso 6, tarea A3). La validación final usa los dominios declarados por la empresa (`domains_by_role`) en lugar de buscar subtotales. Plan original, verificado con AAPL, MSFT y JNJ:
 
 1. **Lectura completa de FinRobot `engine/compute/coordinators/segment_extractor.py`** (Apache-2.0), por si resuelve ya la jerarquía o la validación.
 2. **`calculo/normalizador.py` `segmentos(xbrl, eje)`.** Con `by_dimension` de edgartools y por orden de prioridad: segmentos declarados (aceptando el segundo eje solo si es `ConsolidationItemsAxis` = segmentos operativos), producto/servicio y geografía.

@@ -164,3 +164,19 @@ def test_comparar_riesgos_nuevos_eliminados_y_modificados():
     assert [x["titulo"][:13] for x in r["nuevos"]] == ["Climate chang"]
     assert r["eliminados"] == [anterior[1]] and r["sin_cambios"] == 1
     assert r["modificados"][0]["anterior"] == anterior[0]  # ampliado, no nuevo
+
+
+def test_gobierno_con_varios_primeros_ejecutivos():
+    from dataclasses import replace
+
+    from informes_warrants.informe.plantillas import rellenar
+    from informes_warrants.informe.secciones import BLOQUES
+    from informes_warrants.ingesta.gobierno import Gobierno
+
+    bloque = next(b.id for b in BLOQUES if b.plantilla == "gobierno.md.j2")
+    base = Gobierno(auditor="EY", proxy_fecha="2026-09-25", ejercicio_retribucion="2026-05-31", retribucion_ceo=627.5e6,
+                    retribucion_ceo_efectiva=413e6)
+    uno = rellenar(bloque, {"auditor": "EY", "gobierno": base})
+    assert "el primer ejecutivo percibió 627,5 USD Mn" in uno
+    varios = rellenar(bloque, {"auditor": "EY", "gobierno": replace(base, retribuciones_ceo=[627.5e6, 256.6e6, 10.1e6])})
+    assert "3 primeros ejecutivos" in varios and "entre 10,1 y 627,5 USD Mn" in varios and "percibió" not in varios

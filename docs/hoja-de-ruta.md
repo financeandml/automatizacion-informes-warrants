@@ -22,6 +22,7 @@ Las ideas de los informes de referencia (R1-R18) están en [propuestas-referenci
   - XOM: el LTM usa las acciones básicas cuando no declara diluidas.
   - KO y XOM: si la API companyfacts aún no tiene el último 10-Q, se usa el trimestre anterior y no el anual.
   - Aviso nuevo de calidad: intereses / deuda > 20 % indica que falta deuda. Deuda neta / EBITDA = n.s. con EBITDA ≤ 0.
+  - ORCL FY2026 tuvo tres primeros ejecutivos: el informe ya no atribuye a «el primer ejecutivo» la retribución de uno solo (2026-10-13).
 - ~~Decisiones del usuario F2-F4~~:
   - Parámetros del fondo: los pone el analista.
   - Fuentes externas: solo para opciones y posiciones en corto.
@@ -75,13 +76,14 @@ Objetivo: que el analista genere, complete, emita (PDF descargable) y versione i
 | A11 | Versiones conectadas al informe | Detectar 10-Q/10-K → construir → guardar contenido, *snapshot* de datos (JSON) y PDF por versión; herencia de lo que aportó el analista | Lista para empezar |
 | A12 | Interfaz Streamlit (un analista, en su ordenador) | Panel con estados; editor híbrido (cifras de solo lectura, textos en Markdown, estimaciones, escenarios, comparables y catalizadores editables); vista previa en tiempo real; avisos antes de emitir; botón «Confirmar emisión»; descarga del PDF | Tras A1-A11 |
 | A13 | Autoría | Hecho: campos, portada y `informes-warrants autoria` (R6), guardados fuera del repositorio. Falta la pantalla de configuración de la interfaz (A12) | Con A12 |
-| A14 | Batería de regresión | IOVA, ORCL, NFLX, AAPL y una muestra de sectores (MSFT, JNJ, XOM, TSLA, RIVN, KO) generadas en cada cambio, comparando cifras clave | Lista para empezar |
+| A14 | Batería de regresión | IOVA, ORCL, NFLX, AAPL y una muestra de sectores (MSFT, JNJ, XOM, TSLA, RIVN, KO) generadas en cada cambio, comparando cifras clave. Vigilar: la deuda a corto suma `CommercialPaper` + `ShortTermBorrowings`; si una empresa incluye el papel comercial dentro de los préstamos a corto, se contaría dos veces (no visto aún en ninguna) | Lista para empezar |
+| A15 | Pulido del PDF | Nombre de la empresa tal como lo registra la SEC: algunas en mayúsculas («IOVANCE BIOTHERAPEUTICS, INC.»); decidir si se normaliza sin estropear siglas (AT&T, IBM). Leyenda de «n.s.» en la portada (crecimiento ≥ 1.000 %) | Lista para empezar |
 
 ## Fase B: perfeccionar el contenido y la valoración
 
 | # | Tarea | Detalle | Estado |
 |---|---|---|---|
-| B1 | Motor de valoración | Con los documentos del usuario (aviso pendiente). Ya hechos: derivación ponderada (R8), múltiplos históricos (R11), proyección de flujo y balance (R12) y suma de partes (R14). Faltan DDM, ingreso residual y R15 (P3) | Esperando documentos |
+| B1 | Motor de valoración | Con los documentos del usuario (aviso pendiente). Observación de la regresión: con los supuestos por defecto (Rf 5,2 % de FRED, prima 5,5 %, medias históricas) el DCF queda muy por debajo de la cotización en casi todas las empresas (AAPL −62 %, MSFT −44 %, TSLA −98 %); el motor debe revisar estos supuestos por defecto. Ya hechos: derivación ponderada (R8), múltiplos históricos (R11), proyección de flujo y balance (R12) y suma de partes (R14). Faltan DDM, ingreso residual y R15 (P3) | Esperando documentos |
 | B2 | Plantillas sectoriales en PDF | Banca, seguros, REIT y BDC (las métricas ya se calculan en `calculo/sectoriales.py`) | Lista para empezar |
 | B3 | Apartados 4 y 5 | Estructura corporativa (filiales) y equipo directivo (cargos, antigüedad, rentabilidad para el accionista en su mandato, cambios del 8-K 5.02) | Lista para empezar |
 | B4 | Apartados 12 y 23-25 | Criterios, checklist, gestión del riesgo y seguimiento con los parámetros que fija el analista bajo su responsabilidad; pruebas históricas internas con vectorbt | Lista para empezar |

@@ -234,3 +234,17 @@ def test_xom_ltm_con_acciones_basicas():
 
     e = normalizar(FuenteLTM(Company("XOM").get_facts(), date(2026, 3, 31)), [LTM_PREVIO, LTM], "XOM")
     assert LTM not in e.faltan and e.valor("acciones_diluidas", LTM) == 4_202e6
+
+
+def test_gobierno_orcl_varios_primeros_ejecutivos():
+    """ORCL FY2026: el proxy declara tres primeros ejecutivos (con dimensión); no se atribuye a uno solo."""
+    from edgar import Company
+
+    from informes_warrants.ingesta.gobierno import gobierno
+
+    c = Company("ORCL")
+    g = gobierno(c, c.get_filings(form="10-K", amendments=False).latest().xbrl())
+    assert g.ejercicio_retribucion.startswith("2026-05-31")
+    assert g.retribuciones_ceo == [627_472_419.0, 256_606_752.0, 10_141_063.0]
+    aapl = gobierno(Company("AAPL"), Company("AAPL").get_filings(form="10-K", amendments=False).latest().xbrl())
+    assert len(aapl.retribuciones_ceo) <= 1  # un solo primer ejecutivo: la frase de siempre

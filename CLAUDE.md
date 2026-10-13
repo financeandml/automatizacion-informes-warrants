@@ -30,7 +30,7 @@ SaaS que genera informes de análisis (estilo *equity research*) sobre empresas 
 | Resumen de los repos base y licencias | [docs/repositorios-base.md](docs/repositorios-base.md) |
 | Identidad corporativa (colores, tipografía, logo) | [docs/identidad-corporativa.md](docs/identidad-corporativa.md) |
 | Decisiones pendientes del usuario | [docs/requisitos-pendientes.md](docs/requisitos-pendientes.md) |
-| Tareas que faltan (3 fases) y propuestas pendientes de valoración | [docs/hoja-de-ruta.md](docs/hoja-de-ruta.md) · [docs/propuestas-referencias.md](docs/propuestas-referencias.md) |
+| Tareas que faltan (3 fases y pendientes P1-P3) y propuestas de los informes de referencia (valoradas) | [docs/hoja-de-ruta.md](docs/hoja-de-ruta.md) · [docs/propuestas-referencias.md](docs/propuestas-referencias.md) |
 | Carencias de contenido, soluciones y orden de trabajo | [docs/rigor-del-contenido.md](docs/rigor-del-contenido.md) |
 | Motor matemático y normalizador SEC | `src/informes_warrants/calculo/` (normalizador con LTM, trimestres y segmentos; métricas; DCF con escenarios, DCF inverso y atribución; proyección del BPA, flujo y balance; valoración relativa y suma de partes; múltiplos históricos; síntesis del precio objetivo; historial; puntuaciones; analítica; notas; definiciones; calidad) · tests en `tests/test_calculo.py` y `tests/test_bloque_r.py` |
 | Plantilla y PDF del informe | `src/informes_warrants/plantillas/informe/` · `informe/render.py` · [ejemplo](docs/ejemplos/AAPL_FY2025_borrador.pdf) |
