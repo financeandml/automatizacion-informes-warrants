@@ -52,8 +52,16 @@ DEFINICIONES: tuple[tuple[str, str, str], ...] = (
     ("Valoración", "Proyección de flujo y balance", "Flujo operativo = beneficio + D&A + remuneración en acciones − "
      "Δcirculante; recompras = FCF tras SBC × % del analista; Δcaja = flujo operativo − capex − dividendos − recompras. "
      "La deuda se mantiene; caja + activos operativos netos = deuda + patrimonio + minoritarios cada año."),
-    ("Valoración", "WACC", "Ke = Rf + β · prima de riesgo; Kd después de impuestos; pesos a valor de mercado. β semanal a 5 años "
-     "frente al S&P 500."),
+    ("Valoración", "Modelo de valoración", "Libro de Excel de Warrants & Co. con la estructura y las fórmulas de sus plantillas: "
+     "DCF por segmento (o consolidado) con convención de mitad o fin de año, valor terminal 80 % por perpetuidad y 20 % por "
+     "el múltiplo EV/EBITDA mediano de los comparables del analista (100 % por perpetuidad sin ellos), puente del EV completo y "
+     "acciones totalmente diluidas. Datos de la SEC con su documento; se calcula en Python y se contrasta celda a celda con "
+     "LibreOffice; se descarga con las fórmulas vivas."),
+    ("Valoración", "WACC", "Ke = Rf + β · prima de riesgo; Kd = intereses de los últimos doce meses / deuda media, después de "
+     "impuestos; pesos a valor de mercado. β semanal a 5 años frente al S&P 500 o, con comparables del analista, su β "
+     "desapalancada y reapalancada. Prima de riesgo: la implícita del S&P 500 de Damodaran, actualizada cada semana."),
+    ("Valoración", "LBO", "Rentabilidad (TIR y MOIC) de un comprador financiero a la cotización más una prima, con la deuda "
+     "por tramos, barrido de caja e intereses sobre saldos medios (cálculo iterativo) de la plantilla."),
     ("Valoración", "Escenarios", "Pesimista y optimista: base ∓ 1 desviación típica histórica del crecimiento y del margen "
      "EBITDA. Valor DCF = media ponderada por probabilidades (25/50/25 por defecto). Editables por el analista."),
     ("Valoración", "DCF inverso", "Crecimiento anual de ventas (años explícitos) y tasa de descuento que igualan el valor del "
@@ -62,8 +70,9 @@ DEFINICIONES: tuple[tuple[str, str, str], ...] = (
      "mismo normalizador; la mediana excluye valores negativos y no significativos (PER > 75x, EV/EBITDA > 50x)."),
     ("Valoración", "Suma de partes", "Resultado operativo de cada segmento declarado × su múltiplo EV/EBIT (del analista o "
      "mediana de sus comparables); los costes no asignados se valoran al mismo múltiplo."),
-    ("Valoración", "Precio objetivo", "Media ponderada de los métodos con valor (DCF de escenarios, comparables, múltiplos "
-     "históricos, suma de partes) con los pesos del analista, repartidos entre los que tienen valor; el analista puede "
+    ("Valoración", "Precio objetivo", "Media ponderada de los métodos con valor (DCF del modelo de valoración, DCF por "
+     "escenarios, comparables, múltiplos históricos, suma de partes) con los pesos del analista, repartidos entre "
+     "los que tienen valor; el analista puede "
      "fijar el suyo. Recomendación: comprar ≥ +15 %, vender ≤ −10 %."),
     ("Riesgos", "Altman Z", "Probabilidad de insolvencia: Z (empresas con rotación de activos > 0,5) o Z'' (resto). "
      "Zonas: segura, gris, riesgo."),

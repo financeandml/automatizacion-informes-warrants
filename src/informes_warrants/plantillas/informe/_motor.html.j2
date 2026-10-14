@@ -1,0 +1,36 @@
+{% if motor %}
+  <div class="rejilla">
+    <div class="principal">
+      <h3>Modelo de valoración: DCF {{ "por segmentos" if motor.segmentos|length > 1 else "consolidado" }} (USD mn)</h3>
+      <table class="datos">
+        <tr><th>Segmento</th><th>EV por perpetuidad</th><th>EV por múltiplo de salida</th><th>EV del modelo</th><th>Valor terminal / EV</th></tr>
+        {% for s in motor.segmentos %}<tr><td>{{ s.nombre }}</td><td>{{ s.perpetuidad }}</td><td>{{ s.multiplo }}</td><td>{{ s.ev }}</td><td>{{ s.tv }}</td></tr>{% endfor %}
+      </table>
+      <div class="fuente">Plantillas del motor de valoración: ventas y EBIT por segmento ({{ motor.motivo }}); D&amp;A, capex y capital circulante sobre ventas (media de 3 años por segmento); impuestos, media de 5 años. Los costes no asignados a segmentos se valoran como un segmento más. Flujos con periodo parcial del ejercicio en curso.</div>
+      <h3>Del valor de empresa al precio por acción</h3>
+      <table class="datos">
+        {% for nombre, valor in motor.puente %}<tr{% if loop.first or loop.last or nombre == "Valor del patrimonio" %} class="total"{% endif %}><td>{{ nombre }}</td><td>{{ valor }}</td></tr>{% endfor %}
+        <tr><td>Potencial frente a la cotización</td><td>{{ motor.potencial }}</td></tr>
+      </table>
+      <div class="fuente">Puente del EV de la plantilla (capitalización + preferentes + deuda + minoritarios − caja) más pensiones, patrimonio temporal y arrendamientos financieros no incluidos en la deuda; balance de los últimos doce meses. Acciones totalmente diluidas por el método del autocartera (opciones, RSU y convertibles).</div>
+      <h3>Sensibilidad del valor por acción (USD): WACC × g</h3>
+      <table class="datos">
+        <tr><th>g \ WACC</th>{% for w in motor.sensibilidad.wacc %}<th>{{ w }}</th>{% endfor %}</tr>
+        {% for fila in motor.sensibilidad.filas %}<tr><td>{{ motor.sensibilidad.tgr[loop.index0] }}</td>{% for valor in fila %}<td>{{ valor }}</td>{% endfor %}</tr>{% endfor %}
+      </table>
+    </div>
+    <div class="lateral">
+      <h3>Supuestos del modelo</h3>
+      <table class="datos lateral-tabla">
+        {% for nombre, valor in motor.supuestos %}<tr{% if nombre == "WACC" %} class="total"{% endif %}><td>{{ nombre }}</td><td>{{ valor }}</td></tr>{% endfor %}
+      </table>
+      {% if motor.lbo %}<h3>LBO: comprador financiero</h3>
+      <table class="datos lateral-tabla">
+        {% for nombre, valor in motor.lbo %}<tr{% if loop.last %} class="total"{% endif %}><td>{{ nombre }}</td><td>{{ valor }}</td></tr>{% endfor %}
+      </table>
+      <div class="fuente">Plantilla LBO: deuda por tramos, barrido de caja e intereses sobre saldos medios; caso del modelo operativo y salida al múltiplo de entrada.</div>{% endif %}
+      <h3>Controles del modelo</h3>
+      <p class="fuente">{% if motor.controles_ok %}Todos los controles de coherencia se cumplen (segmentos = consolidado, balance cuadrado, WACC &gt; g, valor terminal &lt; 85 % del EV, acciones diluidas, LBO).{% else %}No se cumplen: {{ motor.fallos|join("; ") }}.{% endif %}</p>
+    </div>
+  </div>
+{% endif %}

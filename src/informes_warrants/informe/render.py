@@ -418,6 +418,56 @@ def _grafico_historial(c) -> dict:
     return {"historial": Markup(graficos.historial_recomendacion(precios, puntos))}
 
 
+def _motor(c: dict) -> dict | None:
+    """Sección «Modelo de valoración» (B1): cifras del libro del motor (ya calculadas en calculo/motor), con formato."""
+    m = (c.get("motor") or {}).get("modelo")
+    if m is None:
+        return None
+    v, s, d = m.valores, m.salidas, c["motor"]["datos"]
+    x = lambda h, f, col: v.get((h, f, col))  # noqa: E731
+    num = lambda val, dec=0: _num(val, dec) if isinstance(val, (int, float)) and not isinstance(val, bool) else "—"  # noqa: E731
+    pct = lambda val: _pct(val) if isinstance(val, (int, float)) and not isinstance(val, bool) else "—"  # noqa: E731
+    segmentos = []
+    for seg in d.segmentos:
+        hoja = next(h.nombre for h in m.libro.hojas if h.nombre.startswith("DCF ") and x(h.nombre, 2, 2) == f"{seg.nombre} DCF")
+        con_multiplo = isinstance(x(hoja, 47, 11), float)  # sin comparables no hay valor terminal por múltiplo
+        segmentos.append({"nombre": seg.nombre, "perpetuidad": num(x(hoja, 49, 7)),
+                          "multiplo": num(x(hoja, 50, 11)) if con_multiplo else "—",
+                          "ev": num(x(hoja, 41, 11)), "tv": pct(x(hoja, 52, 7))})
+    puente = [(n, num(x("Consolidated", f, 11))) for f, n in ((41, "Valor de empresa (EV)"), (42, "+ Caja e inversiones a corto plazo"),
+                                                             (43, "− Deuda financiera"), (44, "− Acciones preferentes"),
+                                                             (45, "− Intereses minoritarios"), (46, "− Pensiones (pasivo neto)"),
+                                                             (47, "− Patrimonio temporal"), (48, "− Arrendamientos financieros"))
+              if f in (41, 42, 43) or (x("Consolidated", f, 11) or 0)]
+    puente += [("Valor del patrimonio", num(x("Consolidated", 49, 11))),
+               ("Acciones totalmente diluidas (mn)", num(x("Consolidated", 51, 11), 1)),
+               ("Valor por acción (USD)", num(x("Consolidated", 52, 11), 2))]
+    sensibilidad = {"wacc": [pct(w) for w in s.get("sensibilidad_wacc") or []], "tgr": [pct(g) for g in s.get("sensibilidad_tgr") or []],
+                    "filas": [[num(val, 1) for val in fila] for fila in s.get("sensibilidad") or []]}
+    primera = next(h.nombre for h in m.libro.hojas if h.nombre.startswith("DCF "))
+    multiplo = x(primera, 47, 11)
+    supuestos = [("Tipo libre de riesgo", pct(x("Entradas", 10, 3))), ("Prima de riesgo de mercado", pct(x("Entradas", 11, 3))),
+                 ("Beta", num(x("WACC", 12, 6), 2) + (" (comparables, desapalancada y reapalancada)" if d.comparables else " (propia)")),
+                 ("Coste del capital (Ke)", pct(x("WACC", 10, 6))), ("Coste de la deuda (antes de imp.)", pct(x("WACC", 17, 6))),
+                 ("Tipo impositivo", pct(x("WACC", 18, 6))), ("WACC", pct(x("WACC", 22, 6))),
+                 ("Crecimiento a perpetuidad (g)", pct(x("Entradas", 12, 3))),
+                 ("Valor terminal por perpetuidad / múltiplo", f"{pct(x(primera, 46, 3))} / {pct(x(primera, 47, 3))}"),
+                 ("Múltiplo de salida (EV/EBITDA mediano)",
+                  num(multiplo, 1) + "x" if isinstance(multiplo, float) else "— (sin comparables)"),
+                 ("Convención de descuento", "mitad de año" if x("Entradas", 14, 3) == 1 else "fin de año"),
+                 ("Periodo parcial del ejercicio en curso", num(x("Consolidated", 35, 6), 2))]
+    lbo = None
+    if s.get("lbo_tir") is not None:
+        lbo = [("Precio de la oferta (USD)", num(s.get("lbo_precio"), 2)), ("Prima sobre la cotización", pct(x("LBO", 14, 11))),
+               ("EV / EBITDA de entrada", num(s.get("lbo_multiplo"), 1) + "x"), ("Deuda / EBITDA", num(x("LBO", 34, 6), 1) + "x"),
+               ("MOIC", num(s.get("lbo_moic"), 2) + "x"), ("TIR del comprador financiero", pct(s.get("lbo_tir")))]
+    fallos = [n.split("«")[1].rstrip("»") for n in m.avisos if "falla el control" in n]
+    return {"segmentos": segmentos, "puente": puente, "sensibilidad": sensibilidad, "supuestos": supuestos, "lbo": lbo,
+            "controles_ok": not fallos, "fallos": fallos, "potencial": pct(s.get("potencial_dcf")),
+            "motivo": c["motor"].get("motivo", ""), "formulas": sum(1 for h in m.libro.hojas for celda in h.celdas.values()
+                                                                   if isinstance(celda.valor, str) and celda.valor.startswith("="))}
+
+
 def _comunes(c: dict) -> dict:
     """Variables de las piezas compartidas por la plantilla general y la sectorial."""
     legal = (DIR / "legal" / "descargo.md").read_text(encoding="utf-8").replace("{{ anio }}", str(date.today().year))
@@ -524,7 +574,7 @@ def html(c: dict) -> str:
     claves_op = sorted(c["dcf"].sensibilidad_operativa or {}) if c["dcf"] else []
     ltm = etiqueta_ltm(c)
     return _env.get_template("informe.html.j2").render(
-        **_comunes(c), f=c["fundamentales"][ejercicio], fl=c["fund_ltm"], g=_graficos(c), etiqueta_ltm=ltm,
+        **_comunes(c), f=c["fundamentales"][ejercicio], fl=c["fund_ltm"], g=_graficos(c), etiqueta_ltm=ltm, motor=_motor(c),
         ns_portada=any(v == "n.s." for fila in _resumen(c) for v in fila["valores"]),
         anios_est=c["etiquetas_estimadas"], resumen=_resumen(c), resumen_cabecera=[f"FY{a}" for a in c["ejercicios"][-2:]] + [ltm],
         estimados_portada=c["etiquetas_estimadas"][:ESTIMADOS_PORTADA], proyeccion=_proyeccion(c),

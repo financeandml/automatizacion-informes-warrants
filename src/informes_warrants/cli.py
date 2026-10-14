@@ -32,6 +32,7 @@ def _informe(args) -> None:
     from .informe import render
     from .informe.cambios import resumen
     from .informe.construir import construir
+    from .informe.motor import exportar
 
     lista = [x.strip().upper() for x in args.comparables.split(",") if x.strip()] if args.comparables else None
     anterior = json.loads(Path(args.comparar_con).read_text(encoding="utf-8")) if args.comparar_con else None
@@ -41,9 +42,13 @@ def _informe(args) -> None:
     carpeta = Path(args.salida) if args.salida else directorio_datos() / "informes"
     carpeta.mkdir(parents=True, exist_ok=True)
     destino = render.pdf(c, carpeta / f"{c['ticker']}_FY{c['filing']['ejercicio']}_borrador.pdf")
+    modelo_xlsx, avisos_modelo = exportar(c, destino)  # B1: libro del motor junto al PDF, contrastado con LibreOffice
+    c["avisos_emision"] += avisos_modelo
     ruta_resumen = destino.with_name(destino.stem + "_resumen.json")  # R16: el siguiente informe se compara con este
     ruta_resumen.write_text(json.dumps(resumen(c), ensure_ascii=False, indent=1, default=str), encoding="utf-8")
     print(f"Borrador: {destino}")
+    if modelo_xlsx:
+        print(f"Modelo de valoración (Excel, fórmulas vivas): {modelo_xlsx}")
     print(f"Resumen para comparar con el próximo informe: {ruta_resumen}")
     print(f"Calidad de los datos: {c['calidad'].nivel}" + (f" ({'; '.join(c['calidad'].errores + c['calidad'].avisos)})"
                                                              if c["calidad"].errores or c["calidad"].avisos else ""))
@@ -54,7 +59,7 @@ def _informe(args) -> None:
               + "; ".join(f"{m.nombre} {m.valor:,.2f}" for m in c["metodos"] if m.valor is not None) + ")")
     else:
         print(f"Propuesta: {c['recomendacion']} · precio objetivo {c['precio_objetivo']:,.2f} USD · potencial {c['potencial']:+.1%}"
-              f" (DCF por escenarios {c['valor_dcf'] or 0:,.2f} · múltiplos "
+              f" (DCF {c['valor_dcf'] or 0:,.2f} · DCF por escenarios {c['valor_dcf_escenarios'] or 0:,.2f} · múltiplos "
               + (f"{c['valor_multiplos']:,.2f}" if c["valor_multiplos"] is not None else "n.d.") + ")")
     print(f"Comparables: {', '.join(x['ticker'] for x in c['comparables']) or 'ninguno'} ({c['comparables_criterio']})")
     from .informe.construir import AVISO_COMPARABLES
@@ -63,6 +68,30 @@ def _informe(args) -> None:
         pista = f" (informes-warrants informe {c['ticker']} --comparables A,B,C)" if aviso == AVISO_COMPARABLES else ""
         print(f"Aviso antes de emitir: {aviso}{pista}")
     print(f"Apartados pendientes del analista: {len(c['pendientes'])}")
+
+
+def _modelo(args) -> None:
+    """Solo el libro del motor de valoración (sin PDF ni IA), contrastado con LibreOffice."""
+    from pathlib import Path
+
+    from .config import directorio_datos
+    from .informe.construir import construir
+    from .informe.motor import exportar
+
+    lista = [x.strip().upper() for x in args.comparables.split(",") if x.strip()] if args.comparables else None
+    c = construir(args.ticker, con_ia=False, comparables=lista)
+    carpeta = Path(args.salida) if args.salida else directorio_datos() / "informes"
+    carpeta.mkdir(parents=True, exist_ok=True)
+    ruta, avisos = exportar(c, carpeta / f"{c['ticker']}_FY{c['filing']['ejercicio']}_modelo.xlsx")
+    if ruta is None:
+        print(f"Sin modelo de valoración: {(c.get('motor') or {}).get('error', 'faltan las ventas o el EBIT del último ejercicio')}")
+        return
+    print(f"Modelo de valoración: {ruta}")
+    for nombre, v in (c["motor"]["modelo"].salidas or {}).items():
+        if isinstance(v, float) and not nombre.startswith("control_"):
+            print(f"  {nombre:32} {v:,.4f}")
+    for aviso in (c["motor"]["modelo"].avisos or []) + avisos:
+        print(f"Aviso: {aviso}")
 
 
 def _metricas(args) -> None:
@@ -213,6 +242,12 @@ def main() -> None:
     p.add_argument("--comparables", help="Lista del analista separada por comas (p. ej. MSFT,GOOGL,DELL); sin ella, propuesta por SIC")
     p.add_argument("--comparar-con", help="Resumen JSON de un informe anterior: muestra qué cambió y por qué (R16)")
     p.set_defaults(func=_informe, sec=True)
+
+    p = sub.add_parser("modelo", help="Solo el modelo de valoración en Excel (fórmulas vivas), contrastado con LibreOffice")
+    p.add_argument("ticker")
+    p.add_argument("--salida", help="Carpeta de destino (por defecto, la carpeta de datos del usuario)")
+    p.add_argument("--comparables", help="Lista del analista separada por comas (comparables del modelo)")
+    p.set_defaults(func=_modelo, sec=True)
 
     p = sub.add_parser("interfaz", help="Abre la interfaz del analista en el navegador (Streamlit, en local)")
     p.set_defaults(func=_interfaz, sec=False)

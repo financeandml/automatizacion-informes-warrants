@@ -165,14 +165,15 @@
   </div>
   {% endif %}
 
+{% include "_motor.html.j2" %}
   {% if c.dcf %}
   <div class="rejilla">
     <div class="principal">
-      <h3>Escenarios del DCF (USD por acción)</h3>
+      <h3>{{ "DCF por escenarios: análisis complementario (USD por acción)" if motor else "Escenarios del DCF (USD por acción)" }}</h3>
       <table class="datos">
         <tr><th></th><th>Probabilidad</th><th>Crec. ventas (media)</th><th>Margen EBITDA (media)</th><th>Valor por acción</th><th>Potencial</th></tr>
         {% for nombre, est_e, p in c.escenarios.items() %}{% set r = c.dcf_escenarios.resultados[nombre] %}<tr{% if nombre == "Base" %} class="seccion-base"{% endif %}><td>{{ nombre }}</td><td>{{ p|pct(0) }}</td><td>{{ (est_e.crecimiento_ventas|sum / est_e.crecimiento_ventas|length)|pct }}</td><td>{{ (est_e.margen_ebitda|sum / est_e.margen_ebitda|length)|pct }}</td><td>{{ r.valor_por_accion|num(2) }}</td><td>{{ (r.valor_por_accion / c.cotizacion.precio - 1)|var }}</td></tr>{% endfor %}
-        <tr class="total"><td>Valor ponderado</td><td>100 %</td><td></td><td></td><td>{{ c.valor_dcf|num(2) }}</td><td>{{ c.potencial_dcf|var }}</td></tr>
+        <tr class="total"><td>Valor ponderado</td><td>100 %</td><td></td><td></td><td>{{ c.valor_dcf_escenarios|num(2) }}</td><td>{{ c.potencial_dcf_escenarios|var }}</td></tr>
       </table>
       <div class="fuente">{% for nombre, est_e, p in c.escenarios.items() if nombre != "Base" %}<strong>{{ nombre }}:</strong> {{ c.escenarios.desencadenantes.get(nombre) or ("ventas " ~ ((est_e.crecimiento_ventas|sum / est_e.crecimiento_ventas|length)|var) ~ " anual y margen EBITDA del " ~ ((est_e.margen_ebitda|sum / est_e.margen_ebitda|length)|pct)) }}{{ ". " if not loop.last else "." }}{% endfor %}</div>
       <h3>DCF del escenario base (USD mn)</h3>
@@ -351,6 +352,8 @@
     <tr><td>Acciones en circulación</td><td>{{ c.acciones_origen or "portada del último filing" }}</td></tr>
     <tr><td>Cotización e índices</td><td>yfinance · {{ c.cotizacion.fecha }}</td></tr>
     <tr><td>Tipo libre de riesgo</td><td>{{ c.rf.fuente if c.rf else "valor por defecto" }}{% if c.rf and c.rf.fecha %} · {{ c.rf.fecha }}{% endif %}</td></tr>
+    <tr><td>Prima de riesgo de mercado</td><td>{{ c.origen_prima }}</td></tr>
+    {% if motor %}<tr><td>Modelo de valoración</td><td>Libro de Excel de Warrants &amp; Co. con {{ motor.formulas|num(0) }} fórmulas vivas y el origen de cada dato de la SEC (se descarga desde el SaaS)</td></tr>{% endif %}
     <tr><td>Comparables</td><td>{{ c.comparables_criterio or "sin comparables" }}</td></tr>
   </table>
 </section>

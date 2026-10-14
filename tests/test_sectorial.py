@@ -212,3 +212,17 @@ def test_hechos_y_definiciones_sectoriales():
                                      "rentabilidad_dividendo": 0.06, "payout_ffo": 1.2})
     por_clave = {o["clave"]: o for o in obs}
     assert por_clave["rentabilidad"]["relevancia"] == "alta" and por_clave["dividendo"]["relevancia"] == "alta"  # no cubierto
+
+
+def test_libro_del_motor_sectorial_cuadra_con_b2(contexto, tmp_path):
+    """El libro sectorial (D4) reproduce con fórmulas la valoración B2 y se guarda como .xlsx sin celdas en error."""
+    m = contexto["motor"]["modelo"]
+    assert m.avisos == []  # ninguna discrepancia entre el libro y el cálculo del informe
+    assert m.salidas["metodo_Comparables"] == pytest.approx(160.0)
+    assert m.salidas["precio_modelo"] == pytest.approx(contexto["precio_objetivo"])
+    from informes_warrants.calculo.motor.excel import Error
+
+    assert not [v for v in m.valores.values() if isinstance(v, Error)]
+    destino = tmp_path / "modelo.xlsx"
+    m.libro.guardar(destino)
+    assert destino.stat().st_size > 0

@@ -73,6 +73,52 @@ def contenido_editable(c: dict) -> dict:
     return {"textos": dict(c["textos"]), "estimaciones": asdict(c["estimaciones"])}
 
 
+CLAVES_MOTOR = ("crecimientos", "margenes", "pct_perpetuidad", "convencion", "lbo")
+
+
+def entradas_motor(c: dict):
+    """(entradas con las que se calculó el modelo, valores por defecto del motor); (None, None) sin modelo."""
+    from ..informe import motor
+
+    m = c.get("motor") or {}
+    if not m.get("datos"):
+        return None, None
+    return motor.entradas(m["datos"], c["estimaciones"]), motor.entradas(m["datos"], replace(c["estimaciones"], motor={}))
+
+
+def motor_revisado(est: Estimaciones) -> bool:
+    return set(est.motor or {}) >= set(CLAVES_MOTOR)
+
+
+def motor_del_analista(defecto, crecimientos: dict, margenes: dict, pct_perpetuidad: float, convencion: int, lbo: bool,
+                       revisado: bool) -> dict:
+    """Entradas del motor que guarda la versión (`Estimaciones.motor`): todas si el analista las da por revisadas; si
+    no, solo las que cambió (las demás siguen siendo las del motor, marcadas «Revisar» en el libro)."""
+    nuevo = {"crecimientos": crecimientos, "margenes": margenes, "pct_perpetuidad": pct_perpetuidad, "convencion": convencion, "lbo": lbo}
+    if revisado:
+        return nuevo
+    propio = {}
+    for k in ("crecimientos", "margenes"):
+        cambiados = {s: v for s, v in nuevo[k].items()
+                     if [round(x, 6) for x in v] != [round(x, 6) for x in getattr(defecto, k).get(s, [])]}
+        if cambiados:
+            propio[k] = cambiados
+    propio |= {k: nuevo[k] for k in ("pct_perpetuidad", "convencion", "lbo") if nuevo[k] != getattr(defecto, k)}
+    return propio
+
+
+def libro_del_motor(c: dict) -> bytes | None:
+    """El .xlsx del modelo (general o sectorial) en memoria, para el botón de descarga."""
+    import io
+
+    modelo = (c.get("motor") or {}).get("modelo")
+    if modelo is None:
+        return None
+    buffer = io.BytesIO()
+    modelo.libro.guardar(buffer)
+    return buffer.getvalue()
+
+
 def comparacion(anterior, actual) -> dict:
     """Qué cambió entre dos versiones (B9): textos (diff), estimaciones y recomendación (almacenamiento/versiones.comparar)
     y la atribución del cambio del valor DCF a cada grupo de supuestos (R16, informe/cambios.comparar)."""

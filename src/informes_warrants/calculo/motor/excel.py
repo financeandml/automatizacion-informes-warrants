@@ -414,10 +414,12 @@ def _redondear(x, d):
 class Evaluador:
     """Calcula todas las celdas con fórmula de un `Libro`."""
 
-    def __init__(self, libro: Libro, iterativo: bool = True, iniciales: dict | None = None):
+    def __init__(self, libro: Libro, iterativo: bool = True, iniciales: dict | None = None, iteraciones: int = ITERACIONES,
+                 cambio_maximo: float = CAMBIO_MAXIMO):
         """`iniciales`: valores de partida de las celdas circulares (Excel itera desde los últimos guardados)."""
         self.libro = libro
         self.iterativo = iterativo
+        self.iteraciones, self.cambio_maximo = iteraciones, cambio_maximo
         self.iniciales = iniciales or {}
         self.valores: dict = {}
         self.arboles: dict = {}
@@ -449,6 +451,18 @@ class Evaluador:
             else:
                 deps.update(k for k in self.arboles if k[0] == hoja and f1 <= k[1] <= f2 and c1 <= k[2] <= c2)
         return deps
+
+    def precedentes(self, clave, maximo: int = 400) -> set:
+        """Celdas que lee la fórmula de `clave` (entradas y fórmulas; rangos de hasta `maximo` celdas)."""
+        celdas = set()
+        for r in referencias(self.arboles[clave]):
+            resuelta = self._resolver_nombre(r) if r[0] == "nombre" else r
+            if resuelta is None or resuelta[1] is not None:
+                continue
+            _, _, hoja, f1, c1, f2, c2 = resuelta
+            if (f2 - f1 + 1) * (c2 - c1 + 1) <= maximo:
+                celdas.update((hoja, f, c) for f in range(f1, f2 + 1) for c in range(c1, c2 + 1))
+        return celdas
 
     def _resolver_nombre(self, nodo):
         texto = self.libro.nombres.get(nodo[1].lower())
@@ -527,7 +541,7 @@ class Evaluador:
         for k in comp:
             inicial = self.iniciales.get(k, 0.0)
             self.valores.setdefault(k, inicial if isinstance(inicial, (int, float)) and not isinstance(inicial, bool) else 0.0)
-        for _ in range(ITERACIONES):
+        for _ in range(self.iteraciones):
             cambio = 0.0
             for k in reversed(comp):
                 anterior = self.valores.get(k)
@@ -537,7 +551,7 @@ class Evaluador:
                     cambio = max(cambio, abs(nuevo - anterior))
                 elif nuevo != anterior:
                     cambio = math.inf
-            if cambio < CAMBIO_MAXIMO:
+            if cambio < self.cambio_maximo:
                 break
 
     def _tabla(self, t: TablaDeDatos):
@@ -783,7 +797,7 @@ def cargar(ruta) -> tuple[Libro, dict]:
     return Libro.desde_openpyxl(con_formulas), valores
 
 
-def iguales(a, b, tolerancia=1e-9) -> bool:
+def iguales(a, b, tolerancia=1e-9, absoluta=1e-9) -> bool:
     """Igualdad de valores de Excel (relativa en números; fechas como serie; vacío = 0 o texto vacío)."""
     a, b = serial(a), serial(b)
     if isinstance(a, Error) or isinstance(b, Error):
@@ -792,7 +806,7 @@ def iguales(a, b, tolerancia=1e-9) -> bool:
     if isinstance(a, bool) or isinstance(b, bool):
         return a == b
     if isinstance(a, (int, float)) and isinstance(b, (int, float)):
-        return math.isclose(a, b, rel_tol=tolerancia, abs_tol=1e-9)
+        return math.isclose(a, b, rel_tol=tolerancia, abs_tol=absoluta)
     if a in (None, "") and b in (None, "", 0, 0.0):
         return True
     if b in (None, "") and a in (None, "", 0, 0.0):

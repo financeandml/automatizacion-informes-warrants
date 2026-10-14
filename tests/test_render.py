@@ -132,6 +132,7 @@ def test_version_preparada_con_lo_del_analista(tmp_path, monkeypatch):
     from informes_warrants.informe import render, versionado
 
     monkeypatch.setattr(render, "pdf", lambda c, destino: destino)
+    monkeypatch.setattr("informes_warrants.calculo.motor.recalculo.soffice", lambda: None)  # sin LibreOffice: aviso
     almacen = Almacen(tmp_path / "v.sqlite")
     v = Version("AAPL", 2023, "FY", 1, "0000320193-23-000106", "2023-11-03",
                 contenido={"textos": {"conclusiones.perspectivas": "Mi tesis."}, "estimaciones": {"g": 0.02}})
@@ -143,6 +144,8 @@ def test_version_preparada_con_lo_del_analista(tmp_path, monkeypatch):
     assert preparada.contenido["textos"]["conclusiones.perspectivas"] == "Mi tesis."
     assert {"resumen", "instantanea", "pdf", "calidad", "avisos_emision"} <= set(preparada.contenido)
     assert almacen.historial("AAPL")[0].contenido["pdf"].endswith("AAPL_FY2023_v1.pdf")
+    assert preparada.contenido["modelo_xlsx"].endswith("AAPL_FY2023_v1.xlsx") and Path(preparada.contenido["modelo_xlsx"]).exists()
+    assert any("segunda vía de cálculo" in x for x in preparada.contenido["avisos_emision"])  # avisa, no bloquea
     borrador = preparada.confirmar()
     assert borrador.avisos() and borrador.emitir().estado == Estado.EMITIDA  # los pendientes avisan, no bloquean
     rojo = Version("AAPL", 2023, "FY", 2, "x", "2023-11-03", estado=Estado.BORRADOR,
@@ -243,3 +246,73 @@ def test_gestion_de_la_posicion_con_parametros_del_fondo():
     r = g["riesgo"]
     assert r["perdida"] <= 0.10 and r["peso"] <= 0.05 + 1e-9 and r["stop"] < c["cotizacion"].precio
     assert "Gestión de la posición" in render.html(c) and "Stop por volatilidad" in render.html(c)
+
+
+# --- B1: motor de valoración en el informe ----------------------------------------------------------------------------
+
+def test_motor_de_valoracion_en_el_informe(contexto):
+    """El modelo se calcula sin celdas en error, el WACC cuadra con sus componentes y el DCF del informe es el del modelo."""
+    from informes_warrants.calculo.motor.excel import Error
+
+    m = contexto["motor"]["modelo"]
+    s = m.salidas
+    assert not [k for k, v in m.valores.items() if isinstance(v, Error)]
+    assert all(s[k] is not False for k in s if k.startswith("control_"))  # cuadran todos (uno es informativo: la convención)
+    # el 10-K de 2023 trae 2 ejercicios: los 3 anteriores quedan «--» en el libro y se avisa
+    assert any("marcadas «--»" in x for x in m.avisos)
+    assert s["ke"] == pytest.approx(0.045 + 1.2 * 0.055)
+    tasa = (19300 / 119103 + 16741 / 113736 + 16741 / 113736) / 3  # media de la plantilla (FY2022, FY2023 y LTM)
+    e, d = 190.0 * 15550, 111088.0
+    assert s["wacc"] == pytest.approx(e / (e + d) * s["ke"] + d / (e + d) * s["kd"] * (1 - tasa))
+    assert contexto["valor_dcf"] == pytest.approx(s["precio_dcf"])
+    fila = s["sensibilidad"][2]  # g central: la celda central es el DCF; más WACC, menos valor; más g, más valor
+    assert fila[2] == pytest.approx(s["precio_dcf"])
+    wacc, tgr = s["sensibilidad_wacc"], s["sensibilidad_tgr"]
+    assert wacc == sorted(wacc, reverse=True) and tgr == sorted(tgr)  # la plantilla ordena el WACC de mayor a menor
+    assert fila == sorted(fila)  # menos WACC (a la derecha), más valor
+    columna = [f[2] for f in s["sensibilidad"]]
+    assert columna == sorted(columna)  # más g, más valor
+
+
+def test_entradas_del_analista_en_el_motor(contexto):
+    """Fin de año descuenta medio año más que mitad de año; la versión guarda solo lo que el analista cambió."""
+    from dataclasses import replace
+
+    from informes_warrants.ui import logica
+
+    fin = _componer(estimaciones=replace(contexto["estimaciones"], motor={"convencion": 2}))
+    assert fin["motor"]["modelo"].salidas["convencion"] == 2
+    assert fin["valor_dcf"] < contexto["valor_dcf"]
+    assert replace(contexto["estimaciones"], motor={"convencion": 3}).validar()
+    actuales, defecto = logica.entradas_motor(contexto)
+    segmento = next(iter(actuales.crecimientos))
+    propio = logica.motor_del_analista(defecto, {segmento: [0.1] * 6}, dict(actuales.margenes), actuales.pct_perpetuidad, 2, True, False)
+    assert propio == {"crecimientos": {segmento: [0.1] * 6}, "convencion": 2}
+    todo = logica.motor_del_analista(defecto, dict(actuales.crecimientos), dict(actuales.margenes), 0.8, 1, True, True)
+    assert set(todo) == set(logica.CLAVES_MOTOR)
+    assert logica.libro_del_motor(contexto)[:2] == b"PK"  # .xlsx para el botón de descarga
+
+
+def test_libro_del_motor_junto_al_pdf(contexto, tmp_path, monkeypatch):
+    """El .xlsx se guarda con fórmulas vivas; sin LibreOffice, la segunda vía avisa y no bloquea."""
+    import openpyxl
+
+    from informes_warrants.informe.motor import exportar
+
+    monkeypatch.setattr("informes_warrants.calculo.motor.recalculo.soffice", lambda: None)
+    ruta, avisos = exportar(contexto, tmp_path / "AAPL.pdf")
+    assert ruta.endswith("AAPL.xlsx") and any("LibreOffice" in a for a in avisos)
+    wb = openpyxl.load_workbook(ruta)
+    assert {"Entradas", "Operating Model", "WACC", "Consolidated", "LBO", "Controles", "Trazabilidad"} <= set(wb.sheetnames)
+    assert str(wb["WACC"]["F22"].value).startswith("=")
+
+
+def test_contraste_con_libreoffice(contexto, tmp_path):
+    """Segunda vía de cálculo (D3): cada celda con fórmula, igual en Python y en LibreOffice (solo si está instalado)."""
+    from informes_warrants.calculo.motor.recalculo import soffice
+    from informes_warrants.informe.motor import exportar
+
+    if soffice() is None:
+        pytest.skip("LibreOffice no está instalado")
+    _, avisos = exportar(contexto, tmp_path / "AAPL.pdf")
+    assert any("coinciden con LibreOffice" in a for a in avisos), avisos

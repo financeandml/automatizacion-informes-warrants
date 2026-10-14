@@ -162,6 +162,8 @@
     <tr><td>Acciones en circulación</td><td>{{ c.acciones_origen or "portada del último filing" }}</td></tr>
     <tr><td>Cotización e índices</td><td>yfinance · {{ c.cotizacion.fecha }}</td></tr>
     <tr><td>Tipo libre de riesgo</td><td>{{ c.rf.fuente if c.rf else "valor por defecto" }}{% if c.rf and c.rf.fecha %} · {{ c.rf.fecha }}{% endif %}</td></tr>
+    <tr><td>Prima de riesgo de mercado</td><td>{{ c.origen_prima }}</td></tr>
+    {% if c.motor and c.motor.get("modelo") %}<tr><td>Modelo de valoración</td><td>Libro de Excel de Warrants &amp; Co. con la valoración del perfil y la hoja de comparables, con fórmulas vivas (se descarga desde el SaaS)</td></tr>{% endif %}
     <tr><td>Comparables</td><td>{{ c.comparables_criterio or "sin comparables" }}</td></tr>
   </table>
 </section>

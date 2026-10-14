@@ -125,6 +125,17 @@ def crecimiento_3_anios(fuente, por_id, normalizar, cagr, ticker: str) -> dict:
             "estabilidad_margen_5a": estabilidad_margen(margenes)}  # A5
 
 
+def _mercado_motor(ticker: str) -> dict:
+    """Beta semanal de 5 años y variaciones de 1, 3 y 6 meses (si yfinance no responde, sin dato: la hoja lo marca)."""
+    from .mercado import beta_semanal, variaciones
+
+    try:
+        return {"beta": beta_semanal(ticker), "variaciones": variaciones(ticker)}
+    except Exception as e:  # noqa: BLE001
+        log.warning("Comparable %s sin beta ni variaciones: %s", ticker, e)
+        return {"beta": None, "variaciones": {}}
+
+
 def datos(ticker: str) -> dict | None:
     """Fundamentales y múltiplos LTM de un comparable (None si la SEC o el mercado no dan lo necesario)."""
     from edgar import Company
@@ -147,7 +158,9 @@ def datos(ticker: str) -> dict | None:
         f = fundamentales(estados, LTM)
         crecimiento = crecimiento_3_anios(FuenteEntityFacts(facts), POR_ID, normalizar, cagr, ticker)
         return {"ticker": ticker, "nombre": nombre_legible(empresa.name), "fecha_ltm": str(ultimo.period_of_report), "fundamentales": f,
-                "multiplos": valoracion(estados, LTM, Mercado(precio.precio, acciones, precio.fecha)), **crecimiento}
+                "multiplos": valoracion(estados, LTM, Mercado(precio.precio, acciones, precio.fecha)), **crecimiento,
+                # Motor de valoración (B1): LTM − 1, balance del puente del EV, beta y cotización (hojas Comps y WACC)
+                "estados": estados, "acciones": acciones, "cotizacion": precio, "origen": ultimo.accession_no, **_mercado_motor(ticker)}
     except Exception as e:  # noqa: BLE001  (un comparable que falla no rompe el informe: se omite con aviso)
         log.warning("Comparable %s omitido: %s", ticker, e)
         return None

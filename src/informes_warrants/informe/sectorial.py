@@ -141,8 +141,11 @@ def _comparable(ticker: str, perfil: Perfil) -> dict | None:
         r = calcular(perfil, fuente)
         acciones, _ = acciones_en_circulacion(facts, date.today(), fuente.hecho(ACCIONES_DILUIDAS, r.ejercicio))
         valores = {k: d.valor for k, d in r.datos.items()}
+        precio = cotizacion(ticker).precio
         return {"ticker": ticker, "nombre": nombre_legible(empresa.name), "ejercicio": r.ejercicio, "metricas": dict(r.metricas),
-                "multiplos": multiplos(perfil.id, cotizacion(ticker).precio, acciones, valores, r.metricas)}
+                "multiplos": multiplos(perfil.id, precio, acciones, valores, r.metricas),
+                # libro del motor (hoja Comps): datos de partida de cada múltiplo
+                "precio": precio, "acciones": acciones, "valores": valores}
     except Exception as e:  # noqa: BLE001  (un comparable sin datos no impide el informe)
         log.warning("Comparable %s sin datos: %s", ticker, e)
         return None
@@ -248,7 +251,8 @@ def componer_sectorial(*, ticker: str, empresa: str, sic, cobertura, perfil: str
                        cortos: dict | None, autoria, parametros, capital_flotante: tuple | None, comparables: list[dict] | None,
                        comparables_criterio: str = "", comparables_del_analista: bool = False, precios_semanales: list | None = None,
                        estimaciones: Estimaciones | None = None, escenarios=None, borradores_ia: dict | None = None,
-                       anterior: dict | None = None, historial_resumenes: list | None = None, fecha: str | None = None) -> dict:
+                       anterior: dict | None = None, historial_resumenes: list | None = None, fecha: str | None = None,
+                       prima=None) -> dict:
     """Parte pura (sin red) de la plantilla sectorial: de los datos reunidos al contexto del informe.
 
     `escenarios` se acepta por compatibilidad con la interfaz y no se usa: el perfil no tiene DCF."""
@@ -262,6 +266,8 @@ def componer_sectorial(*, ticker: str, empresa: str, sic, cobertura, perfil: str
     r = ltm or ultimo  # periodo de las cifras del informe
     periodo = etiqueta_periodo(fecha_ltm, ejercicio)
     base = estimaciones_sectoriales(estimaciones, p.id, rf, beta_estimada)
+    if estimaciones is None and prima is not None:  # prima de riesgo semanal (D7): la propone el SaaS, el analista la confirma
+        base = replace(base, erp=round(prima.valor, 4))
     if errores := base.validar():
         raise ValueError("Estimaciones no válidas: " + " ".join(errores))
     ke, g = base.coste_equity(), base.g
@@ -281,6 +287,18 @@ def componer_sectorial(*, ticker: str, empresa: str, sic, cobertura, perfil: str
     propuesta = recomendacion_propuesta(pot) if pot is not None else "Pendiente"
     avisos_emision = [] if comparables_del_analista else [AVISO_COMPARABLES]
     catalizadores = catalizadores_del_informe(catalizadores, base, avisos_emision)
+    # Libro del motor (D4): la valoración B2 con fórmulas vivas y la hoja de comparables de la plantilla; se contrasta con val
+    from ..calculo.motor.sectorial import construir as libro_sectorial
+    try:
+        motor = {"modelo": libro_sectorial(p, historico, ltm, empresa, ticker, date.fromisoformat(str(cotizacion.fecha)[:10]),
+                                           cotizacion.precio, acciones, base.rf, base.erp, base.beta, g, sostenible, origen,
+                                           comparables or [], comparables_del_analista, val, base.pesos, METODOS[p.id],
+                                           NOMBRES_MULTIPLOS[MULTIPLO_PRINCIPAL[p.id]], BASE_NOMBRE[p.id])}
+        avisos_emision += motor["modelo"].avisos
+    except Exception as e:  # noqa: BLE001  (el libro nunca impide el informe)
+        log.warning("Libro del motor sectorial no disponible: %s", e)
+        motor = {"error": str(e)}
+        avisos_emision.append(f"Motor de valoración: libro sectorial no disponible ({e})")
     gestion = _gestion(parametros, cotizacion, series_bolsa.get(ticker), {"potencial": pot, "per": val["multiplos"]["per"]})
     if gestion is None:
         avisos_emision.append(AVISO_PARAMETROS)
@@ -363,6 +381,8 @@ def componer_sectorial(*, ticker: str, empresa: str, sic, cobertura, perfil: str
         "alarmas": alarmas or [], "autonomia": None,
         "opciones": mercado_de_opciones(opciones_cadena, cotizacion.precio, series_bolsa.get(ticker)),  # externos (B5)
         "cortos": {**cortos, "lectura": lectura_cortos(cortos.get("sobre_flotante"))} if cortos else None,
+        "motor": motor, "origen_prima": (f"{prima.fuente}{', ' + prima.fecha if prima.fecha else ''}" if prima is not None
+                                         else "Estimaciones del informe"),
         "textos": textos, "pendientes": [x for t in textos.values() for x in pendientes(t)],
         "fecha": fecha or date.today().isoformat(), "series_bolsa": series_bolsa, "precios_semanales": precios_semanales or [],
     }

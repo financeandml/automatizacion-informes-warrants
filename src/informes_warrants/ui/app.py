@@ -158,6 +158,52 @@ def _editor_estimaciones(c: dict) -> None:
     st.session_state.estimaciones = nuevas
 
 
+XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+def _nombre(ruta: str) -> str:
+    return ruta.replace(chr(92), "/").split("/")[-1]
+
+
+def _editor_motor(c: dict) -> None:
+    """Entradas del modelo de valoración (B1) y descarga del libro de Excel para comprobarlo número a número."""
+    libro = logica.libro_del_motor(c)
+    if libro is not None:
+        st.download_button("Descargar el modelo de valoración (Excel, fórmulas vivas)", libro,
+                           file_name=f"{c['ticker']}_FY{c['filing']['ejercicio']}_modelo.xlsx", mime=XLSX)
+    if c.get("perfil"):
+        st.caption("Plantilla sectorial: el libro reproduce la valoración del perfil y la hoja de comparables; sus supuestos "
+                   "(Rf, prima, beta, g, rentabilidad sostenible y pesos) se editan en «Estimaciones».")
+        return
+    actuales, defecto = logica.entradas_motor(c)
+    if actuales is None:
+        st.info(f"Sin modelo de valoración: {(c.get('motor') or {}).get('error', 'faltan las ventas o el EBIT del último ejercicio')}.")
+        return
+    est = st.session_state.estimaciones or c["estimaciones"]
+    st.caption(f"Prima de riesgo propuesta por el SaaS: {c['origen_prima']} (se confirma o cambia en «Estimaciones»). Crecimiento "
+               "y margen EBIT por segmento, en %, para los 6 años del modelo; sin tocar, son los del motor («Revisar» en el libro).")
+    anios = [f"Año {i}" for i in range(1, 7)]
+
+    def tabla(clave, titulo):
+        st.caption(titulo)
+        filas = st.data_editor([{"Segmento": s, **{a: x * 100 for a, x in zip(anios, v, strict=True)}}
+                                for s, v in getattr(actuales, clave).items()], disabled=["Segmento"], hide_index=True, key=f"motor_{clave}")
+        return {f["Segmento"]: [f[a] / 100 for a in anios] for f in filas}
+
+    crecimientos = tabla("crecimientos", "Crecimiento anual de las ventas (%)")
+    margenes = tabla("margenes", "Margen EBIT (%; en costes no asignados, % de las ventas totales)")
+    columnas = st.columns(3)
+    pct = columnas[0].number_input("Valor terminal por perpetuidad (%)", 0.0, 100.0, actuales.pct_perpetuidad * 100, key="motor_pct") / 100
+    convencion = 1 if columnas[1].radio("Descuento", ("Mitad de año", "Fin de año"), index=actuales.convencion - 1,
+                                        key="motor_convencion") == "Mitad de año" else 2
+    lbo = columnas[2].checkbox("Hoja LBO", value=actuales.lbo, key="motor_lbo")
+    revisado = st.checkbox("He revisado las entradas del motor", value=logica.motor_revisado(est), key="motor_revisado")
+    st.session_state.estimaciones = replace(est, motor=logica.motor_del_analista(defecto, crecimientos, margenes, pct, convencion,
+                                                                                 lbo, revisado))
+    for aviso in c["motor"]["modelo"].avisos:
+        st.warning(aviso)
+
+
 def _editor_escenarios(c: dict) -> None:
     esc = c["escenarios"]
     if esc is None:
@@ -199,7 +245,11 @@ def _emision(c: dict, version, almacen: Almacen) -> None:
     c1, c2 = st.columns(2)
     if c1.button("Guardar borrador (regenera el PDF)", use_container_width=True):
         preparada, _ = preparar(replace(version, contenido=contenido), almacen, datos=st.session_state.datos)
-        st.success(f"Guardado: {preparada.contenido['pdf']}")
+        st.success(f"Guardado: {preparada.contenido['pdf']}" + (f" y {preparada.contenido['modelo_xlsx']}"
+                                                                 if preparada.contenido.get("modelo_xlsx") else ""))
+        for aviso in preparada.contenido["avisos_emision"]:
+            if aviso.startswith("Motor de valoración"):
+                st.warning(aviso)
     if c2.button("Confirmar emisión del informe", type="primary", disabled=bool(motivos), use_container_width=True):
         preparada, _ = preparar(replace(version, contenido=contenido), almacen, datos=st.session_state.datos)
         try:
@@ -212,6 +262,11 @@ def _emision(c: dict, version, almacen: Almacen) -> None:
         with open(emitida.contenido["pdf"], "rb") as f:
             st.download_button("Descargar el PDF", f.read(), file_name=emitida.contenido["pdf"].split("\\")[-1].split("/")[-1],
                                mime="application/pdf")
+        if emitida.contenido.get("modelo_xlsx"):
+            with open(emitida.contenido["modelo_xlsx"], "rb") as f:
+                st.download_button("Descargar el modelo de valoración (Excel)", f.read(),
+                                   file_name=_nombre(emitida.contenido["modelo_xlsx"]),
+                                   mime=XLSX)
 
 
 def pantalla_editor(almacen: Almacen, ticker: str) -> None:
@@ -231,16 +286,18 @@ def pantalla_editor(almacen: Almacen, ticker: str) -> None:
     c = logica.recomponer(st.session_state.datos, st.session_state.estimaciones, st.session_state.textos, st.session_state.ajustes)
     izquierda, derecha = st.columns([2, 3])
     with izquierda:
-        pestanas = st.tabs(["Textos", "Estimaciones", "Escenarios", "Calendario y catalizadores", "Emisión"])
+        pestanas = st.tabs(["Textos", "Estimaciones", "Modelo de valoración", "Escenarios", "Calendario y catalizadores", "Emisión"])
         with pestanas[0]:
             _editor_textos(c)
         with pestanas[1]:
             _editor_estimaciones(c)
         with pestanas[2]:
-            _editor_escenarios(c)
+            _editor_motor(c)
         with pestanas[3]:
-            _editor_catalizadores(c)
+            _editor_escenarios(c)
         with pestanas[4]:
+            _editor_catalizadores(c)
+        with pestanas[5]:
             _emision(c, version, almacen)
     with derecha:
         st.caption(f"Vista previa · {len(c['pendientes'])} apartados pendientes del analista · calidad {c['calidad'].nivel}")

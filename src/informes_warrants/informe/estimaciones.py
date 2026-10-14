@@ -21,7 +21,7 @@ UMBRAL_VENDER = -0.10  # potencial máximo para proponer «Vender»
 ANIOS_EXPLICITOS = 5
 PROBABILIDADES = (0.25, 0.50, 0.25)  # pesimista, base, optimista
 # Peso de cada método en el precio objetivo (calculo/sintesis.py); se renormalizan entre los que tienen valor.
-PESOS_POR_DEFECTO = {"DCF": 0.5, "Comparables": 0.5, "Múltiplos históricos": 0.0, "Suma de partes": 0.0}
+PESOS_POR_DEFECTO = {"DCF": 0.5, "DCF por escenarios": 0.0, "Comparables": 0.5, "Múltiplos históricos": 0.0, "Suma de partes": 0.0}
 SIGMA_MIN_CRECIMIENTO, SIGMA_MIN_MARGEN = 0.02, 0.01
 SIGMA_MAX_CRECIMIENTO, SIGMA_MAX_MARGEN = 0.05, 0.03
 
@@ -43,6 +43,9 @@ class Estimaciones:
     precio_objetivo_analista: float | None = None  # si se fija, sustituye al calculado; el potencial lo recalcula el código
     # Plantillas sectoriales (B2): ROE (ROTE, NII) sostenible del valor contable justificado; None = media de los ejercicios
     rentabilidad_sostenible: float | None = None
+    # Motor de valoración (B1): entradas del analista del libro (crecimientos y márgenes por segmento, % del valor terminal
+    # por perpetuidad, convención de descuento, LBO); vacío = los valores por defecto del motor, marcados «Revisar»
+    motor: dict = field(default_factory=dict)
     anios_convergencia: int = 5  # años tras los explícitos en los que el crecimiento converge linealmente a g
     # Proyección hasta el BPA (calculo/proyeccion.py)
     resultado_financiero_sobre_ventas: float = 0.0  # (BAI − EBIT) / ventas: intereses netos y otros resultados
@@ -91,8 +94,21 @@ class Estimaciones:
             errores.append("El precio objetivo del analista debe ser positivo.")
         if self.rentabilidad_sostenible is not None and not -1 < self.rentabilidad_sostenible < 1:
             errores.append("La rentabilidad sostenible debe estar entre -100 % y 100 %.")
+        errores += self._validar_motor()
         if self.g >= self.coste_equity():
             errores.append("g debe ser menor que el coste del capital.")
+        return errores
+
+    def _validar_motor(self) -> list[str]:
+        m, errores = self.motor or {}, []
+        if any(not -0.5 <= x <= 1 for v in (m.get("crecimientos") or {}).values() for x in v):
+            errores.append("Motor: el crecimiento anual de cada segmento debe estar entre -50 % y 100 %.")
+        if any(not -1 <= x <= 1 for v in (m.get("margenes") or {}).values() for x in v):
+            errores.append("Motor: el margen EBIT de cada segmento debe estar entre -100 % y 100 %.")
+        if m.get("pct_perpetuidad") is not None and not 0 <= m["pct_perpetuidad"] <= 1:
+            errores.append("Motor: el peso del valor terminal por perpetuidad debe estar entre 0 y 100 %.")
+        if m.get("convencion") is not None and m["convencion"] not in (1, 2):
+            errores.append("Motor: la convención de descuento es 1 (mitad de año) o 2 (fin de año).")
         return errores
 
     def coste_equity(self) -> float:

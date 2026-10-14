@@ -56,6 +56,7 @@ Toda cifra sale de aquí (regla 9). Las fórmulas de edgar_analytics y FinRobot 
 | Notas de los ratios y metodología | `notas.py`, `definiciones.py` | Propio |
 | Métricas sectoriales (perfiles y fórmulas, anual y LTM) | `sectoriales.py`, `perfiles.py` | Propio |
 | Valoración sectorial (Gordon sobre el valor contable, descuento de dividendos, comparables) | `valoracion_sectorial.py` | Propio; síntesis de FinRobot (`sintesis.py`) |
+| Motor de valoración (B1): libro de Excel con las plantillas de «Motor de valoración» (DCF por segmentos, WACC, comparables, LBO, acreción-dilución), evaluado en Python y contrastado con LibreOffice | `motor/` ([motor-valoracion.md](motor-valoracion.md)) | Plantillas del usuario (estructura y fórmulas en libros propios, D1); ningún repositorio base genera ni recalcula libros con fórmulas |
 
 Tests *golden* con el 10-K FY2023 de AAPL (`tests/fixtures/aapl_10k_2023`).
 
@@ -143,7 +144,8 @@ La lista detallada de tareas que faltan, en tres fases (primer uso real, perfecc
 | Uso de la IA | Mínimo: 3 bloques; elige y resume fragmentos literales o traduce uno ya extraído por código (competencia, 2026-10-13) | Usuario |
 | Editor | Markdown, vista previa en tiempo real, emisión con confirmación del analista | Usuario |
 | Recomendación | Sí: el SaaS la propone por potencial y el analista la confirma; se muestra siempre el precio objetivo calculado y el analista puede fijar el suyo | Usuario |
-| Comparables | La propuesta automática por SIC es orientativa y no entra en el precio objetivo; la valoración por múltiplos exige la lista del analista; sin ella, aviso antes de emitir (no bloquea ni sale en el informe). Motor de valoración completo: con los modelos que aportará el usuario | Usuario (2026-10-12) |
+| Comparables | La propuesta automática por SIC es orientativa y no entra en el precio objetivo; la valoración por múltiplos exige la lista del analista; sin ella, aviso antes de emitir (no bloquea ni sale en el informe). El motor de valoración usa la lista del analista para el múltiplo de salida y la beta | Usuario (2026-10-12) |
+| Motor de valoración (B1) | Siempre las plantillas de «Motor de valoración» en libros propios de Warrants & Co., descargables con las fórmulas vivas; datos de la SEC con su documento (FactSet solo para el consenso, si falla la SEC y es estrictamente necesario); el DCF del informe es el del motor y lo demás queda como complemento (D5); mitad o fin de año a elección del analista; prima de riesgo vigente actualizada cada semana; dos vías de cálculo comparadas celda a celda, con avisos que no bloquean ([motor-valoracion.md](motor-valoracion.md)) | Usuario (2026-10-14) |
 | Contenido | Enfoque determinista. Primero los apartados «parciales» del índice; lo «hecho» se mantiene y sus cambios van al final; lo «ejecutable», lo «externo» y lo del analista se aparcan | Usuario (2026-10-12) |
 | Versiones | Detección automática + confirmación; año fiscal; SQLite fuera de OneDrive | Usuario |
 | Plantillas sectoriales (B2) | Misma maquetación que la general; sin EBITDA, EV ni DCF. Valor contable justificado (Gordon) con el ROE sostenible = media de los ejercicios o el del analista (no el año pico); cifras de los ordinarios; FFO como NAREIT; BDC con g = 0; comparables automáticos = empresas de referencia del perfil, orientativos | Propio (2026-10-14) |

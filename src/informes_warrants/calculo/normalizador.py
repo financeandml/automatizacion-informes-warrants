@@ -72,6 +72,8 @@ PARTIDAS: tuple[Partida, ...] = (
         for bai in BAI for interes in ("InterestExpense", "InterestExpenseNonoperating", None))),
     Partida("gasto_intereses", "Gasto por intereses", ("InterestExpense", "InterestExpenseNonoperating", "InterestExpenseDebt"),
             opcional=True),
+    Partida("ingresos_intereses", "Ingresos por intereses", ("InvestmentIncomeInterest", "InvestmentIncomeInterestAndDividend",
+                                                            "InterestIncomeOther"), opcional=True),
     Partida("bai", "Beneficio antes de impuestos", BAI,
             # ORCL solo declara los dos componentes: EEUU + extranjero (exige los dos; uno solo sería parcial)
             suma=(("IncomeLossFromContinuingOperationsBeforeIncomeTaxesDomestic",),
@@ -100,7 +102,12 @@ PARTIDAS: tuple[Partida, ...] = (
     Partida("inmovilizado", "Inmovilizado material neto", (
         "PropertyPlantAndEquipmentNet",
         "PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization"), opcional=True),
+    # Motor de valoración (B1): partidas de las plantillas de LBO y del balance (opcionales: sin dato, la hoja lo marca)
+    Partida("fondo_comercio", "Fondo de comercio", ("Goodwill",), opcional=True),
+    Partida("intangibles", "Otros intangibles", ("IntangibleAssetsNetExcludingGoodwill", "FiniteLivedIntangibleAssetsNet"),
+            opcional=True),
     Partida("activos", "Activo total", ("Assets",)),
+    Partida("proveedores", "Proveedores (cuentas a pagar)", ("AccountsPayableCurrent", "AccountsPayableTradeCurrent"), opcional=True),
     Partida("pasivo_corriente", "Pasivo corriente", ("LiabilitiesCurrent",)),
     Partida("pasivos", "Pasivo total", ("Liabilities",), derivadas=(
         # KO no declara el total: pasivo = pasivo y patrimonio − patrimonio (con minoritarios) − patrimonio temporal
@@ -148,11 +155,23 @@ PARTIDAS: tuple[Partida, ...] = (
         "PensionAndOtherPostretirementAndPostemploymentBenefitPlansLiabilitiesNoncurrent"), opcional=True),
     Partida("arrendamientos_financieros", "Arrendamientos financieros", ("FinanceLeaseLiability",),
             suma=(("FinanceLeaseLiabilityCurrent",), ("FinanceLeaseLiabilityNoncurrent",)), opcional=True),
+    # Acciones diluidas del motor (hoja Shares, método del autocartera): opciones ejercitables, RSU y convertibles
+    Partida("opciones_ejercitables", "Opciones ejercitables", (
+        "ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsExercisableNumber",), opcional=True),
+    Partida("precio_ejercicio_opciones", "Precio medio de ejercicio de las opciones ejercitables (USD)", (
+        "ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsExercisableWeightedAverageExercisePrice",), opcional=True),
+    Partida("rsu_pendientes", "Acciones restringidas (RSU) pendientes de consolidar", (
+        "ShareBasedCompensationArrangementByShareBasedPaymentAwardEquityInstrumentsOtherThanOptionsNonvestedNumber",), opcional=True),
+    Partida("convertibles", "Bonos convertibles (principal)", ("ConvertibleNotesPayable", "ConvertibleDebtNoncurrent",
+                                                                "ConvertibleLongTermNotesPayable"), opcional=True),
+    Partida("ratio_conversion", "Ratio de conversión (acciones por 1.000 USD)", ("DebtInstrumentConvertibleConversionRatio1",),
+            opcional=True),
     # Flujos de caja
     Partida("flujo_operativo", "Flujo de caja operativo", ("NetCashProvidedByUsedInOperatingActivities",
                                                           "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations")),
     Partida("capex", "Inversión en inmovilizado (capex)", ("PaymentsToAcquirePropertyPlantAndEquipment",
                                                           "PaymentsToAcquireProductiveAssets")),
+    Partida("amortizacion_intangibles", "Amortización de intangibles", ("AmortizationOfIntangibleAssets",), opcional=True),
     Partida("amortizacion", "Amortizaciones (D&A)", ("DepreciationDepletionAndAmortization", "DepreciationAmortizationAndAccretionNet",
                                                     "DepreciationAndAmortization"),
             suma=(("Depreciation",), ("AmortizationOfIntangibleAssets",)),  # MSFT, GOOGL: depreciación + intangibles

@@ -17,4 +17,7 @@
 - sectoriales.py: métricas de banca, seguros, REIT y BDC (perfiles en perfiles.py).
 - valoracion_sectorial.py: múltiplos, valor contable justificado, descuento de dividendos y comparables de esos perfiles.
 - definiciones.py: texto del anexo de metodología.
+- motor/: motor de valoración (B1). excel.py evalúa fórmulas de Excel (validado con las 12 plantillas); libro.py
+  escribe el .xlsx de Warrants & Co.; modelo.py y lbo.py, el modelo general; sectorial.py, el de banca, seguros,
+  REIT y BDC; recalculo.py, la segunda vía de cálculo con LibreOffice.
 """

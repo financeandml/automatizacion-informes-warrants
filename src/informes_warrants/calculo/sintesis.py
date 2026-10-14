@@ -11,7 +11,7 @@ lleva su rango y su supuesto clave para la tabla del informe.
 
 from dataclasses import dataclass
 
-METODOS = ("DCF", "Comparables", "Múltiplos históricos", "Suma de partes")
+METODOS = ("DCF", "DCF por escenarios", "Comparables", "Múltiplos históricos", "Suma de partes")
 
 
 @dataclass(frozen=True)

@@ -1,6 +1,6 @@
 # Motor de valoración (B1): análisis de las plantillas y plan
 
-Estado: **plan pendiente de aprobación** (2026-10-14). Origen: las plantillas de `Motor de valoración/Ejemplos-plantillas/` (rareliquid; no se publican en el repositorio). Regla del usuario: usarlas **siempre**, sin eliminar funciones ni relaciones entre hojas y sin añadir nada que no esté en ellas; el analista introduce las mínimas variables y descarga el modelo completo para verificarlo número a número.
+Estado: **implementado** (decisiones D1-D7 del usuario, 2026-10-14; estado y limitaciones en el §8). Origen: las plantillas de `Motor de valoración/Ejemplos-plantillas/` (rareliquid; no se publican en el repositorio). Regla del usuario: usarlas **siempre**, sin eliminar funciones ni relaciones entre hojas y sin añadir nada que no esté en ellas; el analista introduce las mínimas variables y descarga el modelo completo para verificarlo número a número.
 
 ## 1. Qué contienen las plantillas (análisis del 100 %)
 
@@ -42,6 +42,18 @@ Las funciones que usan son estándar (`IF`, `ISERROR`, `IFERROR`, `AVERAGE`, `ME
 | E15 | DCF avanzado | Crecimientos con «--» (texto) en filas numéricas | Se mantiene (es su forma de marcar «sin dato»); las medias ya lo ignoran |
 | E16 | Ejercicio del flujo de caja | Texto y celdas que no coinciden (100 frente a −200 de valores negociables) | Solo se usan como reglas de control |
 
+Encontrados al reproducir las plantillas con datos reales (corregidos; la lista completa, en la hoja Controles de cada libro):
+
+| # | Dónde | Corrección |
+|---|---|---|
+| E17 | Capital circulante | La inversión (aumento = pago) sale del balance; la plantilla restaba un cobro |
+| E18-E19 | Convertibles | Precio de conversión = 1.000 / ratio; si convierten, su principal sale de la deuda |
+| E20 | Periodo parcial | Nulo si la fecha de valoración ya pasó el cierre del ejercicio en curso |
+| E21-E26 | LBO | EBIT conservador sin autorreferencia; intangibles sin circularidad; signo de otros activos y pasivos a largo plazo; amortización total con pagos obligatorios y PIK; tipo PIK en todos los años; acciones diluidas con opciones y RSU |
+| E27-E29 | LBO, balance *pro forma* | Depreciación del caso elegido; amortización de comisiones de financiación como gasto no monetario; «otros usos» como coste de la operación. Con ellas el balance cuadra (el de la plantilla descuadraba entre −32,7 y −37,8 al año) |
+| E30 | LBO, control de la deuda | Con tolerancia relativa: la igualdad exacta sobre valores iterativos dependía del residuo de la iteración |
+| — | Historia corta (menos de 5 ejercicios en la SEC) | Las ratios de los años sin datos daban #DIV/0! y el error llegaba al WACC: se marcan «--» (como hace la plantilla) con `IFERROR`, un comentario en la celda y un aviso |
+
 ## 3. Diseño del motor
 
 **Un único libro por empresa**, «Modelo de valoración», generado por código con las fórmulas vivas (openpyxl, MIT) y la misma estructura, filas, fórmulas y relaciones entre hojas que las plantillas, con la marca de Warrants & Co.:
@@ -61,10 +73,15 @@ Las funciones que usan son estándar (`IF`, `ISERROR`, `IFERROR`, `AVERAGE`, `ME
 | Controles | Checks de las plantillas (balance, revolver, deuda) | + controles de coherencia (§5) |
 
 **Dos cálculos independientes que tienen que cuadrar:**
-1. El libro, recalculado con LibreOffice sin interfaz (MPL-2.0, gratuito), que también deja guardados los valores para quien lo abra.
-2. El mismo modelo en Python (`calculo/motor/`), que da las cifras del PDF.
+1. El mismo libro evaluado en Python (`calculo/motor/excel.py`, validado contra los 7.250 valores guardados de las 12 plantillas), que da las cifras del PDF.
+2. El libro recalculado con LibreOffice sin interfaz (MPL-2.0, gratuito; `calculo/motor/recalculo.py`).
 
-Se comparan **todas** las celdas con fórmula (tolerancia 1e-9). Si una sola no cuadra, el semáforo pasa a rojo y no se puede emitir.
+Se comparan **todas** las celdas con fórmula (tolerancia relativa y absoluta de 1e-6). Decisión del usuario: el informe se emite igualmente; cada discrepancia sale como aviso con la celda y los dos valores, y la lista completa queda en `<libro>_discrepancias.csv`. Dos detalles técnicos:
+- El .xlsx lleva junto a cada fórmula el valor calculado en Python (como hace Excel al guardar): se ve aunque el programa no recalcule y LibreOffice itera el bloque circular del LBO desde él, de modo que confirma que cada fórmula se cumple (desde cero, LibreOffice dejaba celdas del bloque circular sin actualizar). Excel recalcula todo al abrir.
+- LibreOffice no calcula las tablas de datos de Excel (sensibilidades): esas celdas y lo que lee de ellas no se contrastan (se avisa) y las calculan Python y Excel.
+- Cálculo iterativo: 1.000 iteraciones y cambio máximo 1e-7 (las plantillas: 100 y 0,001, cuyo residuo dejaba incoherente el bloque circular).
+
+Resultado con AAPL: 2.151 celdas con fórmula iguales en las dos vías, 0 discrepancias.
 
 **Qué plantilla se usa según la empresa** (cobertura y sector):
 
@@ -73,7 +90,7 @@ Se comparan **todas** las celdas con fórmula (tolerancia 1e-9). Si una sola no 
 | Operativa con 2 o más segmentos validados | DCF por segmentos (suma de partes) + Consolidated + comparables |
 | Operativa sin segmentos | DCF consolidado (parte 1) + comparables |
 | Sin EBITDA positivo o flujo terminal negativo | Comparables por EV/Ventas (el DCF no da valor: aviso) |
-| Banca, seguros, REIT y BDC | Pendiente de la decisión D4 (las plantillas son de flujo de caja libre de la empresa y no sirven para estos sectores) |
+| Banca, seguros, REIT y BDC | D4: la valoración de la B2 con fórmulas vivas (valor contable justificado, descuento de dividendos, comparables) y la hoja de comparables de la plantilla (`calculo/motor/sectorial.py`), contrastada con el cálculo del informe |
 | Con deuda y EBITDA estable, si el analista lo activa | + LBO |
 | Operación corporativa, si el analista la activa | + Acreción / dilución |
 
@@ -89,21 +106,22 @@ Todo lo demás sale de la SEC y del mercado. Cada entrada trae un valor por defe
 | Margen EBIT de cada segmento | El último margen, constante (regla de la plantilla) | Plantilla |
 | Crecimiento a perpetuidad y reparto perpetuidad / múltiplo | 2,5 % y 80 / 20 | Plantilla |
 | Lista de comparables | La del analista (obligatoria para el múltiplo de salida y la beta; sin ella, 100 % perpetuidad y beta propia, con aviso) | Ya existe |
-| Prima de riesgo de mercado | Decisión D7 | Plantilla (4,06 %) o informe actual (5,5 %) |
+| Prima de riesgo de mercado | La vigente, actualizada cada semana (D7): prima implícita del S&P 500 de Damodaran (NYU), «ERP (T12 m with sustainable payout)»; sin conexión, la última guardada o el 5,5 % | `ingesta/mercado.prima_riesgo`; la propone el SaaS y la confirma o cambia el analista |
+| Convención de descuento | Mitad de año (la marca el analista: mitad o fin de año) | Plantilla |
 | Escenario | Base | Interruptor `CASE` de la plantilla LBO |
 | LBO (si se activa) | Prima del 25 %, deuda por tramos en veces EBITDA, tipos y 5 años | Plantilla |
 | Acreción / dilución (si se activa) | Términos de la operación | Analista |
 
 ## 5. Controles de coherencia («que los números cuadren»)
 
-Bloquean la emisión si fallan:
+Ninguno bloquea la emisión (decisión del usuario, 2026-10-14): todos salen como avisos antes de emitir. Controles de cuadre:
 - Las dos vías de cálculo dan lo mismo.
 - La suma de los segmentos es igual al total consolidado.
 - El balance cuadra (activo = pasivo + patrimonio).
 - El flujo de caja es igual a la variación de la caja.
 - La deuda del LBO cuadra (saldo inicial − amortización = saldo final) y el revolver no se excede.
 
-Avisan sin bloquear:
+Controles de coherencia:
 - WACC mayor que el crecimiento a perpetuidad.
 - Valor terminal por debajo del 85 % del EV.
 - El múltiplo implícito de la perpetuidad y el crecimiento implícito del múltiplo están en rango frente a los comparables.
@@ -140,3 +158,24 @@ Cada paso termina con tests, documentación y commit; los pasos 7 y 9 terminan a
 | D5 | Lo que hoy tiene el informe y no está en las plantillas | Equivalente en la plantilla: escenarios → interruptor de caso; DCF inverso → crecimiento y múltiplo implícitos; múltiplos históricos → prima frente a múltiplos históricos; suma de partes → DCF por segmento. Se retiran la convergencia a 10 años y la proyección hasta el BPA, que no están en las plantillas |
 | D6 | Corregir los errores E1-E16 aunque cambie alguna fórmula del original | Sí, con cada corrección anotada en la hoja Controles |
 | D7 | Prima de riesgo de mercado por defecto | La de la plantilla (4,06 %), editable |
+
+**Decisiones del usuario (2026-10-14):** D1 sí. D2: los datos de FactSet se sustituyen por los de la SEC con la referencia de cada documento; FactSet solo como excepción para las proyecciones de consenso si falla la SEC y es estrictamente necesario. D3: instalado. D4: sí. D5: se mantiene lo que ya tenía el informe salvo incompatibilidad, pero prevalece el motor (el DCF por escenarios, los múltiplos históricos y la suma de partes siguen como análisis complementario y en la síntesis con su peso). D6: sí, una a una. D7: la prima vigente, actualizada cada semana; el SaaS propone y el analista confirma o cambia. Además: mitad de año y fin de año, a elección del analista; los dos cálculos se comparan celda a celda y las discrepancias avisan sin bloquear.
+
+## 8. Estado de la implementación
+
+| Pieza | Dónde |
+|---|---|
+| Evaluador de fórmulas de Excel (circularidad, tablas de datos, 15 cifras significativas) | `calculo/motor/excel.py` · test *golden* con las 12 plantillas en `tests/test_motor.py` |
+| Libro de Warrants & Co. (estilo de marca, comentarios con el origen, nombres, validaciones, valores guardados) | `calculo/motor/libro.py` |
+| Modelo general (Portada, Entradas, Operating Model, DCF por segmento, Consolidated, WACC, Shares, Comps, LBO, Acreción-dilución, Síntesis, Controles, estados y Trazabilidad) | `calculo/motor/modelo.py` y `lbo.py` |
+| Modelo sectorial (D4) | `calculo/motor/sectorial.py` |
+| Segunda vía (LibreOffice) | `calculo/motor/recalculo.py` |
+| Conexión con el informe: el DCF del informe es el del modelo; sección «Modelo de valoración» en el PDF; avisos | `informe/motor.py`, `informe/construir.py`, `informe/sectorial.py`, `plantillas/informe/_motor.html.j2` |
+| Interfaz: pestaña «Modelo de valoración» (crecimiento y margen por segmento, % por perpetuidad, convención, LBO, «He revisado») y descarga del .xlsx | `ui/app.py`, `ui/logica.py` |
+| Versiones: cada versión guarda su libro junto al PDF y los avisos del contraste | `informe/versionado.py` |
+| Línea de comandos: `informes-warrants modelo TICKER` (solo el libro) e `informe` (PDF + libro) | `cli.py` |
+
+**Limitaciones conocidas:**
+- D&A, capex y circulante por segmento se asignan por el peso de las ventas: el XBRL no los trae por segmento de forma homogénea.
+- No hay acceso a FactSet (ni suscripción): las proyecciones son las entradas del analista con los valores por defecto del §4. Si se contrata, sería la única fuente externa admitida para el consenso.
+- Sin lista de comparables del analista, el valor terminal es 100 % por perpetuidad y la beta, la propia (se avisa).

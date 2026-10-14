@@ -72,6 +72,7 @@ def preparar(version: Version, almacen: Almacen, con_ia: bool = True, comparable
 
     `datos`: argumentos de `componer` ya reunidos (la interfaz los reutiliza para no volver a la SEC)."""
     from . import render
+    from .motor import exportar as exportar_modelo
 
     contenido = version.contenido
     lista = comparables or contenido.get("comparables")
@@ -82,9 +83,11 @@ def preparar(version: Version, almacen: Almacen, con_ia: bool = True, comparable
     destino.mkdir(parents=True, exist_ok=True)
     nombre = f"{version.ticker}_FY{version.ejercicio}{'' if version.periodo == 'FY' else '_' + version.periodo}_v{version.revision}.pdf"
     pdf = render.pdf(c, destino / nombre)
+    modelo_xlsx, avisos_modelo = exportar_modelo(c, pdf)  # B1: el libro del motor junto al PDF, contrastado con LibreOffice
     nuevo = {
         **contenido, "textos": c["textos"], "estimaciones": asdict(c["estimaciones"]), "resumen": resumen(c),
-        "instantanea": cifras_clave(c), "avisos_emision": list(c["avisos_emision"]), "pdf": str(pdf),
+        "instantanea": cifras_clave(c), "avisos_emision": list(c["avisos_emision"]) + avisos_modelo, "pdf": str(pdf),
+        "modelo_xlsx": modelo_xlsx,
         "calidad": {"nivel": str(c["calidad"].nivel), "errores": list(c["calidad"].errores)},
         "comparables": lista if c["comparables_del_analista"] else None, "recomendacion": c["recomendacion"],
     }

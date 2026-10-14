@@ -77,6 +77,72 @@ def tipo_libre_riesgo(por_defecto: float = 0.045) -> TipoLibreRiesgo:
     return TipoLibreRiesgo(por_defecto, "", "valor por defecto (sin conexión)")
 
 
+URL_ERP = "https://pages.stern.nyu.edu/~adamodar/pc/implprem/ERPbymonth.xlsx"
+PRIMA_POR_DEFECTO = 0.055  # la del informe hasta el 2026-10-14 (financial-research-analyst-agent `dcf_model.py`)
+DIAS_PRIMA = 7  # se comprueba cada semana (Damodaran la publica al inicio de cada mes)
+
+
+@dataclass(frozen=True)
+class PrimaRiesgo:
+    valor: float
+    fecha: str  # mes del dato
+    fuente: str
+
+
+def ultima_prima(contenido: bytes) -> tuple[float, str] | None:
+    """Última prima implícita del S&P 500 del libro de Damodaran («ERP (T12 m with sustainable payout)», su medida
+    principal; si falta, «ERP (T12m)»)."""
+    import io
+
+    import openpyxl
+
+    ws = openpyxl.load_workbook(io.BytesIO(contenido), data_only=True)["Historical ERP"]
+    filas = list(ws.iter_rows(values_only=True))
+    cabecera = [str(x or "") for x in filas[0]]
+    sostenible = next(i for i, t in enumerate(cabecera) if "sustainable" in t)
+    simple = next(i for i, t in enumerate(cabecera) if t.strip() == "ERP (T12m)")
+    for fila in reversed(filas[1:]):
+        if fila and fila[0] is not None:
+            valor = fila[sostenible] if isinstance(fila[sostenible], (int, float)) else fila[simple]
+            if isinstance(valor, (int, float)):
+                return float(valor), fila[0].date().isoformat()[:7] if hasattr(fila[0], "date") else str(fila[0])
+    return None
+
+
+def prima_riesgo() -> PrimaRiesgo:
+    """Prima de riesgo de mercado que propone el SaaS (decisión del usuario, 2026-10-14: actualizada cada semana; la
+    confirma o cambia el analista). Fuente: la prima implícita del S&P 500 de Damodaran (NYU), mensual; caché local de
+    7 días; sin conexión, el último dato guardado o el 5,5 % por defecto."""
+    import json
+    import urllib.request
+    from datetime import date, timedelta
+
+    from ..config import directorio_datos
+
+    cache = directorio_datos() / "prima_riesgo.json"
+    guardada = None
+    try:
+        guardada = json.loads(cache.read_text(encoding="utf-8"))
+        if date.fromisoformat(guardada["consulta"]) >= date.today() - timedelta(days=DIAS_PRIMA):
+            return PrimaRiesgo(guardada["valor"], guardada["fecha"], guardada["fuente"])
+    except (OSError, ValueError, KeyError):
+        pass
+    try:
+        with urllib.request.urlopen(URL_ERP, timeout=30) as respuesta:
+            dato = ultima_prima(respuesta.read())
+        if dato:
+            prima = PrimaRiesgo(dato[0], dato[1], "Damodaran (NYU), prima implícita del S&P 500")
+            cache.parent.mkdir(parents=True, exist_ok=True)
+            cache.write_text(json.dumps({"valor": prima.valor, "fecha": prima.fecha, "fuente": prima.fuente,
+                                         "consulta": date.today().isoformat()}), encoding="utf-8")
+            return prima
+    except Exception as e:  # noqa: BLE001  (sin conexión: el último dato guardado o el valor por defecto)
+        log.warning("Prima de riesgo de Damodaran no disponible: %s", e)
+    if guardada:
+        return PrimaRiesgo(guardada["valor"], guardada["fecha"], guardada["fuente"] + " (último dato guardado)")
+    return PrimaRiesgo(PRIMA_POR_DEFECTO, "", "valor por defecto (sin conexión)")
+
+
 def etf_sectorial(sic: int | str | None) -> str:
     try:
         sic = int(sic)
@@ -134,6 +200,25 @@ def rentabilidades(cierres) -> dict[str, float | None]:
     previos = cierres[cierres.index < del_anio.index[0]]
     r["ytd"] = ultimo / float(previos.iloc[-1]) - 1 if len(previos) else None
     return r
+
+
+def beta_semanal(ticker: str) -> float:
+    """Beta de 5 años con rendimientos semanales frente al S&P 500 (SPY): la del informe y la de cada comparable."""
+    from ..calculo.dcf import beta
+
+    a = historico(ticker)["Close"].resample("W-FRI").last().pct_change()
+    i = historico(INDICE)["Close"].resample("W-FRI").last().pct_change()
+    juntos = a.to_frame("a").join(i.to_frame("i"), how="inner").dropna()
+    return beta(juntos["a"], juntos["i"])
+
+
+def variaciones(ticker: str) -> dict[str, float | None]:
+    """Variación de la cotización a 1, 3 y 6 meses (21, 63 y 126 sesiones), con cierres ajustados."""
+    cierres = historico(ticker, 1)["Close"].dropna()
+    salida = {}
+    for clave, sesiones in (("1m", 21), ("3m", 63), ("6m", 126)):
+        salida[clave] = float(cierres.iloc[-1] / cierres.iloc[-1 - sesiones] - 1) if len(cierres) > sesiones else None
+    return salida
 
 
 def comportamiento(ticker: str, sic: int | str | None) -> dict[str, dict[str, float | None]]:

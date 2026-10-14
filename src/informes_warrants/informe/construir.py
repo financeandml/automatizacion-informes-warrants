@@ -28,7 +28,7 @@ from ..calculo.analitica import (
     uso_del_capital,
 )
 from ..calculo.calidad import revisar
-from ..calculo.dcf import beta, crecimiento_implicito, valorar_escenarios, wacc_implicito
+from ..calculo.dcf import crecimiento_implicito, valorar_escenarios, wacc_implicito
 from ..calculo.derivados import lectura_cortos, mercado_de_opciones
 from ..calculo.hechos_clave import observaciones as observaciones_clave
 from ..calculo.hechos_clave import seleccionar as seleccionar_hechos
@@ -188,12 +188,9 @@ def _cita_negocio(texto_item_1: str) -> str:
 
 
 def _beta_semanal(ticker: str) -> float:
-    from ..ingesta.mercado import INDICE, historico
+    from ..ingesta.mercado import beta_semanal
 
-    a = historico(ticker)["Close"].resample("W-FRI").last().pct_change()
-    i = historico(INDICE)["Close"].resample("W-FRI").last().pct_change()
-    juntos = a.to_frame("a").join(i.to_frame("i"), how="inner").dropna()
-    return beta(juntos["a"], juntos["i"])
+    return beta_semanal(ticker)
 
 
 def _series_bolsa(ticker: str, etf: str, historico, indice: str) -> dict:
@@ -231,7 +228,7 @@ def componer_general(*, ticker: str, empresa: str, sic, cobertura, filing: dict,
              precios_semanales: list | None = None,
              fechas_disponibles: dict | None = None,
              anterior: dict | None = None, historial_resumenes: list | None = None, autoria=None,
-             capital_flotante: tuple | None = None) -> dict:
+             capital_flotante: tuple | None = None, prima=None) -> dict:
     """Parte pura (sin red): de los datos ya reunidos al contexto completo del informe.
 
     Sin `estimaciones` ni `escenarios`, se usan los de por defecto; el editor pasa los del analista y todo se
@@ -256,6 +253,8 @@ def componer_general(*, ticker: str, empresa: str, sic, cobertura, filing: dict,
         intereses = estados.valor("gasto_intereses", ejercicio)
         if intereses and f["deuda_bruta"]:
             base = replace(base, coste_deuda=round(_limitar(intereses / f["deuda_bruta"], 0.02, 0.12), 4))
+        if prima is not None:  # prima de riesgo semanal (D7): la propone el SaaS, el analista la confirma
+            base = replace(base, erp=round(prima.valor, 4))
     if errores := base.validar():
         raise ValueError("Estimaciones no válidas: " + " ".join(errores))
     obs = [fund[a] for a in ejercicios[-3:]] + ([f_ltm] if estados_ltm is not None else [])  # misma ventana que la base
@@ -296,7 +295,7 @@ def componer_general(*, ticker: str, empresa: str, sic, cobertura, filing: dict,
     valor_multiplos_orientativo = valor_por_multiplos(implicitos)
     valor_multiplos = valor_multiplos_orientativo if comparables_del_analista else None
     rango_multiplos = rango_por_multiplos(comps, f_ltm, dfn, minoritarios, acciones) if comparables_del_analista else (None, None)
-    valor_dcf = r_esc.valor_ponderado if r_esc else None
+    valor_dcf_escenarios = r_esc.valor_ponderado if r_esc else None
 
     # Múltiplos frente a su propia historia (R11): bandas de 5 años sobre la cifra de cada ejercicio ya presentado.
     bandas = {}
@@ -314,6 +313,30 @@ def componer_general(*, ticker: str, empresa: str, sic, cobertura, filing: dict,
         v = [h[q] for h in usados_hist if h[q]]
         return statistics.fmean(v) if v else None
 
+    # Motor de valoración (B1): las plantillas de «Motor de valoración» en un libro propio; prevalece sobre el DCF por
+    # escenarios y los comparables anteriores, que se mantienen como análisis complementario (decisión D5).
+    from .motor import valorar as valorar_motor
+    origen_prima = f"{prima.fuente}{', ' + prima.fecha if prima.fecha else ''}" if prima is not None else "Estimaciones del informe"
+    motor = valorar_motor({
+        "ticker": ticker, "empresa": empresa, "filing": filing, "segmentos": segmentos_dict or {}, "estados": estados, "estados_ltm": ltm,
+        "fecha_ltm": fecha_ltm, "cotizacion": cotizacion, "estimaciones": base, "bandas": bandas, "mercado": mercado,
+        "acciones_origen": acciones_origen, "beta": beta_estimada, "rf": rf, "origen_prima": origen_prima, "comparables": comps,
+        "comparables_del_analista": comparables_del_analista})
+    sm = (motor or {}).get("salidas") or {}
+    if motor and motor.get("error"):
+        avisos_emision.append(f"Motor de valoración no disponible ({motor['error']}): el DCF es el de escenarios")
+    avisos_emision += (motor or {}).get("avisos") or []
+    valor_dcf = sm.get("precio_dcf") if sm.get("precio_dcf") is not None else valor_dcf_escenarios
+    wacc_motor = sm.get("wacc")
+    wacc_informe = wacc_motor if wacc_motor is not None else (valor.wacc if valor else None)
+    if sm and comparables_del_analista:  # comparables del motor: media de los precios a la mediana EV/EBITDA y PER
+        centrales = [x for x in (sm.get("comps_ebitda"), sm.get("comps_per")) if x is not None and x > 0]
+        valor_multiplos = statistics.fmean(centrales) if centrales else valor_multiplos
+        bajos = [x for x in (sm.get("comps_ebitda_bajo"), sm.get("comps_per_bajo")) if x is not None and x > 0]
+        altos = [x for x in (sm.get("comps_ebitda_alto"), sm.get("comps_per_alto")) if x is not None and x > 0]
+        if bajos and altos:
+            rango_multiplos = (min(bajos), max(altos))
+
     # Suma de partes (R14): resultado de cada segmento del último ejercicio × EV/EBIT (analista o mediana de comparables).
     sotp = None
     negocio = (segmentos_dict or {}).get("negocio")
@@ -326,12 +349,18 @@ def componer_general(*, ticker: str, empresa: str, sic, cobertura, filing: dict,
     # Derivación del precio objetivo (R8): media ponderada de los métodos disponibles, con los pesos del analista.
     pesimista = r_esc.resultados["Pesimista"].valor_por_accion if r_esc else None
     optimista = r_esc.resultados["Optimista"].valor_por_accion if r_esc else None
+    supuesto_motor = (f"Modelo de valoración: WACC {wacc_motor * 100:.1f} %, g {base.g * 100:.1f} %; rango WACC ± 0,5 pp y g ± 0,5 pp"
+                      .replace(".", ",", 2) if wacc_motor is not None else "")
     metodos = [
-        Metodo("DCF", valor_dcf, pesimista, optimista,
+        Metodo("DCF", valor_dcf, sm.get("sintesis_dcf_bajo") if sm else pesimista, sm.get("sintesis_dcf_alto") if sm else optimista,
+               supuesto_motor or (f"WACC {valor.wacc * 100:.1f} %, g {base.g * 100:.1f} %; escenarios 25/50/25".replace(".", ",")
+                                  if valor else ""), base.pesos.get("DCF", 0.0)),
+        Metodo("DCF por escenarios", valor_dcf_escenarios if sm else None, pesimista, optimista,
                f"WACC {valor.wacc * 100:.1f} %, g {base.g * 100:.1f} %; escenarios 25/50/25".replace(".", ",") if valor else "",
-               base.pesos.get("DCF", 0.0)),
+               base.pesos.get("DCF por escenarios", 0.0)),
         Metodo("Comparables", valor_multiplos, *rango_multiplos,
-               "Mediana EV/EBITDA y PER de la lista del analista" if comparables_del_analista else "Falta la lista del analista",
+               ("Mediana EV/EBITDA y PER de la lista del analista (modelo de valoración); rango mínimo-máximo" if sm else
+                "Mediana EV/EBITDA y PER de la lista del analista") if comparables_del_analista else "Falta la lista del analista",
                base.pesos.get("Comparables", 0.0)),
         Metodo("Múltiplos históricos", valor_historicos, _media_q("p25"), _media_q("p75"),
                "Mediana de EV/EBITDA y PER de 5 años", base.pesos.get("Múltiplos históricos", 0.0)),
@@ -387,8 +416,8 @@ def componer_general(*, ticker: str, empresa: str, sic, cobertura, filing: dict,
         "ingresos": f_ltm.get("ingresos"), "crecimiento": f_ltm.get("crecimiento_ingresos"),
         "variacion_margen_pb": puente["total"] if puente else None, "margen_inicio": fund[ejercicios[0]]["margen_operativo"],
         "margen_fin": f_ltm.get("margen_operativo"), "anio_inicio": ejercicios[0], "principal": puente["principal"] if puente else None,
-        "roic": f_ltm.get("roic"), "wacc": valor.wacc if valor else None,
-        "roic_menos_wacc": f_ltm["roic"] - valor.wacc if valor and f_ltm.get("roic") is not None else None,
+        "roic": f_ltm.get("roic"), "wacc": wacc_informe,
+        "roic_menos_wacc": f_ltm["roic"] - wacc_informe if wacc_informe is not None and f_ltm.get("roic") is not None else None,
         "meses_caja": autonomia["meses"] if autonomia else None, "dfn": f_ltm.get("dfn"), "dfn_ebitda": f_ltm.get("dfn_ebitda"),
         "potencial": potencial, "precio_objetivo": precio_objetivo, "recomendacion": propuesta,
         "percentil": banda_hist.percentil_actual if banda_hist else None,
@@ -418,7 +447,12 @@ def componer_general(*, ticker: str, empresa: str, sic, cobertura, filing: dict,
         "margen_bruto": f["margen_bruto"], "margen_operativo": f["margen_operativo"], "roic": f["roic"], "roe": f["roe"],
         "fcf": (f["fcf"] or 0) / 1e6, "conversion_fcf": f["conversion_fcf"],
         "precio_objetivo_dcf": valor_dcf, "precio_objetivo_multiplos": valor_multiplos,
-        "wacc": valor.wacc if valor else None, "g": base.g,
+        "wacc": wacc_informe, "g": base.g, "wacc_escenarios": valor.wacc if valor else None,
+        "valor_escenarios": valor_dcf_escenarios, "motor_precio": sm.get("precio_dcf"),
+        "motor_segmentos": len(motor["datos"].segmentos) if motor and motor.get("datos") else 0,
+        "motor_perpetuidad": (motor["modelo"].salidas.get("pct_perpetuidad_efectivo") if motor and motor.get("modelo") else None),
+        "motor_convencion": ("mitad de año" if motor and motor.get("modelo") and motor["modelo"].valores.get(("Entradas", 14, 3)) == 1
+                             else "fin de año"),
         "auditor": (gobierno.auditor if gobierno and gobierno.auditor else "[[ANALISTA: auditor (Item 9 / proxy)]]"),
         "gobierno": gobierno, "puente": puente, "apalancamiento": apalancamiento, "uso": uso, "fecha_ltm": fecha_ltm,
         "crecimiento_ltm": f_ltm["crecimiento_ingresos"], "margen_operativo_ltm": f_ltm["margen_operativo"],
@@ -442,6 +476,9 @@ def componer_general(*, ticker: str, empresa: str, sic, cobertura, filing: dict,
         "comparables": comps, "comparables_stats": stats, "comparables_implicitos": implicitos,
         "comparables_criterio": comparables_criterio, "comparables_del_analista": comparables_del_analista,
         "valor_dcf": valor_dcf, "valor_multiplos": valor_multiplos, "valor_multiplos_orientativo": valor_multiplos_orientativo,
+        "valor_dcf_escenarios": valor_dcf_escenarios,
+        "potencial_dcf_escenarios": valor_dcf_escenarios / cotizacion.precio - 1 if valor_dcf_escenarios else None,
+        "motor": motor, "wacc_motor": wacc_motor, "origen_prima": origen_prima,
         "precio_modelo": precio_modelo,
         "precio_objetivo": precio_objetivo, "potencial": potencial, "potencial_dcf": potencial_dcf, "recomendacion": propuesta,
         "avisos_valoracion": avisos_valoracion, "avisos_emision": avisos_emision, "datos_dcf": datos_dcf,
@@ -461,7 +498,7 @@ def componer_general(*, ticker: str, empresa: str, sic, cobertura, filing: dict,
         "equipo": _equipo(insiders, series_bolsa.get(ticker)),
         "cambios_direccion": [e for e in (eventos or []) if "5.02" in e["items"] and (date.today() - e["fecha"]).days <= 730],
         "competencia": _competencia(competencia_texto, ticker, f_ltm, fund, ejercicios, comps if comparables_del_analista else [],
-                                    valor.wacc if valor else None),
+                                    wacc_informe),
         "publicaciones": _publicaciones(eventos or [], trimestres_lista or [], series_bolsa.get(ticker)), "alarmas": alarmas or [],
         "riesgos": riesgos, "riesgos_lista": riesgos_lista, "textos": textos,
         "pendientes": [p for t in textos.values() for p in pendientes(t)], "fecha": fecha or date.today().isoformat(),
@@ -678,6 +715,7 @@ def reunir(ticker: str, con_ia: bool = True, comparables: list[str] | None = Non
     datos = dict(  # argumentos de `componer`: la interfaz los guarda y recompone el informe sin red al editar (A12)
         **comunes, cobertura=cobertura, estimaciones=estimaciones,
         filing={"accession": filing.accession_no, "fecha": str(filing.filing_date), "ejercicio": ejercicio,
+                "cierre": str(cierres.get(ejercicio) or filing.period_of_report),  # cierre del ejercicio (motor de valoración)
                 "ultimo_periodico": periodico.accession_no if periodico is not None else None,
                 "ultimo_periodico_formulario": periodico.form if periodico is not None else None},
         estados=estados, calidad=calidad, acciones=acciones,
@@ -713,7 +751,7 @@ def _comunes(empresa, ticker: str, filing, xbrl, ejercicio: int, con_ia: bool, f
     from ..ingesta.eventos import ANIOS_ALARMAS, categoria_presentador, eventos_8k, hechos_relevantes
     from ..ingesta.eventos import alarmas as alarmas_sec
     from ..ingesta.gobierno import gobierno as datos_gobierno
-    from ..ingesta.mercado import INDICE, comportamiento, cotizacion, etf_sectorial, historico, tipo_libre_riesgo
+    from ..ingesta.mercado import INDICE, comportamiento, cotizacion, etf_sectorial, historico, prima_riesgo, tipo_libre_riesgo
     from ..ingesta.nombres import nombre_legible
     from ..ingesta.riesgos import comparar_riesgos, riesgos_anteriores, riesgos_anuales
     from .autoria import cargar as cargar_autoria
@@ -768,7 +806,7 @@ def _comunes(empresa, ticker: str, filing, xbrl, ejercicio: int, con_ia: bool, f
         beta_estimada=_beta_semanal(ticker), comportamiento=comportamiento(ticker, empresa.sic),
         series_bolsa=_series_bolsa(ticker, etf_sectorial(empresa.sic), historico, INDICE),
         riesgos=riesgos, riesgos_lista=riesgos_lista, texto_negocio=texto_negocio, competencia_texto=competencia_texto,
-        rf=tipo_libre_riesgo(), gobierno=datos_gobierno(empresa, xbrl),
+        rf=tipo_libre_riesgo(), prima=prima_riesgo(), gobierno=datos_gobierno(empresa, xbrl),
         insiders=_insiders(empresa, ticker), eventos=eventos, alarmas=alarmas_sec(empresa, date.today(), filing, eventos),
         riesgos_cambios=cambios, catalizadores=catalizadores, filiales=filiales_10k(tenk),
         opciones_cadena=cadena_opciones(ticker), cortos=posiciones_cortas(ticker),
