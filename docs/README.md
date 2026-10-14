@@ -7,6 +7,7 @@ Por dónde empezar según lo que necesites. Las reglas del proyecto y el mapa de
 | [plan.md](plan.md) | Arquitectura en capas, qué hace cada módulo, fases y decisiones tomadas. **Empieza aquí.** |
 | [propuestas-referencias.md](propuestas-referencias.md) | Ideas de contenido de informes de referencia, pendientes de valoración del usuario |
 | [hoja-de-ruta.md](hoja-de-ruta.md) | Todo lo que falta, en 3 fases: primer uso real, perfeccionar el contenido y lanzamiento |
+| [motor-valoracion.md](motor-valoracion.md) | Motor de valoración (B1): análisis de las plantillas, errores encontrados, diseño, plan y decisiones pendientes |
 | [estructura-informe.md](estructura-informe.md) | Índice del informe (apartados A-I) y estado de cada apartado |
 | [editor-y-versiones.md](editor-y-versiones.md) | Quién produce cada bloque, qué puede tocar el analista (estimaciones, escenarios, comparables) y versiones |
 | [rigor-del-contenido.md](rigor-del-contenido.md) | Carencias detectadas, cómo se resolvieron (con cifras verificadas) y planes pendientes, como el de segmentos |
