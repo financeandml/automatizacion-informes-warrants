@@ -30,3 +30,6 @@ repositorios-github/
 
 # Material de referencia de diseño (no se publica: Morningstar es de terceros; el boceto es interno)
 Plantilla/*.pdf
+
+# Documentos del motor de valoración aportados por el usuario (plantillas de terceros: no se publican)
+Motor de valoración/

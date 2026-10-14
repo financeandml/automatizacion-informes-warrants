@@ -1,6 +1,6 @@
 # Hoja de ruta: de borrador por CLI a SaaS
 
-Estado a 2026-10-12. Recoge todo lo que falta, incluidas las tareas pendientes de [requisitos-pendientes.md](requisitos-pendientes.md) y [rigor-del-contenido.md](rigor-del-contenido.md). Cada tarea termina con tests, documentación, commit y, si cambia el PDF, un PDF intermedio para revisión.
+Estado a 2026-10-14. Recoge todo lo que falta, también lo apuntado en el «Registro de tareas por terminar» del usuario, incluidas las tareas pendientes de [requisitos-pendientes.md](requisitos-pendientes.md) y [rigor-del-contenido.md](rigor-del-contenido.md). Cada tarea termina con tests, documentación, commit y, si cambia el PDF, un PDF intermedio para revisión.
 
 Las ideas de los informes de referencia (R1-R18) están en [propuestas-referencias.md](propuestas-referencias.md). **No se implementan sin valoración del usuario.** En la tabla figuran como «propuesta R…».
 
@@ -57,6 +57,22 @@ Orden de desarrollo y por qué: primero los datos que usan los demás, luego la 
 | P2 | R5: taxonomía de riesgos para la clasificación del apartado 20 (A7) | Aparcada hasta terminar el SaaS |
 | P3 | R15: valoración de empresas sin beneficios | En espera de los documentos del usuario (con B1) |
 | P4 | Emisores extranjeros (20-F/40-F) en el PDF (antigua A10). Auditoría del 2026-10-13: faltan las listas IFRS (`ifrs-full`) en el normalizador (reutilizar edgar_analytics `synonyms.py` y `SynonymGroups` de edgartools), sin LTM trimestral (no hay 10-Q), sin Form 4 ni DEF 14A (Item 6 del 20-F); cifras a USD con `ingesta/divisas.py` y textos de `TwentyF` | Aparcada por el usuario |
+| P5 | Ajuste de partidas no recurrentes del analista (`informe/bloque_fijo.py`): definido y probado, pero sin conectar al informe ni a la interfaz | Pendiente (revisión del 2026-10-14) |
+| P6 | Apartado 1 (ficha): bolsa de cotización, cierre del ejercicio fiscal y empleados (edgartools `Company`) | Pendiente |
+| P7 | Apartado 6: fechas de dividendos en el calendario | Pendiente |
+| P8 | Apartado 22 (tesis consolidada): plantilla que ate cada asunción del analista a una cifra del modelo | Pendiente |
+| P9 | Apartado 25: comparación automática de lo real frente a lo estimado con cada 10-Q nuevo | Pendiente |
+| P10 | Apartado 26: fuentes externas (yfinance, FINRA) con su fecha en el anexo de documentos | Pendiente |
+| P11 | Apartado 18: tenedores institucionales desde los 13F de la SEC (trazable), en lugar de yfinance | Pendiente |
+| P12 | Apartados 15-17: sesgo, movimiento implícito, estructura temporal de la volatilidad y coste de cobertura; foto diaria de la volatilidad implícita para su ranking histórico; volumen de *dark pool* de FINRA (semanal, gratis, con 2-4 semanas de retraso) | Pendiente de decidir |
+| P13 | Batería de regresión con 15-20 empresas de sectores distintos (hoy 14: 10 generales y 4 sectoriales) | Pendiente |
+| P14 | Restos de la B2: segmentos y trimestres en los perfiles sectoriales, bandas históricas de P/BV y P/TBV, criterios del fondo propios del sector (hoy EV/EBITDA sale «sin dato») y nombres con mayúsculas internas («Jpmorgan») | Pendiente |
+| P15 | Apartado 13: citas literales del 10-K cuando la empresa cifra su mercado, como apoyo al analista | Pendiente |
+| P16 | Apartado 20: matriz probabilidad × impacto de los riesgos (del analista) | Pendiente |
+| P17 | SPAC, ETF y fondos abiertos: hoy «plantilla pendiente de validar»; decidir si entran en el SaaS | Pendiente de decidir |
+| P18 | Apartado 5: fecha de alta (Form 3) de directivos con más de 120 formularios de antigüedad (p. ej. Tim Cook) | Pendiente |
+
+Descartados por decisión del usuario (fuentes externas solo para opciones y cortos, F3): consenso de analistas, sorpresas de BPA frente al consenso, ClinicalTrials.gov y el coste de préstamo de las acciones (de pago).
 
 ## Fase A: primer uso real (un analista, en su ordenador)
 
@@ -95,7 +111,7 @@ Objetivo: que el analista genere, complete, emita (PDF descargable) y versione i
 
 | # | Tarea | Detalle | Estado |
 |---|---|---|---|
-| B1 | Motor de valoración | Con los documentos del usuario (aviso pendiente). Observación de la regresión: con los supuestos por defecto (Rf 5,2 % de FRED, prima 5,5 %, medias históricas) el DCF queda muy por debajo de la cotización en casi todas las empresas (AAPL −62 %, MSFT −44 %, TSLA −98 %); el motor debe revisar estos supuestos por defecto. Ya hechos: derivación ponderada (R8), múltiplos históricos (R11), proyección de flujo y balance (R12) y suma de partes (R14). Faltan DDM, ingreso residual y R15 (P3) | Esperando documentos |
+| B1 | Motor de valoración | Documentos del usuario recibidos el 2026-10-14 en `Motor de valoración/` (plantillas de rareliquid: DCF simple y avanzado por segmentos, LBO, *accretion/dilution*, comparables y los tres estados; no se publican). Incluye el PEG (apartado 10). Observación de la regresión: con los supuestos por defecto (Rf 5,2 % de FRED, prima 5,5 %, medias históricas) el DCF queda muy por debajo de la cotización en casi todas las empresas (AAPL −62 %, MSFT −44 %, TSLA −98 %); el motor debe revisar estos supuestos por defecto. Ya hechos: derivación ponderada (R8), múltiplos históricos (R11), proyección de flujo y balance (R12) y suma de partes (R14). Faltan DDM, ingreso residual y R15 (P3) | Documentos recibidos |
 | ~~B2~~ | ~~Plantillas sectoriales en PDF~~ | `informe/sectorial.py` + `plantillas/informe/informe_sectorial.html.j2`: misma maquetación y apartados 01-06 con las piezas compartidas de la plantilla general (`_inicio`, `_recomendacion`, `_mercado`, `_bolsa_autoria`, `_gestion`, `_competencia`, `_gobierno`, `_riesgos`, `_cambios`, `_sistema_historial`; el HTML general no cambia). `construir`, `render`, la interfaz, las versiones y la regresión eligen solos la plantilla por la cobertura. Cifras del perfil en 5 ejercicios + LTM con trazabilidad; valoración en `calculo/valoracion_sectorial.py`: valor contable justificado de Gordon (banca P/TBV con el ROTE; seguros P/BV con el ROE; BDC P/NAV con el ROE total), descuento de dividendos (REIT y BDC) y comparables del analista (P/TBV, P/BV, P/FFO, P/NAV); sin EBITDA, EV ni DCF. ROE sostenible = media de los ejercicios (no el año pico) o el del analista; cifras de los accionistas ordinarios (sin preferentes); FFO como NAREIT (+ deterioros − ventas); BDC con g = 0 por defecto. Probado con JPM, TRV, O y ARCC (también en la regresión). De paso se corrigió un falso positivo de las alarmas de control interno (TRV: «no material weaknesses»). Pendiente: segmentos y trimestres en estos perfiles y bandas históricas de P/BV | Cerrado (2026-10-14) |
 | ~~B3~~ | ~~Apartados 4 y 5~~ | Filiales del Exhibit 21 (`TenK.subsidiaries`); equipo: quien presenta Form 4 (cargo declarado), alta como insider (Form 3) y rentabilidad de la acción desde entonces; cambios de la dirección (8-K 5.02). La trayectoria y la independencia siguen siendo del analista | Cerrado (2026-10-14) |
 | ~~B4~~ | ~~Apartados 12 y 23-25~~ | Parámetros del fondo (Configuración, internos) → criterios cumple/no cumple, stop por volatilidad, tamaño por riesgo, VaR/CVaR (FRAA), días de liquidez y prueba histórica del stop con cotizaciones propias (sin vectorbt); checklist cualitativo y criterios de salida del analista; seguimiento con el calendario. Sin parámetros, aviso interno y sin sección | Cerrado (2026-10-14) |
@@ -109,7 +125,7 @@ Objetivo: que el analista genere, complete, emita (PDF descargable) y versione i
 
 | # | Tarea | Detalle |
 |---|---|---|
-| C1 | Sustituir vectorbt | Commons Clause: prohíbe venderlo (uso interno permitido hasta entonces) |
+| C1 | Sustituir vectorbt | Commons Clause: prohíbe venderlo. Revisión del 2026-10-14: no se llegó a usar (la B4 se hizo con cotizaciones propias); queda comprobarlo y cerrarla |
 | C2 | Usuarios y permisos | Autenticación, roles (analista, revisor), varias empresas cubiertas por usuario |
 | C3 | Despliegue | Servidor, base de datos gestionada, copias de seguridad, cachés de la SEC y del mercado |
 | C4 | Avisos automáticos | Nuevo 10-Q/10-K → versión detectada → aviso al analista |
@@ -117,3 +133,5 @@ Objetivo: que el analista genere, complete, emita (PDF descargable) y versione i
 | C6 | Migración a edgartools 6 | Fijado en `<6`: la 6.0 cambia la API |
 | C7 | Legal y licencias | Revisión legal del aviso (el sistema de recomendación R7 ya está en el anexo B), atribuciones (MIT/Apache) y licencias de datos |
 | C8 | Observabilidad | Registro de errores, tiempos y uso del modelo de lenguaje |
+| C9 | Facturación y planes | Propuesta nueva (2026-10-14), a valorar: suscripciones y límites por plan |
+| C10 | Manual del usuario | Propuesta nueva (2026-10-14), a valorar: guía del analista dentro del SaaS |
