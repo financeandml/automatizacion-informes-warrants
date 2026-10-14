@@ -1157,7 +1157,8 @@ class _Constructor:
             ("E27", "LBO: la depreciación del inmovilizado es la del caso elegido (la plantilla mezclaba los casos)"),
             ("E28", "LBO: la amortización de las comisiones de financiación es gasto financiero no monetario"),
             ("E29", "LBO: «otros usos» como coste de la operación; con E27-E29 el balance pro forma cuadra (el de la plantilla no)"),
-            ("E30", "LBO: la comprobación de la deuda, con tolerancia relativa (la igualdad exacta fallaba por el residuo iterativo)")]
+            ("E30", "LBO: la comprobación de la deuda, con tolerancia relativa (la igualdad exacta fallaba por el residuo iterativo)"),
+            ("E31", "LBO: las preferentes que la operación no amortiza siguen en el balance proyectado (si no, descuadraba)")]
         for i, (codigo, texto) in enumerate(correcciones):
             h.poner(18 + i, 2, codigo, "etiqueta")
             h.poner(18 + i, 3, texto)

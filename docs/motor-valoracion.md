@@ -52,6 +52,8 @@ Encontrados al reproducir las plantillas con datos reales (corregidos; la lista 
 | E21-E26 | LBO | EBIT conservador sin autorreferencia; intangibles sin circularidad; signo de otros activos y pasivos a largo plazo; amortización total con pagos obligatorios y PIK; tipo PIK en todos los años; acciones diluidas con opciones y RSU |
 | E27-E29 | LBO, balance *pro forma* | Depreciación del caso elegido; amortización de comisiones de financiación como gasto no monetario; «otros usos» como coste de la operación. Con ellas el balance cuadra (el de la plantilla descuadraba entre −32,7 y −37,8 al año) |
 | E30 | LBO, control de la deuda | Con tolerancia relativa: la igualdad exacta sobre valores iterativos dependía del residuo de la iteración |
+| E31 | LBO, balance proyectado | Las preferentes que la operación no amortiza siguen en el balance (la plantilla no tenía preferentes; con ORCL descuadraba en 4.954 cada año) |
+| — | DCF con valor por acción ≤ 0 (ORCL y RIVN con los supuestos por defecto) | No es una valoración: se muestra en el modelo y en el texto, con aviso y nota para el analista, pero no entra en el precio objetivo |
 | — | Historia corta (menos de 5 ejercicios en la SEC) | Las ratios de los años sin datos daban #DIV/0! y el error llegaba al WACC: se marcan «--» (como hace la plantilla) con `IFERROR`, un comentario en la celda y un aviso |
 
 ## 3. Diseño del motor
@@ -81,7 +83,7 @@ Se comparan **todas** las celdas con fórmula (tolerancia relativa y absoluta de
 - LibreOffice no calcula las tablas de datos de Excel (sensibilidades): esas celdas y lo que lee de ellas no se contrastan (se avisa) y las calculan Python y Excel.
 - Cálculo iterativo: 1.000 iteraciones y cambio máximo 1e-7 (las plantillas: 100 y 0,001, cuyo residuo dejaba incoherente el bloque circular).
 
-Resultado con AAPL: 2.151 celdas con fórmula iguales en las dos vías, 0 discrepancias.
+Resultado (2026-10-15): las 14 empresas de la regresión construyen su libro sin celdas en error y con 0 discrepancias entre las dos vías (AAPL: 3.652 celdas; los libros sectoriales, 70-94). Controles que avisan con datos reales, todos legítimos: valor terminal > 85 % del EV (IOVA, JNJ) y revolver del LBO excedido (ORCL, TSLA: el LBO no sería financiable).
 
 **Qué plantilla se usa según la empresa** (cobertura y sector):
 

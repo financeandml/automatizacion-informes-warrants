@@ -316,3 +316,16 @@ def test_contraste_con_libreoffice(contexto, tmp_path):
         pytest.skip("LibreOffice no está instalado")
     _, avisos = exportar(contexto, tmp_path / "AAPL.pdf")
     assert any("coinciden con LibreOffice" in a for a in avisos), avisos
+
+
+def test_dcf_negativo_del_motor_no_entra_en_el_precio(contexto):
+    """Un DCF con valor por acción ≤ 0 no es una valoración: se avisa, el texto lo explica y no entra en el precio objetivo."""
+    from dataclasses import replace
+
+    segmento = next(iter(contexto["motor"]["datos"].segmentos)).nombre
+    c = _componer(estimaciones=replace(contexto["estimaciones"], motor={"margenes": {segmento: [-0.3] * 6}}))
+    assert c["motor"]["modelo"].salidas["precio_dcf"] < 0
+    assert c["valor_dcf"] is None and c["potencial_dcf"] is None
+    assert any("no entra en el precio objetivo" in a for a in c["avisos_emision"])
+    assert "valor por acción negativo (−" in c["textos"]["valoracion.comentario"]
+    assert next(m for m in c["metodos"] if m.nombre == "DCF").valor is None

@@ -327,6 +327,11 @@ def componer_general(*, ticker: str, empresa: str, sic, cobertura, filing: dict,
         avisos_emision.append(f"Motor de valoración no disponible ({motor['error']}): el DCF es el de escenarios")
     avisos_emision += (motor or {}).get("avisos") or []
     valor_dcf = sm.get("precio_dcf") if sm.get("precio_dcf") is not None else valor_dcf_escenarios
+    if sm.get("precio_dcf") is not None and sm["precio_dcf"] <= 0:  # no es una valoración: se muestra, no entra en el precio
+        valor_dcf = None
+        importe = f"{sm['precio_dcf']:,.2f}".replace(",", " ").replace(".", ",").replace(" ", ".").replace("-", "−")
+        avisos_emision.append(f"Motor de valoración: el DCF da {importe} USD por acción (el valor de la empresa no "
+                              "cubre la deuda neta con estos supuestos); no entra en el precio objetivo: revisa los supuestos")
     wacc_motor = sm.get("wacc")
     wacc_informe = wacc_motor if wacc_motor is not None else (valor.wacc if valor else None)
     if sm and comparables_del_analista:  # comparables del motor: media de los precios a la mediana EV/EBITDA y PER

@@ -14,7 +14,8 @@ opciones y RSU; E27 depreciación del inmovilizado = la del caso elegido; E28 am
 financiación como gasto financiero no monetario; E29 «otros usos» como coste de la operación (la plantilla los
 activaba en el balance de apertura y no los arrastraba). Con E27-E29 el balance pro forma cuadra (el de la plantilla no:
 −32,7 a −37,8 al año). E30: la comprobación de la deuda (inicial − amortización = final) con tolerancia relativa, no
-igualdad exacta: sobre valores de un cálculo iterativo, la igualdad exacta depende del residuo de la iteración.
+igualdad exacta: sobre valores de un cálculo iterativo, la igualdad exacta depende del residuo de la iteración. E31: las
+preferentes que la operación no amortiza se mantienen en el balance proyectado (la plantilla no tenía preferentes).
 E11 (proveedores sobre el coste de ventas) no se aplica: el caso de la dirección no tiene coste de ventas; se mantiene
 la plantilla (sobre ventas).
 
@@ -684,6 +685,8 @@ def hojas_lbo(k) -> None:
         L = chr(64 + c)
         h.poner(331, c, f"=SUM({L}325:{L}330)", "total", "mn")
         h.poner(338, c, f"=SUM({L}333:{L}337)", "total", "mn")
+        if c > 6:  # E31: las preferentes que la operación no amortiza siguen en el balance (la plantilla no las tenía)
+            h.poner(340, c, f"={chr(63 + c)}340", "", "mn")
         h.poner(342, c, f"=SUM({L}340:{L}341)", "total", "mn")
         h.poner(344, c, f"={L}331-{L}338-{L}342", "", "mn")
     h.poner(346, 2, "Equity", "cabecera")
