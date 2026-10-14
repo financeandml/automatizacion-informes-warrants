@@ -1,0 +1,4 @@
+Métricas del perfil «{{ perfil_nombre }}» de {{ empresa }} en {{ periodo }}, frente a {{ anio_ini }}: {% for m in evolucion %}{{ m.nombre }} {{ m.fin }}{% if m.inicio != "n.d." %} ({{ anio_ini }}: {{ m.inicio }}){% endif %}{{ "; " if not loop.last else "." }}{% endfor %}
+{% if para_el_analista %}
+
+[[ANALISTA: la empresa no declara en XBRL estándar {{ para_el_analista|join(", ") }}: tómalo del 10-K si es relevante para la tesis]]{% endif %}

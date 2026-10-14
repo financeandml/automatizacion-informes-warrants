@@ -1,0 +1,133 @@
+{
+ "ticker": "O",
+ "origen": {
+  "filing": "0000726728-26-000011",
+  "ultimo_periodico": "0000726728-26-000048",
+  "fecha_ltm": "2026-06-30",
+  "fecha": "2026-10-14"
+ },
+ "sec": {
+  "perfil": "reit",
+  "anuales": {
+   "2021": {
+    "datos": {
+     "beneficio": 359456000.0,
+     "patrimonio": 25052574000.0,
+     "activos": 43137502000.0,
+     "amortizacion": 897835000.0,
+     "ganancias_venta": 55798000.0,
+     "deterioros": 38967000.0,
+     "dividendos": 1169026000.0,
+     "deuda": 12499709000.0
+    },
+    "metricas": {
+     "ffo": 1240460000.0,
+     "payout_ffo": 0.9424132982925689,
+     "ltv": 0.28976432154091813,
+     "roe": 0.014348066589884138
+    }
+   },
+   "2022": {
+    "datos": {
+     "beneficio": 869408000.0,
+     "patrimonio": 28713149000.0,
+     "activos": 49673092000.0,
+     "amortizacion": 1670389000.0,
+     "ganancias_venta": 102957000.0,
+     "deterioros": 25860000.0,
+     "dividendos": 1813431000.0,
+     "deuda": 14278013000.0
+    },
+    "metricas": {
+     "ffo": 2462700000.0,
+     "payout_ffo": 0.7363588744061396,
+     "ltv": 0.28743958600362546,
+     "roe": 0.030279089207526488
+    }
+   },
+   "2023": {
+    "datos": {
+     "beneficio": 872309000.0,
+     "patrimonio": 32941467000.0,
+     "activos": 57779357000.0,
+     "amortizacion": 1895177000.0,
+     "ganancias_venta": 25667000.0,
+     "deterioros": 87082000.0,
+     "dividendos": 2111793000.0,
+     "deuda": 18602319000.0
+    },
+    "metricas": {
+     "ffo": 2828901000.0,
+     "payout_ffo": 0.746506505529886,
+     "ltv": 0.32195441358061494,
+     "roe": 0.02648057537935393
+    }
+   },
+   "2024": {
+    "datos": {
+     "beneficio": 860772000.0,
+     "patrimonio": 38840738000.0,
+     "activos": 68835039000.0,
+     "amortizacion": 2395644000.0,
+     "ganancias_venta": 117275000.0,
+     "deterioros": 425833000.0,
+     "dividendos": 2691719000.0,
+     "deuda": 22657592000.0
+    },
+    "metricas": {
+     "ffo": 3564974000.0,
+     "payout_ffo": 0.7550458993529826,
+     "ltv": 0.32915782905272994,
+     "roe": 0.022161576847484207
+    }
+   },
+   "2025": {
+    "datos": {
+     "beneficio": 1058590000.0,
+     "patrimonio": 39438695000.0,
+     "activos": 72795612000.0,
+     "amortizacion": 2524200000.0,
+     "ganancias_venta": 177640000.0,
+     "deterioros": 471335000.0,
+     "dividendos": 2920895000.0,
+     "deuda": 25031947000.0
+    },
+    "metricas": {
+     "ffo": 3876485000.0,
+     "payout_ffo": 0.7534905977967153,
+     "ltv": 0.3438661522620347,
+     "roe": 0.02684140537611602
+    }
+   }
+  },
+  "ltm": {
+   "datos": {
+    "beneficio": 1310758000.0,
+    "patrimonio": 39549557000.0,
+    "activos": 76441475000.0,
+    "amortizacion": 2542368000.0,
+    "ganancias_venta": 190439000.0,
+    "deterioros": 394836000.0,
+    "dividendos": 2996432000.0,
+    "deuda": 25091588000.0
+   },
+   "metricas": {
+    "ffo": 4057523000.0,
+    "payout_ffo": 0.7384879888542838,
+    "ltv": 0.328245733091885,
+    "roe": 0.033142166421737666
+   }
+  },
+  "acciones": 946218033.0,
+  "calidad": {
+   "nivel": "verde",
+   "errores": [],
+   "avisos": []
+  }
+ },
+ "mercado_referencia": {
+  "cotizacion": 54.9900016784668,
+  "precio_modelo": 61.5923048315194,
+  "precio_objetivo": 61.5923048315194
+ }
+}

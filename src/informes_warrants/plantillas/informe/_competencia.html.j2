@@ -1,0 +1,14 @@
+  {% set comp = c.competencia %}
+  <h3>Competencia</h3>
+  {{ t["negocio.competencia"] }}
+  {% if comp.texto and comp.texto.valida %}<div class="fuente">Apartado «Competition» del Item 1 del 10-K, traducido al español por IA ({{ comp.texto.modelo }}) y verificado por código (mismas cifras y nombres propios que el original); los nombres de competidores, productos y marcas se dejan en su idioma.{% if comp.texto.recortado %} Extracto: el apartado continúa en el 10-K.{% endif %}</div>{% elif comp.texto %}<div class="fuente">Texto original del Item 1 del 10-K.</div>{% endif %}
+  {% if comp.cuotas %}
+  <div style="break-inside: avoid">
+  <table class="datos">
+    <tr><th>Empresa</th><th>Cuota de ingresos del grupo (LTM)</th></tr>
+    {% for tk, cuota in comp.cuotas|dictsort(by="value", reverse=True) %}<tr{% if tk == c.ticker %} class="total"{% endif %}><td>{{ c.empresa if tk == c.ticker else comp.nombres[tk] }} ({{ tk }})</td><td>{{ cuota|pct }}</td></tr>{% endfor %}
+  </table>
+  <div class="fuente">Ingresos LTM de la empresa y de los comparables del analista (mismo normalizador SEC), sobre su suma.</div>
+  </div>
+  {% endif %}
+  {% if comp.roic_menos_wacc is not none or comp.estabilidad is not none %}<p>{% if comp.roic_menos_wacc is not none %}El ROIC ({{ comp.roic|pct }}) {% if comp.roic_menos_wacc >= 0 %}supera{% else %}queda por debajo de{% endif %} el WACC del escenario base ({{ comp.wacc|pct }}) en {{ (comp.roic_menos_wacc|abs * 100)|num(1) }} pp{% if comp.roic_mediana is not none %}; la mediana del ROIC de sus comparables es del {{ comp.roic_mediana|pct }}{% endif %}.{% endif %}{% if comp.estabilidad is not none %} La desviación típica de su margen operativo en los últimos cinco ejercicios es de {{ (comp.estabilidad * 100)|num(1) }} pp{% if comp.estabilidad_mediana is not none %}, frente a {{ (comp.estabilidad_mediana * 100)|num(1) }} pp de mediana en sus comparables{% endif %}.{% endif %}</p>{% endif %}

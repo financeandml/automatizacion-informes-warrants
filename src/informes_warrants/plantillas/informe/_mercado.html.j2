@@ -2,7 +2,7 @@
       <table class="datos lateral-tabla">
         <tr><td>Cotización (USD)</td><td>{{ c.cotizacion.precio|num(2) }}</td></tr>
         <tr><td>Capitalización (USD bn)</td><td>{{ (c.multiplos.capitalizacion/1e9)|num(1) }}</td></tr>
-        <tr><td>Valor de empresa, EV (USD bn)</td><td>{{ (c.multiplos.ev/1e9)|num(1) }}</td></tr>
+        {% if c.multiplos.get("ev") is not none %}<tr><td>Valor de empresa, EV (USD bn)</td><td>{{ (c.multiplos.ev/1e9)|num(1) }}</td></tr>{% endif %}
         <tr><td>Acciones en circulación (mn)</td><td>{{ (c.mercado.acciones/1e6)|num(0) }}</td></tr>
         <tr><td>Máx. / medio / mín. 12m</td><td>{{ c.cotizacion.maximo_12m|num(0) }} / {{ c.cotizacion.medio_12m|num(0) }} / {{ c.cotizacion.minimo_12m|num(0) }}</td></tr>
         <tr><td>Volumen medio diario (USD mn)</td><td>{{ (c.cotizacion.volumen_medio_12m/1e6)|num(0) }}</td></tr>

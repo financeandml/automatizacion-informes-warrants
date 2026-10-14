@@ -17,7 +17,8 @@ from pathlib import Path
 
 from ..calculo.normalizador import LTM
 
-EMPRESAS = ("AAPL", "IOVA", "ORCL", "NFLX", "MSFT", "JNJ", "KO", "TSLA", "XOM", "RIVN")
+EMPRESAS = ("AAPL", "IOVA", "ORCL", "NFLX", "MSFT", "JNJ", "KO", "TSLA", "XOM", "RIVN",
+            "JPM", "TRV", "O", "ARCC")  # las cuatro últimas, una por plantilla sectorial (B2)
 CARPETA = Path(__file__).resolve().parents[3] / "tests" / "fixtures" / "regresion"
 TOLERANCIA = 1e-9  # relativa: las cifras de la SEC deben salir idénticas
 PARTIDAS_LTM = ("ingresos", "resultado_operativo", "beneficio_neto", "bpa_diluido", "acciones_diluidas", "caja", "deuda_cp",
@@ -25,8 +26,29 @@ PARTIDAS_LTM = ("ingresos", "resultado_operativo", "beneficio_neto", "bpa_diluid
 FUNDAMENTALES = ("ebitda", "fcf", "fcf_tras_sbc", "dfn", "deuda_neta_ajustada")
 
 
+def _sin_nan(x):
+    return None if isinstance(x, float) and math.isnan(x) else x
+
+
+def _sectorial(c: dict) -> dict:
+    """Plantillas sectoriales (B2): partidas y métricas del perfil de cada ejercicio y del LTM."""
+    def resultado(r):
+        return None if r is None else {"datos": {k: d.valor for k, d in r.datos.items()},
+                                       "metricas": {k: _sin_nan(v) for k, v in r.metricas.items()}}
+
+    return {"perfil": c["perfil"], "anuales": {str(a): resultado(r) for a, r in c["historico"].items()}, "ltm": resultado(c["ltm"]),
+            "acciones": c["mercado"].acciones,
+            "calidad": {"nivel": str(c["calidad"].nivel), "errores": list(c["calidad"].errores), "avisos": list(c["calidad"].avisos)}}
+
+
 def cifras_clave(c: dict) -> dict:
     """Instantánea de un informe construido: cifras de la SEC (se comparan) y de mercado (solo referencia)."""
+    if c.get("perfil"):
+        mercado = {"cotizacion": c["cotizacion"].precio, "precio_modelo": c["precio_modelo"], "precio_objetivo": c["precio_objetivo"]}
+        origen = {"filing": c["filing"]["accession"], "ultimo_periodico": c["filing"].get("ultimo_periodico"),
+                  "fecha_ltm": c.get("fecha_ltm"), "fecha": c["fecha"]}
+        return json.loads(json.dumps({"ticker": c["ticker"], "origen": origen, "sec": _sectorial(c), "mercado_referencia": mercado},
+                                     ensure_ascii=False, default=str))
     e = c["estados_ltm"]  # sin 10-Q utilizable, el contexto ya trae el último ejercicio con la clave LTM
     sec = {
         "ltm": {p: e.valor(p, LTM) for p in PARTIDAS_LTM},

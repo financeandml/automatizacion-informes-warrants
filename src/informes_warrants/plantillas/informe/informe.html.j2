@@ -52,28 +52,7 @@
   <h3>Perspectivas</h3>
   {{ t["conclusiones.perspectivas"] }}
   {{ t["conclusiones.fortalezas_riesgos"] }}
-  <h3>Gestión de la posición</h3>
-  {% set gp = c.gestion %}
-  {% if gp and gp.criterios %}
-  <table class="datos">
-    <tr><th>Criterio del fondo</th><th>Umbral</th><th>Valor</th><th>Resultado</th></tr>
-    {% for k in gp.criterios %}<tr><td>{{ k.criterio }}</td><td>{{ k.signo|replace(">=", "≥")|replace("<=", "≤") }} {{ k.umbral|pct if k.porcentaje else (k.umbral|num(1) ~ "x") }}</td><td>{{ (k.valor|pct if k.porcentaje else (k.valor|num(1) ~ "x")) if k.valor is not none else "n.d." }}</td><td>{{ "Cumple" if k.cumple else ("No cumple" if k.cumple is not none else "Sin dato") }}</td></tr>{% endfor %}
-  </table>
-  {% endif %}
-  {{ t["conclusiones.checklist"] }}
-  {% if gp and gp.riesgo %}{% set r = gp.riesgo %}
-  <table class="datos">
-    <tr><th>Riesgo de la posición (parámetros del fondo)</th><th></th></tr>
-    <tr><td>Stop por volatilidad ({{ gp.parametros.multiplo_volatilidad|num(1) }} × volatilidad diaria × √{{ gp.parametros.horizonte_stop_dias }} sesiones)</td><td>{{ r.stop|num(2) }} USD ({{ (-r.perdida)|var }})</td></tr>
-    <tr><td>Tamaño para arriesgar el {{ gp.parametros.riesgo_por_posicion|pct }} de la cartera hasta el stop</td><td>{{ r.acciones|num(0) }} acciones · {{ (r.importe / 1e6)|num(2) }} USD Mn · {{ r.peso|pct }} de la cartera{% if r.limitada_por_peso %} (limitado por el peso máximo){% endif %}</td></tr>
-    {% if r.frecuencia_stop is not none %}<tr><td>Prueba histórica: ventanas de {{ gp.parametros.horizonte_stop_dias }} sesiones (5 años) en que se habría tocado el stop</td><td>{{ r.frecuencia_stop|pct }}</td></tr>{% endif %}
-    {% if gp.var %}<tr><td>VaR / CVaR diario al 95 % (histórico, 1 año)</td><td>{{ gp.var[0]|var }} / {{ gp.var[1]|var }}</td></tr>{% endif %}
-    {% if r.dias_para_construir is not none %}<tr><td>Sesiones para construir la posición ({{ gp.parametros.participacion_maxima_volumen|pct }} del volumen medio)</td><td>{{ r.dias_para_construir|num(1) }}</td></tr>{% endif %}
-  </table>
-  <div class="fuente">Parámetros del fondo fijados por el analista bajo su responsabilidad. Stop acotado entre la pérdida mínima y máxima que fije el analista; VaR con el percentil de los rendimientos diarios (como financial-research-analyst-agent).</div>
-  {% endif %}
-  {% if c.catalizadores.calendario %}<p><strong>Seguimiento.</strong> Próximas revisiones: {% for e in c.catalizadores.calendario if e.fecha %}{{ e.evento|lower }} ({{ e.fecha if e.fecha is string else e.fecha.strftime("%d/%m/%Y") }}){{ "; " if not loop.last else "" }}{% endfor %}. Precio objetivo de {{ c.precio_objetivo|num(2) }} USD{% if gp and gp.riesgo %} y stop de {{ gp.riesgo.stop|num(2) }} USD{% endif %}; cada 10-Q o 10-K nuevo crea una versión del informe.</p>{% endif %}
-  {{ t["conclusiones.seguimiento"] }}
+{% include "_gestion.html.j2" %}
 
   <h2><span class="num">02</span>Descripción del negocio</h2>
   {{ t["negocio.descripcion"] }}
@@ -102,20 +81,7 @@
   </div>
   {% endif %}
   {{ t["negocio.pipeline"] }}
-  {% set comp = c.competencia %}
-  <h3>Competencia</h3>
-  {{ t["negocio.competencia"] }}
-  {% if comp.texto and comp.texto.valida %}<div class="fuente">Apartado «Competition» del Item 1 del 10-K, traducido al español por IA ({{ comp.texto.modelo }}) y verificado por código (mismas cifras y nombres propios que el original); los nombres de competidores, productos y marcas se dejan en su idioma.{% if comp.texto.recortado %} Extracto: el apartado continúa en el 10-K.{% endif %}</div>{% elif comp.texto %}<div class="fuente">Texto original del Item 1 del 10-K.</div>{% endif %}
-  {% if comp.cuotas %}
-  <div style="break-inside: avoid">
-  <table class="datos">
-    <tr><th>Empresa</th><th>Cuota de ingresos del grupo (LTM)</th></tr>
-    {% for tk, cuota in comp.cuotas|dictsort(by="value", reverse=True) %}<tr{% if tk == c.ticker %} class="total"{% endif %}><td>{{ c.empresa if tk == c.ticker else comp.nombres[tk] }} ({{ tk }})</td><td>{{ cuota|pct }}</td></tr>{% endfor %}
-  </table>
-  <div class="fuente">Ingresos LTM de la empresa y de los comparables del analista (mismo normalizador SEC), sobre su suma.</div>
-  </div>
-  {% endif %}
-  {% if comp.roic_menos_wacc is not none or comp.estabilidad is not none %}<p>{% if comp.roic_menos_wacc is not none %}El ROIC ({{ comp.roic|pct }}) {% if comp.roic_menos_wacc >= 0 %}supera{% else %}queda por debajo de{% endif %} el WACC del escenario base ({{ comp.wacc|pct }}) en {{ (comp.roic_menos_wacc|abs * 100)|num(1) }} pp{% if comp.roic_mediana is not none %}; la mediana del ROIC de sus comparables es del {{ comp.roic_mediana|pct }}{% endif %}.{% endif %}{% if comp.estabilidad is not none %} La desviación típica de su margen operativo en los últimos cinco ejercicios es de {{ (comp.estabilidad * 100)|num(1) }} pp{% if comp.estabilidad_mediana is not none %}, frente a {{ (comp.estabilidad_mediana * 100)|num(1) }} pp de mediana en sus comparables{% endif %}.{% endif %}</p>{% endif %}
+{% include "_competencia.html.j2" %}
   <h3>Posicionamiento competitivo</h3>
   {{ t["negocio.posicionamiento"] }}
   <h3>Industria y mercado</h3>
@@ -346,21 +312,7 @@
   </div>
   {% elif c.segmentos.get("negocio") and c.segmentos.negocio.resultado_operativo %}<p class="fuente">Suma de partes: necesita la lista de comparables del analista (mediana EV/EBIT) o un múltiplo por segmento.</p>{% endif %}
 
-  {% if c.cambios %}
-  <div style="break-inside: avoid">
-  <h3>Cambios frente al informe anterior ({{ c.cambios.fecha_anterior }})</h3>
-  {% if c.cambios.cambios %}<table class="datos">
-    <tr><th>Concepto</th><th>Anterior</th><th>Actual</th></tr>
-    {% for x in c.cambios.cambios %}<tr><td>{{ x.campo }}</td><td>{% if x.antes is number %}{{ ((x.antes/1e6) if (x.antes|abs) > 1e6 else x.antes)|num(2) }}{% else %}{{ x.antes or "—" }}{% endif %}</td><td>{% if x.ahora is number %}{{ ((x.ahora/1e6) if (x.ahora|abs) > 1e6 else x.ahora)|num(2) }}{% else %}{{ x.ahora or "—" }}{% endif %}</td></tr>{% endfor %}
-  </table>{% endif %}
-  {% if c.cambios.atribucion %}<table class="datos">
-    <tr><th>Qué explica el cambio del valor DCF (escenario base)</th><th>USD por acción</th></tr>
-    {% for p in c.cambios.atribucion.pasos %}<tr><td>{{ p.grupo }}</td><td>{{ "%+.2f"|format(p.impacto)|replace(".", ",")|replace("-", "−") }}</td></tr>{% endfor %}
-    <tr class="total"><td>Cambio total</td><td>{{ "%+.2f"|format(c.cambios.atribucion.total)|replace(".", ",")|replace("-", "−") }}</td></tr>
-  </table>
-  <div class="fuente">Atribución secuencial (suma exactamente el cambio total): primero los datos de partida y después cada grupo de supuestos, en este orden. El precio objetivo puede cambiar además por los métodos que entran en él (p. ej., la lista de comparables del analista). Importes en USD mn cuando superan el millón.</div>{% endif %}
-  </div>
-  {% endif %}
+{% include "_cambios.html.j2" %}
 
 </section>
 
@@ -390,17 +342,7 @@
     <tr><th>Ámbito</th><th style="text-align:left">Concepto</th><th style="text-align:left">Definición</th></tr>
     {% for grupo, termino, definicion in definiciones %}<tr><td>{{ grupo }}</td><td style="text-align:left; white-space:nowrap">{{ termino }}</td><td style="text-align:left">{{ definicion }}</td></tr>{% endfor %}
   </table>
-  <h3>Sistema de recomendación</h3>
-  <p>Horizonte de 12 meses. <strong>Comprar</strong>: potencial igual o superior a {{ (umbral_comprar * 100)|num(0) }} % frente a la cotización. <strong>Vender</strong>: potencial igual o inferior a {{ (umbral_vender * 100)|num(0) }} %. <strong>Mantener</strong>: entre ambos. El precio objetivo es la media ponderada de los métodos de valoración (tabla «Derivación del precio objetivo»); el analista puede fijar el suyo y confirma la recomendación antes de emitir.</p>
-  {% if c.historial %}
-  <h3>Historial de recomendación y precio objetivo</h3>
-  <table class="datos">
-    <tr><th>Fecha</th><th>Recomendación</th><th>Precio objetivo (USD)</th><th>Cotización entonces (USD)</th><th>Señal a hoy</th></tr>
-    {% for h in c.historial %}<tr><td>{{ h.fecha }}</td><td>{{ h.recomendacion }}</td><td>{{ h.precio_objetivo|num(2) }}</td><td>{{ h.cotizacion|num(2) }}</td><td>{{ h.senal }}</td></tr>{% endfor %}
-  </table>
-  {% if g.get("historial") %}<div class="grafico" style="width:60%">{{ g.historial }}</div>{% endif %}
-  <div class="fuente">Señal: acertada (a menos del 10 % del objetivo o más de la mitad del camino recorrido), fallida (10 % en contra tras 7 días o 12 meses sin acertar) o en curso.</div>
-  {% endif %}
+{% include "_sistema_historial.html.j2" %}
   <h3>Documentos y datos utilizados</h3>
   <table class="datos">
     <tr><td>Último 10-K (FY{{ c.filing.ejercicio }})</td><td>{{ c.filing.accession }} · {{ c.filing.fecha }}</td></tr>

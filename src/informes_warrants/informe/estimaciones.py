@@ -41,6 +41,8 @@ class Estimaciones:
     g: float = 0.025
     pesos: dict[str, float] = field(default_factory=lambda: dict(PESOS_POR_DEFECTO))  # métodos del precio objetivo
     precio_objetivo_analista: float | None = None  # si se fija, sustituye al calculado; el potencial lo recalcula el código
+    # Plantillas sectoriales (B2): ROE (ROTE, NII) sostenible del valor contable justificado; None = media de los ejercicios
+    rentabilidad_sostenible: float | None = None
     anios_convergencia: int = 5  # años tras los explícitos en los que el crecimiento converge linealmente a g
     # Proyección hasta el BPA (calculo/proyeccion.py)
     resultado_financiero_sobre_ventas: float = 0.0  # (BAI − EBIT) / ventas: intereses netos y otros resultados
@@ -87,6 +89,8 @@ class Estimaciones:
             errores.append("Los múltiplos de la suma de partes deben ser positivos.")
         if self.precio_objetivo_analista is not None and self.precio_objetivo_analista <= 0:
             errores.append("El precio objetivo del analista debe ser positivo.")
+        if self.rentabilidad_sostenible is not None and not -1 < self.rentabilidad_sostenible < 1:
+            errores.append("La rentabilidad sostenible debe estar entre -100 % y 100 %.")
         if self.g >= self.coste_equity():
             errores.append("g debe ser menor que el coste del capital.")
         return errores

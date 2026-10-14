@@ -1,0 +1,171 @@
+{% set p = c.perfil_def %}{% set v = c.valoracion %}
+{% include "_inicio.html.j2" %}
+  <div class="rejilla">
+    <div class="principal">
+      <h3>Tesis de inversión</h3>
+      {{ t["portada.titulares"] }}
+      {{ t["portada.recomendacion"] }}
+      <div class="kpis">
+        {% for k in kpis %}<div class="kpi"><div class="v">{{ k.valor }}</div><div class="l">{{ k.nombre }} · {{ c.periodo }}</div></div>{% endfor %}
+        <div class="kpi"><div class="v">{{ v.multiplo_principal|veces }}</div><div class="l">{{ nombre_principal }}</div></div>
+      </div>
+      <h3>Situación actual</h3>
+      {{ t["conclusiones.situacion"] }}
+      <h3>Comportamiento bursátil (base 100, 5 años)</h3>
+      <div class="grafico" style="width:100%">{{ g.base_100 }}</div>
+      <div class="fuente">Fuente: yfinance (cierres ajustados). {{ c.ticker }} frente a S&amp;P 500 (SPY) y a su índice sectorial ({{ c.etf }}).</div>
+    </div>
+
+    <div class="lateral">
+{% include "_recomendacion.html.j2" %}
+{% include "_mercado.html.j2" %}
+      <h3>Métricas del perfil «{{ p.nombre }}»</h3>
+      <table class="datos">
+        <tr><th></th>{% for a in tabla.cabecera[-3:] %}<th>{{ a }}</th>{% endfor %}</tr>
+        {% for fila in tabla.metricas %}<tr><td>{{ fila.nombre }}</td>{% for x in fila.valores[-3:] %}<td>{{ x }}</td>{% endfor %}</tr>{% endfor %}
+      </table>
+
+      <h3>Múltiplos ({{ c.periodo }})</h3>
+      <table class="datos lateral-tabla">
+        <tr><td>{{ nombre_principal }}</td><td>{{ v.multiplo_principal|veces }}</td></tr>
+        {% if v.metodos.get("Valor contable justificado") and v.metodos["Valor contable justificado"].multiplo_justo %}<tr><td>{{ nombre_principal }} justificado</td><td>{{ v.metodos["Valor contable justificado"].multiplo_justo|veces }}</td></tr>{% endif %}
+        {% if principal != "p_bv" %}<tr><td>P / Valor contable</td><td>{{ c.multiplos.p_bv|veces }}</td></tr>{% endif %}
+        <tr><td>PER</td><td>{{ c.multiplos.per|veces(1) }}</td></tr>
+        <tr><td>Rentabilidad por dividendo</td><td>{{ c.multiplos.rentabilidad_dividendo|pct }}</td></tr>
+        <tr><td>Coste del capital (Ke)</td><td>{{ v.ke|pct }}</td></tr>
+      </table>
+
+{% include "_bolsa_autoria.html.j2" %}
+    </div>
+  </div>
+</section>
+
+<!-- ============ 2. CONCLUSIONES, NEGOCIO Y GOBIERNO ============ -->
+<section class="salto">
+  <h2><span class="num">01</span>Conclusiones</h2>
+  <h3>Hechos clave</h3>
+  {{ t["conclusiones.hechos_clave"] }}
+  <h3>Perspectivas</h3>
+  {{ t["conclusiones.perspectivas"] }}
+  {{ t["conclusiones.fortalezas_riesgos"] }}
+{% include "_gestion.html.j2" %}
+
+  <h2><span class="num">02</span>Descripción del negocio</h2>
+  {{ t["negocio.descripcion"] }}
+  {{ t["negocio.pipeline"] }}
+{% include "_competencia.html.j2" %}
+  <h3>Posicionamiento competitivo</h3>
+  {{ t["negocio.posicionamiento"] }}
+  <h3>Industria y mercado</h3>
+  {{ t["industria.mercado"] }}
+{% include "_gobierno.html.j2" %}
+<!-- ============ 3. ANÁLISIS FINANCIERO ============ -->
+<section class="salto">
+  <h2><span class="num">04</span>Análisis financiero</h2>
+  {{ t["financiero.comentario"] }}
+  <div class="graficos">
+    <div class="grafico"><div class="titulo-g">{{ g.titulo_principal }}</div>{{ g.principal }}</div>
+    <div class="grafico"><div class="titulo-g">{{ g.titulo_ratios }}</div>{{ g.ratios }}</div>
+  </div>
+
+  <h3>Métricas del perfil «{{ p.nombre }}»</h3>
+  <table class="datos">
+    <tr><th></th>{% for a in tabla.cabecera %}<th>{{ a }}</th>{% endfor %}</tr>
+    {% for fila in tabla.metricas %}<tr class="{{ fila.clase }}"><td>{{ fila.nombre }}</td>{% for x in fila.valores %}<td>{{ x }}</td>{% endfor %}</tr>{% endfor %}
+  </table>
+  <div class="fuente">{% for m in p.metricas if m.descripcion %}{{ m.nombre }}: {{ m.descripcion }}. {% endfor %}n.d.: la empresa no declara la partida en XBRL estándar (el analista puede tomarla del 10-K).</div>
+
+  <h3>Partidas de la SEC</h3>
+  <table class="datos">
+    <tr><th></th>{% for a in tabla.cabecera %}<th>{{ a }}</th>{% endfor %}</tr>
+    {% for fila in tabla.partidas %}<tr><td>{{ fila.nombre }}</td>{% for x in fila.valores %}<td>{{ x }}</td>{% endfor %}</tr>{% endfor %}
+  </table>
+  <div class="fuente">Conceptos us-gaap de companyfacts (anexo A); {% if c.ltm %}{{ c.periodo }}: flujos de los cuatro últimos trimestres y saldos al cierre del último 10-Q. {% endif %}«—»: partida opcional que la empresa no declara (cuenta como 0). En este perfil no se usan: {{ p.no_aplica|join(", ") }}.</div>
+</section>
+
+<!-- ============ 4. VALORACIÓN ============ -->
+<section class="salto">
+  <h2><span class="num">05</span>Valoración</h2>
+  {{ t["valoracion.comentario"] }}
+  <div style="break-inside: avoid">
+  <h3>Derivación del precio objetivo</h3>
+  <table class="datos">
+    <tr><th>Método</th><th>Valor (USD)</th><th>Rango (USD)</th><th style="text-align:left">Supuesto clave</th><th>Peso</th></tr>
+    {% for m in c.metodos %}<tr><td>{{ m.nombre }}</td><td>{{ m.valor|num(2) }}</td><td>{% if m.bajo is not none and m.alto is not none %}{{ m.bajo|num(0) }} – {{ m.alto|num(0) }}{% else %}—{% endif %}</td><td style="text-align:left">{{ m.supuesto }}</td><td>{{ m.peso_efectivo|pct(0) }}</td></tr>{% endfor %}
+    <tr class="total"><td>Precio objetivo del modelo</td><td>{{ c.precio_modelo|num(2) }}</td><td></td><td></td><td>{{ "100 %" if c.precio_modelo is not none else "—" }}</td></tr>
+  </table>
+  {% if g.get("rangos") %}<div class="grafico" style="width:100%"><div class="titulo-g">Rangos de valoración por método frente a la cotización (USD por acción)</div>{{ g.rangos }}</div>{% endif %}
+  <div class="fuente">{{ p.valoracion }} Peso efectivo: los pesos del analista, repartidos entre los métodos con valor. Rangos: Ke ± 1 punto (Gordon), P25-P75 de los comparables y mínimo y máximo de 12 meses de la cotización.</div>
+  </div>
+
+  <h3>Supuestos (editables)</h3>
+  <table class="datos lateral-tabla">
+    <tr><td>Tipo libre de riesgo</td><td>{{ c.estimaciones.rf|pct }}</td></tr>
+    <tr><td>Prima de riesgo</td><td>{{ c.estimaciones.erp|pct }}</td></tr>
+    <tr><td>Beta</td><td>{{ c.estimaciones.beta|num(2) }}</td></tr>
+    <tr class="total"><td>Coste del capital (Ke)</td><td>{{ v.ke|pct }}</td></tr>
+    <tr><td>Crecimiento a perpetuidad (g)</td><td>{{ c.estimaciones.g|pct }}</td></tr>
+    <tr><td>Pesos del precio objetivo</td><td>{% for nombre, peso in c.estimaciones.pesos.items() if peso %}{{ nombre }} {{ peso|pct(0) }}{{ " · " if not loop.last }}{% endfor %}</td></tr>
+  </table>
+  <div class="fuente">Tipo libre de riesgo: {{ c.rf.fuente if c.rf else "valor por defecto" }}{% if c.rf and c.rf.fecha %} a {{ c.rf.fecha }}{% endif %}. Beta semanal de 5 años frente al S&amp;P 500.</div>
+
+  <div style="break-inside: avoid">
+  <h3>Comparables (último ejercicio de cada empresa, cotización de hoy)</h3>
+  {% if not c.comparables_del_analista %}<p class="aviso-revisar"><span class="revisar">Revisar</span> <strong>El analista debe introducir su lista de comparables para que la valoración por múltiplos se genere correctamente.</strong> La tabla muestra una propuesta automática orientativa ({{ c.comparables_criterio }}) que <strong>no entra en el precio objetivo</strong>.</p>{% else %}<p class="fuente">Lista de comparables del analista.</p>{% endif %}
+  {% if comparables %}
+  <table class="datos compacta">
+    <tr><th>Empresa</th><th>Ejercicio</th><th>Cap. (USD bn)</th><th>{{ nombre_rentabilidad }}</th><th>{{ nombre_principal }}</th>{% if principal != "p_bv" %}<th>P / Valor contable</th>{% endif %}<th>PER</th><th>Rent. dividendo</th></tr>
+    {% for x in comparables %}<tr><td>{{ x.nombre|truncate(24, True, "…") }} ({{ x.ticker }})</td><td>FY{{ x.ejercicio }}</td><td>{{ x.capitalizacion }}</td><td>{{ x.rentabilidad }}</td><td>{{ x.principal }}</td>{% if principal != "p_bv" %}<td>{{ x.p_bv }}</td>{% endif %}<td>{{ x.per }}</td><td>{{ x.dividendo }}</td></tr>{% endfor %}
+    {% set comp = v.metodos["Comparables"] if c.comparables_del_analista else v.metodos["Comparables"].orientativo %}
+    {% if comp %}<tr class="total"><td>Mediana (n.º)</td><td></td><td></td><td></td><td>{{ comp.mediana|veces }} ({{ comp.n }})</td>{% if principal != "p_bv" %}<td></td>{% endif %}<td></td><td></td></tr>{% endif %}
+    <tr><td>{{ c.empresa|truncate(24, True, "…") }} ({{ c.ticker }})</td><td>{{ c.periodo }}</td><td>{{ (c.multiplos.capitalizacion/1e9)|num(1) }}</td><td>{{ rentabilidad_propia }}</td><td>{{ v.multiplo_principal|veces }}</td>{% if principal != "p_bv" %}<td>{{ c.multiplos.p_bv|veces }}</td>{% endif %}<td>{{ c.multiplos.per|veces(1) }}</td><td>{{ c.multiplos.rentabilidad_dividendo|pct }}</td></tr>
+    {% if comp %}<tr class="total"><td>Valor implícito por acción (USD)</td><td></td><td></td><td></td><td>{{ comp.valor|num(2) }}</td>{% if principal != "p_bv" %}<td></td>{% endif %}<td></td><td></td></tr>{% endif %}
+  </table>
+  <div class="fuente">Métricas con el mismo perfil sectorial y los mismos conceptos us-gaap. La mediana excluye valores negativos y exige al menos 3 comparables.{% if comp and not c.comparables_del_analista %} Valor implícito orientativo, fuera del precio objetivo.{% endif %}</div>
+  {% else %}<p><span class="pendiente">no hay comparables con datos del perfil: añade la lista</span></p>{% endif %}
+  </div>
+{% include "_cambios.html.j2" %}
+</section>
+
+<!-- ============ 6. RIESGOS ============ -->
+<section>
+{% include "_riesgos.html.j2" %}
+<!-- ============ ANEXO: TRAZABILIDAD Y CALIDAD ============ -->
+<section class="salto">
+  <h2><span class="num">A</span>Anexo: trazabilidad y control de calidad</h2>
+  <div class="semaforo">Control de calidad de los datos: <strong>{{ c.calidad.nivel }}</strong>.
+    {% if c.calidad.errores %}Errores: {{ c.calidad.errores|join("; ") }}.{% endif %}
+    {% if c.calidad.avisos %}Avisos: {{ c.calidad.avisos|join("; ") }}.{% endif %}
+    {% if not c.calidad.errores and not c.calidad.avisos %}Métricas esenciales del perfil calculadas y beneficio, patrimonio y activo verificados entre companyfacts y el 10-K.{% endif %}
+  </div>
+  <p>Plantilla aplicada: {{ c.cobertura.motivo }}.</p>
+  <h3>Origen de cada partida ({{ c.periodo }})</h3>
+  <table class="datos">
+    <tr><th>Partida</th><th style="text-align:left">Concepto XBRL (us-gaap)</th><th>Valor (USD mn)</th><th>Filing (accession)</th></tr>
+    {% for fila in trazas %}<tr><td>{{ fila.nombre }}</td><td style="text-align:left">{{ fila.concepto }}</td><td>{{ fila.valor }}</td><td>{{ fila.origen }}</td></tr>{% endfor %}
+  </table>
+  <div class="fuente">Todas las cifras proceden de la SEC (EDGAR, companyfacts y XBRL del 10-K) y se calculan de forma determinista. La IA no genera ni modifica cifras.</div>
+</section>
+
+<section class="salto">
+  <h2><span class="num">B</span>Anexo: metodología y fuentes</h2>
+  <table class="datos">
+    <tr><th>Ámbito</th><th style="text-align:left">Concepto</th><th style="text-align:left">Definición</th></tr>
+    {% for grupo, termino, definicion in definiciones %}<tr><td>{{ grupo }}</td><td style="text-align:left; white-space:nowrap">{{ termino }}</td><td style="text-align:left">{{ definicion }}</td></tr>{% endfor %}
+  </table>
+{% include "_sistema_historial.html.j2" %}
+  <h3>Documentos y datos utilizados</h3>
+  <table class="datos">
+    <tr><td>Último 10-K (FY{{ c.filing.ejercicio }})</td><td>{{ c.filing.accession }} · {{ c.filing.fecha }}</td></tr>
+    {% if c.filing.get("ultimo_periodico") %}<tr><td>Último informe periódico ({{ c.filing.get("ultimo_periodico_formulario") }}) · LTM</td><td>{{ c.filing.get("ultimo_periodico") }}{% if c.fecha_ltm %} · cierre {{ c.fecha_ltm }}{% endif %}</td></tr>{% endif %}
+    {% if c.gobierno and c.gobierno.proxy_accession %}<tr><td>Proxy (DEF 14A)</td><td>{{ c.gobierno.proxy_accession }} · {{ c.gobierno.proxy_fecha }}</td></tr>{% endif %}
+    <tr><td>Acciones en circulación</td><td>{{ c.acciones_origen or "portada del último filing" }}</td></tr>
+    <tr><td>Cotización e índices</td><td>yfinance · {{ c.cotizacion.fecha }}</td></tr>
+    <tr><td>Tipo libre de riesgo</td><td>{{ c.rf.fuente if c.rf else "valor por defecto" }}{% if c.rf and c.rf.fecha %} · {{ c.rf.fecha }}{% endif %}</td></tr>
+    <tr><td>Comparables</td><td>{{ c.comparables_criterio or "sin comparables" }}</td></tr>
+  </table>
+</section>
+
+<section class="salto legal">{{ legal }}</section>
+</body>
+</html>

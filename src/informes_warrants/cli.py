@@ -48,7 +48,10 @@ def _informe(args) -> None:
     print(f"Calidad de los datos: {c['calidad'].nivel}" + (f" ({'; '.join(c['calidad'].errores + c['calidad'].avisos)})"
                                                              if c["calidad"].errores or c["calidad"].avisos else ""))
     if c["precio_objetivo"] is None:
-        print(f"Propuesta: {c['recomendacion']} (sin DCF ni comparables: valoración pendiente del analista)")
+        print(f"Propuesta: {c['recomendacion']} (ningún método con valor: valoración pendiente del analista)")
+    elif c.get("perfil"):  # plantilla sectorial (B2): sin DCF
+        print(f"Propuesta: {c['recomendacion']} · precio objetivo {c['precio_objetivo']:,.2f} USD · potencial {c['potencial']:+.1%} ("
+              + "; ".join(f"{m.nombre} {m.valor:,.2f}" for m in c["metodos"] if m.valor is not None) + ")")
     else:
         print(f"Propuesta: {c['recomendacion']} · precio objetivo {c['precio_objetivo']:,.2f} USD · potencial {c['potencial']:+.1%}"
               f" (DCF por escenarios {c['valor_dcf'] or 0:,.2f} · múltiplos "
@@ -215,7 +218,7 @@ def main() -> None:
     p.set_defaults(func=_interfaz, sec=False)
 
     p = sub.add_parser("regresion", help="Batería de regresión: cifras clave de las empresas de prueba frente a su instantánea")
-    p.add_argument("tickers", nargs="*", help="Por defecto, las 10 empresas de prueba")
+    p.add_argument("tickers", nargs="*", help="Por defecto, las 14 empresas de prueba (10 generales y 4 sectoriales)")
     p.add_argument("--actualizar", action="store_true", help="Guarda las cifras actuales como nueva referencia (tras revisarlas)")
     p.set_defaults(func=_regresion, sec=True)
 
@@ -247,7 +250,7 @@ def main() -> None:
         configurar_identidad()
     try:
         args.func(args)
-    except ValueError as e:  # errores de datos o de uso con mensaje claro (p. ej. plantilla sectorial sin PDF)
+    except ValueError as e:  # errores de datos o de uso con mensaje claro (p. ej. estimaciones no válidas)
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 

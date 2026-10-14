@@ -1,0 +1,15 @@
+  {% if c.cambios %}
+  <div style="break-inside: avoid">
+  <h3>Cambios frente al informe anterior ({{ c.cambios.fecha_anterior }})</h3>
+  {% if c.cambios.cambios %}<table class="datos">
+    <tr><th>Concepto</th><th>Anterior</th><th>Actual</th></tr>
+    {% for x in c.cambios.cambios %}<tr><td>{{ x.campo }}</td><td>{% if x.antes is number %}{{ ((x.antes/1e6) if (x.antes|abs) > 1e6 else x.antes)|num(2) }}{% else %}{{ x.antes or "—" }}{% endif %}</td><td>{% if x.ahora is number %}{{ ((x.ahora/1e6) if (x.ahora|abs) > 1e6 else x.ahora)|num(2) }}{% else %}{{ x.ahora or "—" }}{% endif %}</td></tr>{% endfor %}
+  </table>{% endif %}
+  {% if c.cambios.atribucion %}<table class="datos">
+    <tr><th>Qué explica el cambio del valor DCF (escenario base)</th><th>USD por acción</th></tr>
+    {% for p in c.cambios.atribucion.pasos %}<tr><td>{{ p.grupo }}</td><td>{{ "%+.2f"|format(p.impacto)|replace(".", ",")|replace("-", "−") }}</td></tr>{% endfor %}
+    <tr class="total"><td>Cambio total</td><td>{{ "%+.2f"|format(c.cambios.atribucion.total)|replace(".", ",")|replace("-", "−") }}</td></tr>
+  </table>
+  <div class="fuente">Atribución secuencial (suma exactamente el cambio total): primero los datos de partida y después cada grupo de supuestos, en este orden. El precio objetivo puede cambiar además por los métodos que entran en él (p. ej., la lista de comparables del analista). Importes en USD mn cuando superan el millón.</div>{% endif %}
+  </div>
+  {% endif %}

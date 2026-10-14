@@ -54,7 +54,8 @@ Toda cifra sale de aquí (regla 9). Las fórmulas de edgar_analytics y FinRobot 
 | Analítica de márgenes, uso del capital, autonomía de caja, origen del crecimiento | `analitica.py` | Propio (no existía) |
 | Altman, Beneish, Piotroski | `puntuaciones.py` | edgar_analytics `scores.py` (fórmulas y umbrales) |
 | Notas de los ratios y metodología | `notas.py`, `definiciones.py` | Propio |
-| Métricas sectoriales (perfiles y fórmulas) | `sectoriales.py`, `perfiles.py` | Propio |
+| Métricas sectoriales (perfiles y fórmulas, anual y LTM) | `sectoriales.py`, `perfiles.py` | Propio |
+| Valoración sectorial (Gordon sobre el valor contable, descuento de dividendos, comparables) | `valoracion_sectorial.py` | Propio; síntesis de FinRobot (`sintesis.py`) |
 
 Tests *golden* con el 10-K FY2023 de AAPL (`tests/fixtures/aapl_10k_2023`).
 
@@ -125,7 +126,7 @@ La lista detallada de tareas que faltan, en tres fases (primer uso real, perfecc
 | 0. Base | Estructura, configuración, tests, CI (GitHub Actions en Ubuntu **y Windows**: los repos base solo usan Ubuntu), `edgartools>=5.61.1,<6` (la 6.0 cambia la API) | ✅ Hecho: Python 3.13, dependencias fijadas, ruff, CI en Ubuntu y Windows, CONTRIBUTING |
 | 1. Ingesta | ✅ 5 ejercicios + LTM normalizados (companyfacts) contrastados con el XBRL del 10-K, cotización, histórico, comportamiento vs SPY/ETF, Rf, comparables, gobierno, riesgos y texto del 10-K. Falta: *snapshot* por versión, vencimientos de deuda y segmentos | `informes-warrants informe AAPL` |
 | 2. Cálculo | ✅ Normalizador SEC, métricas propias, DCF, beta y semáforo, con tests *golden* del 10-K FY2023 de AAPL | Las cifras de AAPL cuadran al dólar con el 10-K |
-| 3. Visual | ✅ Gráficos SVG, tablas, plantilla HTML A4 y PDF de 10 páginas ([ejemplo](ejemplos/AAPL_FY2025_borrador.pdf)). Falta el PDF de las plantillas sectoriales (banca, seguros, REIT, BDC) | **Primer informe borrador PDF completo por CLI (MVP)** ✅ |
+| 3. Visual | ✅ Gráficos SVG, tablas, plantilla HTML A4 y PDF de 10 páginas ([ejemplo](ejemplos/AAPL_FY2025_borrador.pdf)) y PDF de las plantillas sectoriales (banca, seguros, REIT, BDC; B2) | **Primer informe borrador PDF completo por CLI (MVP)** ✅ |
 | 4. IA | ✅ Proveedor, selección con cita literal y los 3 bloques de IA ([ia.md](ia.md)): riesgos, catalizadores del MD&A y traducción del apartado «Competition», los tres en el informe | `informes-warrants riesgos AAPL` |
 | 5. Versiones | ✅ Estados, herencia, comparación, SQLite inmutable y detección; falta el snapshot y el PDF por versión (dependen de las fases 1-3) | `informes-warrants versiones detectar AAPL` |
 | 6. Rigor del contenido | Las 8 carencias y los apartados «parciales» del índice ([rigor-del-contenido.md](rigor-del-contenido.md)). ✅ Carencias 1-3 y 5-8 (LTM, escenarios, DCF inverso, BPA, comparables, SBC, gobierno, puntuaciones, cambios del Item 1A, notas y metodología). Pendiente: segmentos (plan cerrado), los apartados parciales del índice y el motor de valoración con los modelos que aportará el usuario ([requisitos F1](requisitos-pendientes.md#f-aportaciones-futuras-del-usuario-tareas-pendientes)) | PDF intermedio revisado en cada paso |
@@ -145,4 +146,5 @@ La lista detallada de tareas que faltan, en tres fases (primer uso real, perfecc
 | Comparables | La propuesta automática por SIC es orientativa y no entra en el precio objetivo; la valoración por múltiplos exige la lista del analista; sin ella, aviso antes de emitir (no bloquea ni sale en el informe). Motor de valoración completo: con los modelos que aportará el usuario | Usuario (2026-10-12) |
 | Contenido | Enfoque determinista. Primero los apartados «parciales» del índice; lo «hecho» se mantiene y sus cambios van al final; lo «ejecutable», lo «externo» y lo del analista se aparcan | Usuario (2026-10-12) |
 | Versiones | Detección automática + confirmación; año fiscal; SQLite fuera de OneDrive | Usuario |
+| Plantillas sectoriales (B2) | Misma maquetación que la general; sin EBITDA, EV ni DCF. Valor contable justificado (Gordon) con el ROE sostenible = media de los ejercicios o el del analista (no el año pico); cifras de los ordinarios; FFO como NAREIT; BDC con g = 0; comparables automáticos = empresas de referencia del perfil, orientativos | Propio (2026-10-14) |
 | Alcance | Todas las empresas de EEUU: plantilla general + perfiles sectoriales validados (banca, seguros, REIT, BDC/fondos cerrados) y emisores extranjeros en USD; el resto, «plantilla pendiente de validar» | Usuario + [editor-y-versiones.md](editor-y-versiones.md#alcance) |

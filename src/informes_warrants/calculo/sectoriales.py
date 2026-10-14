@@ -3,7 +3,7 @@
 import math
 from dataclasses import dataclass
 
-from .normalizador import FuenteEntityFacts
+from .normalizador import FuenteEntityFacts, FuenteLTM
 from .perfiles import Perfil
 
 
@@ -11,8 +11,8 @@ from .perfiles import Perfil
 class Dato:
     valor: float
     concepto: str | None  # None si la entrada es opcional y la empresa no la declara (vale 0)
-    ejercicio: int | None
-    accession: str | None
+    ejercicio: int | None  # año fiscal (o la clave LTM)
+    accession: str | None  # en el LTM, el origen completo («accession (LTM a fecha)»)
 
 
 @dataclass(frozen=True)
@@ -42,21 +42,35 @@ def _hecho(fuente: FuenteEntityFacts, conceptos: tuple[str, ...], ejercicio: int
     return None, None
 
 
+def _dato(fuente, conceptos: tuple[str, ...], ejercicio: int | None) -> Dato | None:
+    """El primer concepto declarado: anual (companyfacts) o LTM (`FuenteLTM`: flujos de 4 trimestres, saldos al cierre)."""
+    if isinstance(fuente, FuenteLTM):
+        for concepto in conceptos:
+            valor = fuente.hecho(concepto, ejercicio)
+            if valor is not None:
+                return Dato(valor, concepto, ejercicio, fuente.origen(concepto, ejercicio))
+        return None
+    concepto, hecho = _hecho(fuente, conceptos, ejercicio)
+    if hecho is None:
+        return None
+    return Dato(float(hecho.numeric_value), concepto, getattr(hecho, "fiscal_year", None), getattr(hecho, "accession", None))
+
+
 def calcular(perfil: Perfil, facts, ejercicio: int | None = None) -> Resultado:
     """Métricas del perfil para un ejercicio (por defecto, el último con beneficio declarado).
 
-    `facts` es un `EntityFacts` de edgartools (`Company(ticker).get_facts()`).
+    `facts` es un `EntityFacts` de edgartools (`Company(ticker).get_facts()`) o una `FuenteLTM` con `ejercicio=LTM`.
     """
-    facts = facts if isinstance(facts, FuenteEntityFacts) else FuenteEntityFacts(facts)
+    if not isinstance(facts, FuenteEntityFacts | FuenteLTM):
+        facts = FuenteEntityFacts(facts)
     if ejercicio is None:
         _, ref = _hecho(facts, perfil.entradas["beneficio"].conceptos, None)
         ejercicio = getattr(ref, "fiscal_year", None)
     datos, faltan = {}, []
     for nombre, entrada in perfil.entradas.items():
-        concepto, hecho = _hecho(facts, entrada.conceptos, ejercicio)
-        if hecho is not None:
-            datos[nombre] = Dato(float(hecho.numeric_value), concepto, getattr(hecho, "fiscal_year", None),
-                                 getattr(hecho, "accession", None))
+        dato = _dato(facts, entrada.conceptos, ejercicio)
+        if dato is not None:
+            datos[nombre] = dato
         elif entrada.opcional:
             datos[nombre] = Dato(0.0, None, None, None)
         else:

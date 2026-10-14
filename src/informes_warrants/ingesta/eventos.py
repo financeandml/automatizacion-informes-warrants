@@ -25,6 +25,9 @@ HIPOTETICO = re.compile(r"\b(could|may|might|would|if|potential(?:ly)?|risk)\b",
 CONTROL_NO_EFICAZ = re.compile(r"(?:were|was) not effective|material weakness(?:es)? (?:in|that|was|were|has|have|existed|identified)|"
                                r"identified (?:a |two |three |)material weakness", re.I)
 CONTINUIDAD = re.compile(r"substantial doubt[^.]{0,120}going concern", re.I)
+# Conclusión favorable («was effective… there were no material weaknesses», TRV FY2025): no es una alarma
+NEGADO = re.compile(r"\b(?:no|any|without)\s+material weakness|\b(?:was|were|is|are)\s+effective\b", re.I)
+NO_EFICAZ = re.compile(r"\bnot effective\b", re.I)
 MAX_FRASES = 3
 
 
@@ -48,7 +51,8 @@ def eventos_8k(empresa, desde: date) -> list[dict]:
 
 def _frases(texto: str, patron: re.Pattern) -> list[str]:
     frases = re.split(r"(?<=[.;])\s+", " ".join((texto or "").split()))
-    return [f for f in frases if patron.search(f) and not HIPOTETICO.search(f)][:MAX_FRASES]
+    return [f for f in frases if patron.search(f) and not HIPOTETICO.search(f)
+            and (NO_EFICAZ.search(f) or not NEGADO.search(f))][:MAX_FRASES]
 
 
 def alarmas(empresa, hoy: date, filing_10k=None, eventos: list[dict] | None = None) -> list[dict]:

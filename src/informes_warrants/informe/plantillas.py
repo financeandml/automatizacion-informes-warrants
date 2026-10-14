@@ -48,12 +48,12 @@ def _var(valor, decimales: int = 1) -> str:
 _entorno.filters.update(num=_num, pct=_pct, var=_var)
 
 
-def rellenar(id_bloque: str, datos: dict) -> str:
-    """Rellena la plantilla del bloque con los datos calculados por el SaaS."""
+def rellenar(id_bloque: str, datos: dict, plantilla: str | None = None) -> str:
+    """Rellena la plantilla del bloque (o la indicada, p. ej. la sectorial) con los datos calculados por el SaaS."""
     bloque = next(b for b in BLOQUES if b.id == id_bloque)
     if bloque.tipo not in (Tipo.PLANTILLA, Tipo.ANALISTA) or not bloque.plantilla:
         raise ValueError(f"El bloque {id_bloque} no usa plantilla")
-    return _entorno.get_template(bloque.plantilla).render(**datos)
+    return _entorno.get_template(plantilla or bloque.plantilla).render(**datos)
 
 
 def pendientes(texto: str) -> list[str]:

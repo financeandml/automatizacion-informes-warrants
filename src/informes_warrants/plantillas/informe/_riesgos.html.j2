@@ -42,6 +42,7 @@
     {% for p in c.puntuaciones %}<tr><td>{{ p.nombre }}</td><td>{% if p.nombre == "Piotroski F" and p.valor is not none %}{{ p.valor|num(0) }} / 9{% elif p.valor is not none %}{{ "%.2f"|format(p.valor)|replace(".", ",")|replace("-", "−") }}{% else %}n.d.{% endif %}</td><td style="text-align:left">{{ p.lectura }}{% if p.faltan and p.valor is none %} (faltan: {{ p.faltan|join(", ") }}){% endif %}</td><td style="text-align:left">{{ p.modelo }}</td></tr>{% endfor %}
   </table>
   <div class="fuente">Altman Z (insolvencia), Beneish M (calidad del beneficio) y Piotroski F (solidez financiera), con las partidas del normalizador SEC. Definiciones en el anexo B.</div>
+  {% endif %}
   <h3>Alarmas de la SEC (5 años)</h3>
   {% if c.alarmas %}<table class="datos">
     <tr><th>Alarma</th><th>Fecha</th><th>Detalle (cita literal del filing)</th><th>Filing</th></tr>
@@ -49,7 +50,6 @@
   </table>
   <div class="fuente">8-K ítems 4.01 y 4.02, 10-K/A, 10-Q/A, NT 10-K y NT 10-Q; frases del último 10-K sobre control interno no eficaz o dudas sobre la continuidad (sin las hipotéticas de los factores de riesgo). Las valora el analista.</div>
   {% else %}<p>Sin alarmas: ningún cambio de auditor ni reexpresión (8-K 4.01 y 4.02), informe modificado o presentación tardía en 5 años, y el último 10-K no recoge control interno no eficaz ni dudas sobre la continuidad de la empresa.</p>{% endif %}
-  {% endif %}
   {% if c.autonomia %}
   <h3>Autonomía de caja</h3>
   <table class="datos">

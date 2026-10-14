@@ -208,7 +208,16 @@ def _gastos(estados, clave):
     return {"id": estados.valor("id", clave), "gastos_generales": estados.valor("gastos_generales", clave)}
 
 
-def componer(*, ticker: str, empresa: str, sic, cobertura, filing: dict, estados, calidad, cotizacion, acciones: float,
+def componer(**datos) -> dict:
+    """Contexto del informe sin red: la plantilla sectorial si los datos traen un perfil (B2); si no, la general."""
+    if "perfil" in datos:
+        from .sectorial import componer_sectorial
+
+        return componer_sectorial(**datos)
+    return componer_general(**datos)
+
+
+def componer_general(*, ticker: str, empresa: str, sic, cobertura, filing: dict, estados, calidad, cotizacion, acciones: float,
              beta_estimada: float, comportamiento: dict, series_bolsa: dict, riesgos: list, riesgos_lista: list,
              texto_negocio: str, fecha: str | None = None, estimaciones: Estimaciones | None = None,
              escenarios: Escenarios | None = None, estados_ltm=None, fecha_ltm: str | None = None, rf=None,
@@ -263,13 +272,7 @@ def componer(*, ticker: str, empresa: str, sic, cobertura, filing: dict, estados
     avisos_valoracion = []
     # Avisos antes de emitir: el SaaS los muestra al analista, no bloquean la emisión y no salen en el informe.
     avisos_emision = [] if comparables_del_analista else [AVISO_COMPARABLES]
-    catalizadores = {"calendario": [], "hechos": [], "ia": None, **(catalizadores or {}), "del_analista": bool(base.calendario)}
-    if base.calendario:  # el analista manda: sustituye al borrador del SaaS
-        catalizadores["calendario"] = base.calendario
-    if base.catalizadores:  # y a la propuesta de la IA
-        catalizadores["ia"] = {"lista": base.catalizadores, "modelo": None, "candidatos": None}
-    elif catalizadores.get("calendario"):
-        avisos_emision.append(AVISO_CALENDARIO)
+    catalizadores = catalizadores_del_informe(catalizadores, base, avisos_emision)
     try:
         r_esc = valorar_escenarios(esc, f_ltm["ingresos"], dfn, deuda, minoritarios, acciones, mercado.capitalizacion)
         valor = r_esc.resultados["Base"]
@@ -470,6 +473,18 @@ def componer(*, ticker: str, empresa: str, sic, cobertura, filing: dict, estados
     return c
 
 
+def catalizadores_del_informe(catalizadores: dict | None, base: Estimaciones, avisos_emision: list[str]) -> dict:
+    """Calendario y catalizadores (A4): los del analista sustituyen al borrador del SaaS y a la propuesta de la IA."""
+    catalizadores = {"calendario": [], "hechos": [], "ia": None, **(catalizadores or {}), "del_analista": bool(base.calendario)}
+    if base.calendario:  # el analista manda: sustituye al borrador del SaaS
+        catalizadores["calendario"] = base.calendario
+    if base.catalizadores:  # y a la propuesta de la IA
+        catalizadores["ia"] = {"lista": base.catalizadores, "modelo": None, "candidatos": None}
+    elif catalizadores.get("calendario"):
+        avisos_emision.append(AVISO_CALENDARIO)
+    return catalizadores
+
+
 def _gestion(parametros, cotizacion, cierres, datos: dict) -> dict | None:
     """Apartados 12, 23 y 24 (B4) con los parámetros del analista; None si no hay ninguno definido."""
     if parametros is None or not parametros.definidos:
@@ -568,26 +583,16 @@ def reunir(ticker: str, con_ia: bool = True, comparables: list[str] | None = Non
     """
     from edgar import Company
 
-    from ..calculo.calendario import borrador as borrador_calendario
     from ..ingesta import comparables as ingesta_comparables
-    from ..ingesta.competencia import apartado_competencia
-    from ..ingesta.derivados import cadena_opciones, posiciones_cortas
-    from ..ingesta.directivos import filiales as filiales_10k
-    from ..ingesta.eventos import ANIOS_ALARMAS, categoria_presentador, eventos_8k, hechos_relevantes
-    from ..ingesta.eventos import alarmas as alarmas_sec
-    from ..ingesta.gobierno import gobierno as datos_gobierno
-    from ..ingesta.mercado import INDICE, comportamiento, cotizacion, etf_sectorial, historico, precios_semanales, tipo_libre_riesgo
-    from ..ingesta.nombres import nombre_legible
-    from ..ingesta.riesgos import comparar_riesgos, riesgos_anteriores, riesgos_anuales
-    from .autoria import cargar as cargar_autoria
-    from .parametros import cargar as cargar_parametros
+    from ..ingesta.mercado import precios_semanales
 
     ticker = ticker.upper()
     empresa = Company(ticker)
     cobertura = cobertura_de(ticker)
-    if cobertura.plantilla not in (PLANTILLA_GENERAL, PENDIENTE_VALIDAR):
-        raise ValueError(f"{ticker}: {cobertura.motivo}. El PDF de las plantillas sectoriales está pendiente; sus métricas "
-                         f"ya se calculan con `informes-warrants metricas {ticker}`.")
+    if cobertura.plantilla not in (PLANTILLA_GENERAL, PENDIENTE_VALIDAR):  # banca, seguros, REIT y BDC (B2)
+        from .sectorial import reunir_sectorial
+
+        return reunir_sectorial(empresa, ticker, cobertura, con_ia, comparables, anterior, historial_resumenes, estimaciones)
     anuales_10k = empresa.get_filings(form="10-K", amendments=False).head(3)
     filing = anuales_10k[0]
     xbrl = filing.xbrl()
@@ -666,19 +671,64 @@ def reunir(ticker: str, con_ia: bool = True, comparables: list[str] | None = Non
         except Exception as e:  # noqa: BLE001  (sin XBRL del 10-Q: los segmentos se quedan sin columna LTM)
             log.warning("Segmentos LTM no disponibles: %s", e)
     lista_trimestres = trimestres(facts, date.fromisoformat(fecha_ltm)) if fecha_ltm else []
+    venc = vencimientos_deuda(fuente_anual, ejercicio)
+    comunes = _comunes(empresa, ticker, filing, xbrl, ejercicio, con_ia, facts,
+                       date.fromisoformat(fecha_ltm) if fecha_ltm else cierres.get(ejercicio), cierres.get(ejercicio),
+                       venc["importes"][0] if venc.get("importes") else None)
+    datos = dict(  # argumentos de `componer`: la interfaz los guarda y recompone el informe sin red al editar (A12)
+        **comunes, cobertura=cobertura, estimaciones=estimaciones,
+        filing={"accession": filing.accession_no, "fecha": str(filing.filing_date), "ejercicio": ejercicio,
+                "ultimo_periodico": periodico.accession_no if periodico is not None else None,
+                "ultimo_periodico_formulario": periodico.form if periodico is not None else None},
+        estados=estados, calidad=calidad, acciones=acciones,
+        estados_ltm=estados_ltm, fecha_ltm=fecha_ltm, comparables=datos_comparables,
+        comparables_criterio=criterio, comparables_del_analista=del_analista,
+        acciones_origen=acciones_origen, trimestres_lista=lista_trimestres, segmentos_dict=desgloses,
+        concentracion=concentracion_clientes(xbrl, cierres), vencimientos=venc,
+        precios_semanales=precios_semanales(ticker), fechas_disponibles=disponibles, anterior=anterior,
+        historial_resumenes=historial_resumenes,
+    )
+    return con_borradores_ia(datos, con_ia)
+
+
+def con_borradores_ia(datos: dict, con_ia: bool) -> dict:
+    """Borradores de la IA para los apartados del analista, sobre lo que ya dice el informe (los revisa el analista)."""
+    if con_ia:
+        from ..ia.borradores import contexto, generar
+
+        borrador = componer(**datos)
+        instrucciones = [m.strip() for texto in borrador["textos"].values() for m in MARCADOR.findall(texto)]
+        datos["borradores_ia"] = generar(instrucciones, contexto(borrador, datos["texto_negocio"]))
+    return datos
+
+
+def _comunes(empresa, ticker: str, filing, xbrl, ejercicio: int, con_ia: bool, facts, cierre_periodo, cierre_ejercicio,
+             vencimiento_proximo) -> dict:
+    """Argumentos de `componer` que no dependen de la plantilla (general o sectorial): 8-K, Item 1, 1A y 7 del 10-K
+    (con los bloques de IA), gobierno, insiders, mercado, opciones y cortos, autoría y parámetros del fondo."""
+    from ..calculo.calendario import borrador as borrador_calendario
+    from ..ingesta.competencia import apartado_competencia
+    from ..ingesta.derivados import cadena_opciones, posiciones_cortas
+    from ..ingesta.directivos import filiales as filiales_10k
+    from ..ingesta.eventos import ANIOS_ALARMAS, categoria_presentador, eventos_8k, hechos_relevantes
+    from ..ingesta.eventos import alarmas as alarmas_sec
+    from ..ingesta.gobierno import gobierno as datos_gobierno
+    from ..ingesta.mercado import INDICE, comportamiento, cotizacion, etf_sectorial, historico, tipo_libre_riesgo
+    from ..ingesta.nombres import nombre_legible
+    from ..ingesta.riesgos import comparar_riesgos, riesgos_anteriores, riesgos_anuales
+    from .autoria import cargar as cargar_autoria
+    from .parametros import cargar as cargar_parametros
+
     with _silencio_edgar():
         flotante = (facts.public_float, getattr(facts.public_float_fact, "period_end", None))
-
     eventos = eventos_8k(empresa, date.today() - timedelta(days=365 * ANIOS_ALARMAS))
     tenk = filing.obj()
     texto_negocio = tenk.business or ""
     hoy = date.today()
-    venc = vencimientos_deuda(fuente_anual, ejercicio)
     catalizadores = {
         "calendario": borrador_calendario(
             hoy, [e["fecha"] for e in eventos if "2.02" in e["items"]], [e["fecha"] for e in eventos if "5.07" in e["items"]],
-            date.fromisoformat(fecha_ltm) if fecha_ltm else cierres.get(ejercicio), cierres.get(ejercicio),
-            categoria_presentador(xbrl), venc["importes"][0] if venc.get("importes") else None, ejercicio),
+            cierre_periodo, cierre_ejercicio, categoria_presentador(xbrl), vencimiento_proximo, ejercicio),
         "hechos": hechos_relevantes(eventos, hoy), "ia": None}
     if con_ia and (tenk.management_discussion or ""):  # bloque de IA del MD&A: elige y resume frases literales
         from ..ia.bloques import catalizadores as catalizadores_ia
@@ -713,30 +763,14 @@ def reunir(ticker: str, con_ia: bool = True, comparables: list[str] | None = Non
 
         elegidos, cfg = riesgos_principales(riesgos_lista, texto_1a)
         riesgos = [{"resumen": s.resumen, "cita": s.cita, "modelo": f"{cfg.proveedor} · {cfg.modelo}"} for s in elegidos]
-
-    datos = dict(  # argumentos de `componer`: la interfaz los guarda y recompone el informe sin red al editar (A12)
-        ticker=ticker, empresa=nombre_legible(empresa.name), sic=empresa.sic, cobertura=cobertura, estimaciones=estimaciones,
-        filing={"accession": filing.accession_no, "fecha": str(filing.filing_date), "ejercicio": ejercicio,
-                "ultimo_periodico": periodico.accession_no if periodico is not None else None,
-                "ultimo_periodico_formulario": periodico.form if periodico is not None else None},
-        estados=estados, calidad=calidad, cotizacion=cotizacion(ticker), acciones=acciones,
+    return dict(
+        ticker=ticker, empresa=nombre_legible(empresa.name), sic=empresa.sic, cotizacion=cotizacion(ticker),
         beta_estimada=_beta_semanal(ticker), comportamiento=comportamiento(ticker, empresa.sic),
         series_bolsa=_series_bolsa(ticker, etf_sectorial(empresa.sic), historico, INDICE),
         riesgos=riesgos, riesgos_lista=riesgos_lista, texto_negocio=texto_negocio, competencia_texto=competencia_texto,
-        estados_ltm=estados_ltm, fecha_ltm=fecha_ltm, rf=tipo_libre_riesgo(), comparables=datos_comparables,
-        comparables_criterio=criterio, comparables_del_analista=del_analista, gobierno=datos_gobierno(empresa, xbrl),
+        rf=tipo_libre_riesgo(), gobierno=datos_gobierno(empresa, xbrl),
         insiders=_insiders(empresa, ticker), eventos=eventos, alarmas=alarmas_sec(empresa, date.today(), filing, eventos),
-        riesgos_cambios=cambios, acciones_origen=acciones_origen, trimestres_lista=lista_trimestres, segmentos_dict=desgloses,
-        concentracion=concentracion_clientes(xbrl, cierres), vencimientos=venc, catalizadores=catalizadores, filiales=filiales_10k(tenk),
+        riesgos_cambios=cambios, catalizadores=catalizadores, filiales=filiales_10k(tenk),
         opciones_cadena=cadena_opciones(ticker), cortos=posiciones_cortas(ticker),
-        precios_semanales=precios_semanales(ticker), fechas_disponibles=disponibles, anterior=anterior,
-        historial_resumenes=historial_resumenes, autoria=cargar_autoria(), parametros=cargar_parametros(),
-        capital_flotante=flotante if flotante[0] else None,
+        autoria=cargar_autoria(), parametros=cargar_parametros(), capital_flotante=flotante if flotante[0] else None,
     )
-    if con_ia:  # borradores de la IA para los apartados del analista, sobre lo que ya dice el informe
-        from ..ia.borradores import contexto, generar
-
-        borrador = componer(**datos)
-        instrucciones = [m.strip() for texto in borrador["textos"].values() for m in MARCADOR.findall(texto)]
-        datos["borradores_ia"] = generar(instrucciones, contexto(borrador, texto_negocio))
-    return datos

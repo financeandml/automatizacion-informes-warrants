@@ -1,0 +1,4 @@
+- **{{ empresa }} ({{ ticker }}), {{ periodo }}.** {% for m in metricas_clave %}{{ m.nombre }}: {{ m.valor }}{{ "; " if not loop.last else "" }}{% endfor %}{% if multiplo_principal is not none %}. Cotiza a {{ multiplo_principal|num(2) }}x {{ base_nombre }}{% endif %}.
+- [[ANALISTA: titular de la tesis de inversión (una frase)]]
+- [[ANALISTA: segundo titular: principal palanca o catalizador]]
+- [[ANALISTA: tercer titular: principal riesgo o condición de la tesis]]

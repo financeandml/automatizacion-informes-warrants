@@ -1,0 +1,115 @@
+{
+ "ticker": "ARCC",
+ "origen": {
+  "filing": "0001287750-26-000006",
+  "ultimo_periodico": "0001628280-26-050307",
+  "fecha_ltm": "2026-06-30",
+  "fecha": "2026-10-14"
+ },
+ "sec": {
+  "perfil": "inversion",
+  "anuales": {
+   "2022": {
+    "datos": {
+     "beneficio": 600000000.0,
+     "patrimonio": 9555000000.0,
+     "activos": 22398000000.0,
+     "ingreso_neto_inversion": 1147000000.0,
+     "nav_por_accion": 18.4,
+     "dividendos": 912000000.0,
+     "deuda": 12210000000.0
+    },
+    "metricas": {
+     "nav_por_accion": 18.4,
+     "cobertura_dividendo": 1.2576754385964912,
+     "apalancamiento": 1.2778649921507064,
+     "rentabilidad_nii": 0.12004186289900576,
+     "roe": 0.06279434850863422
+    }
+   },
+   "2023": {
+    "datos": {
+     "beneficio": 1522000000.0,
+     "patrimonio": 11201000000.0,
+     "activos": 23800000000.0,
+     "ingreso_neto_inversion": 1286000000.0,
+     "nav_por_accion": 19.24,
+     "dividendos": 1031000000.0,
+     "deuda": 11884000000.0
+    },
+    "metricas": {
+     "nav_por_accion": 19.24,
+     "cobertura_dividendo": 1.24733268671193,
+     "apalancamiento": 1.0609766985090616,
+     "rentabilidad_nii": 0.11481117757343094,
+     "roe": 0.13588072493527364
+    }
+   },
+   "2024": {
+    "datos": {
+     "beneficio": 1522000000.0,
+     "patrimonio": 13355000000.0,
+     "activos": 28254000000.0,
+     "ingreso_neto_inversion": 1476000000.0,
+     "nav_por_accion": 19.89,
+     "dividendos": 1139000000.0,
+     "deuda": 13727000000.0
+    },
+    "metricas": {
+     "nav_por_accion": 19.89,
+     "cobertura_dividendo": 1.295873573309921,
+     "apalancamiento": 1.0278547360539123,
+     "rentabilidad_nii": 0.11052040434294272,
+     "roe": 0.11396480718831899
+    }
+   },
+   "2025": {
+    "datos": {
+     "beneficio": 1299000000.0,
+     "patrimonio": 14318000000.0,
+     "activos": 31235000000.0,
+     "ingreso_neto_inversion": 1458000000.0,
+     "nav_por_accion": 19.94,
+     "dividendos": 1264000000.0,
+     "deuda": 15991000000.0
+    },
+    "metricas": {
+     "nav_por_accion": 19.94,
+     "cobertura_dividendo": 1.1534810126582278,
+     "apalancamiento": 1.116845928202263,
+     "rentabilidad_nii": 0.10182986450621595,
+     "roe": 0.0907249615868138
+    }
+   }
+  },
+  "ltm": {
+   "datos": {
+    "beneficio": 960000000.0,
+    "patrimonio": 13891000000.0,
+    "activos": 30498000000.0,
+    "ingreso_neto_inversion": 1507000000.0,
+    "nav_por_accion": 19.35,
+    "dividendos": 1329000000.0,
+    "deuda": 15773000000.0
+   },
+   "metricas": {
+    "nav_por_accion": 19.35,
+    "cobertura_dividendo": 1.1339352896914974,
+    "apalancamiento": 1.1354834065222086,
+    "rentabilidad_nii": 0.10848750989849543,
+    "roe": 0.06910949535670578
+   }
+  },
+  "acciones": 718022845.0,
+  "calidad": {
+   "nivel": "verde",
+   "errores": [],
+   "avisos": []
+  }
+ },
+ "mercado_referencia": {
+  "cotizacion": 18.559999465942383,
+  "precio_modelo": 20.788373225726833,
+  "precio_objetivo": 20.788373225726833
+ }
+}

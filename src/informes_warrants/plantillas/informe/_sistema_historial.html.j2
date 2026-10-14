@@ -1,0 +1,11 @@
+  <h3>Sistema de recomendación</h3>
+  <p>Horizonte de 12 meses. <strong>Comprar</strong>: potencial igual o superior a {{ (umbral_comprar * 100)|num(0) }} % frente a la cotización. <strong>Vender</strong>: potencial igual o inferior a {{ (umbral_vender * 100)|num(0) }} %. <strong>Mantener</strong>: entre ambos. El precio objetivo es la media ponderada de los métodos de valoración (tabla «Derivación del precio objetivo»); el analista puede fijar el suyo y confirma la recomendación antes de emitir.</p>
+  {% if c.historial %}
+  <h3>Historial de recomendación y precio objetivo</h3>
+  <table class="datos">
+    <tr><th>Fecha</th><th>Recomendación</th><th>Precio objetivo (USD)</th><th>Cotización entonces (USD)</th><th>Señal a hoy</th></tr>
+    {% for h in c.historial %}<tr><td>{{ h.fecha }}</td><td>{{ h.recomendacion }}</td><td>{{ h.precio_objetivo|num(2) }}</td><td>{{ h.cotizacion|num(2) }}</td><td>{{ h.senal }}</td></tr>{% endfor %}
+  </table>
+  {% if g.get("historial") %}<div class="grafico" style="width:60%">{{ g.historial }}</div>{% endif %}
+  <div class="fuente">Señal: acertada (a menos del 10 % del objetivo o más de la mitad del camino recorrido), fallida (10 % en contra tras 7 días o 12 meses sin acertar) o en curso.</div>
+  {% endif %}

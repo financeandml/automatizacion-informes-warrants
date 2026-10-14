@@ -13,7 +13,7 @@ from ..informe.estimaciones import Estimaciones
 # Estimaciones que la interfaz presenta en porcentaje (se guardan en tanto por uno)
 PORCENTAJES = {"da_sobre_ventas", "capex_sobre_ventas", "circulante_sobre_ventas", "tasa_fiscal", "rf", "erp", "coste_deuda",
                "g", "resultado_financiero_sobre_ventas", "cuota_minoritarios", "variacion_acciones", "payout", "sbc_sobre_ventas",
-               "recompras_sobre_fcf"}
+               "recompras_sobre_fcf", "rentabilidad_sostenible"}
 ETIQUETAS = {
     "da_sobre_ventas": "D&A / ventas", "capex_sobre_ventas": "Capex / ventas", "circulante_sobre_ventas": "Circulante / ventas",
     "tasa_fiscal": "Tasa fiscal", "rf": "Tipo libre de riesgo", "erp": "Prima de riesgo", "beta": "Beta",
@@ -22,8 +22,17 @@ ETIQUETAS = {
     "cuota_minoritarios": "Cuota de minoritarios", "variacion_acciones": "Variación anual de las acciones", "payout": "Pay-out",
     "sbc_sobre_ventas": "Remuneración en acciones / ventas", "recompras_sobre_fcf": "Recompras / FCF tras SBC",
     "precio_objetivo_analista": "Precio objetivo del analista (USD; vacío = el del modelo)",
+    "rentabilidad_sostenible": "ROE (ROTE, NII) sostenible (%; vacío = media de los ejercicios)",
 }
-ESCALARES = tuple(f.name for f in fields(Estimaciones) if f.name in ETIQUETAS)
+OPCIONALES = {"precio_objetivo_analista", "rentabilidad_sostenible"}  # vacío = el valor del modelo
+# Banca, seguros, REIT y BDC (B2): sin DCF; la rentabilidad sostenible solo existe en ellos
+ESCALARES_SECTORIALES = ("rf", "erp", "beta", "g", "rentabilidad_sostenible", "precio_objetivo_analista")
+ESCALARES = tuple(f.name for f in fields(Estimaciones) if f.name in ETIQUETAS and f.name != "rentabilidad_sostenible")
+
+
+def escalares(c: dict) -> tuple[str, ...]:
+    """Supuestos editables del informe: los del DCF solo en la plantilla general."""
+    return ESCALARES_SECTORIALES if c.get("perfil") else ESCALARES
 
 
 def a_pantalla(nombre: str, valor):

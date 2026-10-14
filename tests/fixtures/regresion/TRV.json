@@ -1,0 +1,157 @@
+{
+ "ticker": "TRV",
+ "origen": {
+  "filing": "0000086312-26-000065",
+  "ultimo_periodico": "0000086312-26-000145",
+  "fecha_ltm": "2026-06-30",
+  "fecha": "2026-10-14"
+ },
+ "sec": {
+  "perfil": "aseguradora",
+  "anuales": {
+   "2021": {
+    "datos": {
+     "beneficio": 3662000000.0,
+     "patrimonio": 28887000000.0,
+     "activos": 120466000000.0,
+     "preferentes": 0.0,
+     "dividendos_preferentes": 0.0,
+     "dividendos": 869000000.0,
+     "primas": 30855000000.0,
+     "siniestros": 20298000000.0,
+     "gastos_adquisicion": 5043000000.0,
+     "otros_gastos_suscripcion": 5017000000.0,
+     "ingresos_inversion": 3033000000.0
+    },
+    "metricas": {
+     "siniestralidad": 0.6578512396694215,
+     "gastos": 0.3260411602657592,
+     "combinado": 0.9838923999351807,
+     "rendimiento_inversiones": 0.025177228429598394,
+     "roe": 0.1267698272579361
+    }
+   },
+   "2022": {
+    "datos": {
+     "beneficio": 2842000000.0,
+     "patrimonio": 21560000000.0,
+     "activos": 115717000000.0,
+     "preferentes": 0.0,
+     "dividendos_preferentes": 0.0,
+     "dividendos": 875000000.0,
+     "primas": 33763000000.0,
+     "siniestros": 22854000000.0,
+     "gastos_adquisicion": 5515000000.0,
+     "otros_gastos_suscripcion": 5161000000.0,
+     "ingresos_inversion": 2562000000.0
+    },
+    "metricas": {
+     "siniestralidad": 0.6768948256967686,
+     "gastos": 0.31620412878002546,
+     "combinado": 0.9930989544767941,
+     "rendimiento_inversiones": 0.02214022140221402,
+     "roe": 0.1318181818181818
+    }
+   },
+   "2023": {
+    "datos": {
+     "beneficio": 2991000000.0,
+     "patrimonio": 24921000000.0,
+     "activos": 125978000000.0,
+     "preferentes": 0.0,
+     "dividendos_preferentes": 0.0,
+     "dividendos": 908000000.0,
+     "primas": 37761000000.0,
+     "siniestros": 26215000000.0,
+     "gastos_adquisicion": 6226000000.0,
+     "otros_gastos_suscripcion": 5552000000.0,
+     "ingresos_inversion": 2922000000.0
+    },
+    "metricas": {
+     "siniestralidad": 0.6942347925107916,
+     "gastos": 0.3119091125764678,
+     "combinado": 1.0061439050872594,
+     "rendimiento_inversiones": 0.023194526028354156,
+     "roe": 0.12001926086433129
+    }
+   },
+   "2024": {
+    "datos": {
+     "beneficio": 4999000000.0,
+     "patrimonio": 27864000000.0,
+     "activos": 133189000000.0,
+     "preferentes": 0.0,
+     "dividendos_preferentes": 0.0,
+     "dividendos": 951000000.0,
+     "primas": 41941000000.0,
+     "siniestros": 27059000000.0,
+     "gastos_adquisicion": 6973000000.0,
+     "otros_gastos_suscripcion": 6211000000.0,
+     "ingresos_inversion": 3590000000.0
+    },
+    "metricas": {
+     "siniestralidad": 0.6451682124889726,
+     "gastos": 0.3143463436732553,
+     "combinado": 0.9595145561622279,
+     "rendimiento_inversiones": 0.026954177897574125,
+     "roe": 0.17940712029859315
+    }
+   },
+   "2025": {
+    "datos": {
+     "beneficio": 6288000000.0,
+     "patrimonio": 32894000000.0,
+     "activos": 143708000000.0,
+     "preferentes": 0.0,
+     "dividendos_preferentes": 0.0,
+     "dividendos": 979000000.0,
+     "primas": 43914000000.0,
+     "siniestros": 27221000000.0,
+     "gastos_adquisicion": 7266000000.0,
+     "otros_gastos_suscripcion": 6545000000.0,
+     "ingresos_inversion": 3959000000.0
+    },
+    "metricas": {
+     "siniestralidad": 0.6198706562827344,
+     "gastos": 0.3145010702737168,
+     "combinado": 0.9343717265564513,
+     "rendimiento_inversiones": 0.027548918640576726,
+     "roe": 0.19115948197239618
+    }
+   }
+  },
+  "ltm": {
+   "datos": {
+    "beneficio": 8303000000.0,
+    "patrimonio": 33121000000.0,
+    "activos": 143580000000.0,
+    "preferentes": 0.0,
+    "dividendos_preferentes": 0.0,
+    "dividendos": 989000000.0,
+    "primas": 43641000000.0,
+    "siniestros": 24730000000.0,
+    "gastos_adquisicion": 7238000000.0,
+    "otros_gastos_suscripcion": 0.0,
+    "ingresos_inversion": 4165000000.0
+   },
+   "metricas": {
+    "siniestralidad": 0.5666689580898696,
+    "gastos": 0.16585321142961892,
+    "combinado": 0.7325221695194886,
+    "rendimiento_inversiones": 0.029008218414821006,
+    "roe": 0.25068687539627427
+   }
+  },
+  "acciones": 208575022.0,
+  "calidad": {
+   "nivel": "verde",
+   "errores": [],
+   "avisos": []
+  }
+ },
+ "mercado_referencia": {
+  "cotizacion": 373.2799987792969,
+  "precio_modelo": 364.7347773052489,
+  "precio_objetivo": 364.7347773052489
+ }
+}

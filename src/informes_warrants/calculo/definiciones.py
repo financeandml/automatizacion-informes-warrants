@@ -95,3 +95,28 @@ DEFINICIONES: tuple[tuple[str, str, str], ...] = (
     ("Riesgos", "Cambios en los factores de riesgo", "Comparación de los títulos del Item 1A con los del informe anual "
      "anterior por similitud de texto: nuevos, eliminados y modificados."),
 )
+
+# Plantillas sectoriales (B2): las definiciones generales que también valen y las propias del sector. Las de cada
+# métrica del perfil salen de su `descripcion` en calculo/perfiles.py.
+COMUNES_SECTORIALES = {("Datos", "Fuente"), ("Datos", "LTM (últimos doce meses)"), ("Resumen", "Hechos clave"),
+                       ("Calendario", "Fechas estimadas"), ("Insiders", "Compras y ventas en mercado"),
+                       ("Historial", "Reacción a los resultados"), ("Historial", "Alarmas de la SEC"),
+                       ("Opciones (externo)", "Ratio put/call y volatilidad"), ("Cortos (externo)", "Posiciones cortas"),
+                       ("Posición", "Criterios del fondo"), ("Posición", "Stop y tamaño"), ("Riesgos", "Cambios en los factores de riesgo")}
+DEFINICIONES_SECTORIALES: tuple[tuple[str, str, str], ...] = (
+    ("Datos", "Control de calidad", "Las métricas esenciales del perfil se calculan con conceptos us-gaap declarados; beneficio, "
+     "patrimonio y activo coinciden (±0,5 %) entre companyfacts y el XBRL del último 10-K. Las secundarias que la empresa no "
+     "declara salen «n.d.» y se avisan al analista."),
+    ("Valoración", "Coste del capital (Ke)", "Rf + β · prima de riesgo (β semanal de 5 años frente al S&P 500); editable."),
+    ("Valoración", "Valor contable justificado", "Modelo de Gordon sobre el patrimonio: múltiplo = (ROE − g) / (Ke − g), por el "
+     "valor contable por acción (tangible y con el ROTE en banca; el NAV en BDC). ROE sostenible: la media de los ejercicios "
+     "o el del analista. Rango: Ke ± 1 punto."),
+    ("Valoración", "Descuento de dividendos", "DPA × (1 + g) / (Ke − g), con los dividendos pagados en el periodo / acciones en "
+     "circulación (REIT y BDC). Rango: Ke ± 1 punto."),
+    ("Valoración", "Comparables", "Mediana del múltiplo principal (P/TBV, P/BV, P/FFO o P/NAV) de la lista del analista (al menos "
+     "3, solo valores positivos) por la base por acción propia; rango P25-P75. La propuesta automática es orientativa."),
+    ("Valoración", "Precio objetivo", "Media ponderada de los métodos con valor, con los pesos del analista; el analista puede "
+     "fijar el suyo."),
+    ("Múltiplos", "P/BV, P/TBV, P/FFO, P/NAV, PER", "Capitalización (o precio) sobre el patrimonio, el patrimonio tangible, el FFO, "
+     "el NAV por acción o el beneficio del periodo (LTM o último ejercicio)."),
+)

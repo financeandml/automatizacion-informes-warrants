@@ -88,10 +88,11 @@ informes-warrants informe AAPL               # borrador del informe en PDF + vis
 informes-warrants informe AAPL --comparables MSFT,GOOGL,DELL   # con la lista de comparables del analista
 informes-warrants informe AAPL --comparar-con ruta/AAPL_FY2025_borrador_resumen.json  # qué cambió y por qué
 informes-warrants autoria --analista "Nombre" --correo nombre@empresa.com   # autoría de la portada (fuera del repo)
-informes-warrants regresion                  # batería de regresión: cifras de la SEC de las 10 empresas de prueba
+informes-warrants regresion                  # batería de regresión: cifras de la SEC de las 14 empresas de prueba
 informes-warrants datos AAPL                 # estados financieros del último 10-K
 informes-warrants cobertura JPM              # plantilla: general, sectorial o «pendiente de validar»
 informes-warrants metricas JPM               # métricas del perfil sectorial con su fuente XBRL
+informes-warrants informe JPM                # informe con la plantilla sectorial (banca, seguros, REIT o BDC)
 informes-warrants riesgos AAPL               # riesgos del 10-K y los 5 principales (IA)
 informes-warrants riesgos AAPL --sin-ia      # solo la lista literal
 informes-warrants interfaz                   # interfaz del analista (Streamlit, en local)

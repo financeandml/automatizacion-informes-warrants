@@ -1,0 +1,193 @@
+{
+ "ticker": "JPM",
+ "origen": {
+  "filing": "0001628280-26-008131",
+  "ultimo_periodico": "0001628280-26-054343",
+  "fecha_ltm": "2026-06-30",
+  "fecha": "2026-10-14"
+ },
+ "sec": {
+  "perfil": "banco",
+  "anuales": {
+   "2021": {
+    "datos": {
+     "beneficio": 48334000000.0,
+     "patrimonio": 294127000000.0,
+     "activos": 3743567000000.0,
+     "preferentes": 0.0,
+     "dividendos_preferentes": 1600000000.0,
+     "dividendos": 12858000000.0,
+     "margen_intereses": 52311000000.0,
+     "ingresos_no_intereses": 69338000000.0,
+     "gastos_no_intereses": 71343000000.0,
+     "provisiones": -9256000000.0,
+     "prestamos": 1061328000000.0,
+     "depositos": 2462303000000.0,
+     "fondo_comercio": 50315000000.0,
+     "intangibles": 0.0
+    },
+    "metricas": {
+     "nim": 0.013973571195600346,
+     "eficiencia": 0.5864659799916152,
+     "coste_riesgo": -0.00872114935250931,
+     "prestamos_depositos": 0.43103062458194624,
+     "roe": 0.15889054728059648,
+     "roa": 0.012911215426356735,
+     "rote": 0.19168047512017455,
+     "patrimonio_tangible": 243812000000.0
+    }
+   },
+   "2022": {
+    "datos": {
+     "beneficio": 37676000000.0,
+     "patrimonio": 292332000000.0,
+     "activos": 3665743000000.0,
+     "preferentes": 0.0,
+     "dividendos_preferentes": 1595000000.0,
+     "dividendos": 13562000000.0,
+     "margen_intereses": 66710000000.0,
+     "ingresos_no_intereses": 61985000000.0,
+     "gastos_no_intereses": 76140000000.0,
+     "provisiones": 6389000000.0,
+     "prestamos": 1115921000000.0,
+     "depositos": 2340179000000.0,
+     "fondo_comercio": 51662000000.0,
+     "intangibles": 0.0
+    },
+    "metricas": {
+     "nim": 0.018198220660859205,
+     "eficiencia": 0.5916313765103539,
+     "coste_riesgo": 0.005725315680948741,
+     "prestamos_depositos": 0.4768528390349627,
+     "roe": 0.12342473625877427,
+     "roa": 0.010277861814098807,
+     "rote": 0.1499189761914655,
+     "patrimonio_tangible": 240670000000.0
+    }
+   },
+   "2023": {
+    "datos": {
+     "beneficio": 49552000000.0,
+     "patrimonio": 327878000000.0,
+     "activos": 3875393000000.0,
+     "preferentes": 0.0,
+     "dividendos_preferentes": 1501000000.0,
+     "dividendos": 13463000000.0,
+     "margen_intereses": 89267000000.0,
+     "ingresos_no_intereses": 68837000000.0,
+     "gastos_no_intereses": 87172000000.0,
+     "provisiones": 9320000000.0,
+     "prestamos": 1301286000000.0,
+     "depositos": 2400688000000.0,
+     "fondo_comercio": 52634000000.0,
+     "intangibles": 2000000000.0
+    },
+    "metricas": {
+     "nim": 0.023034309036528682,
+     "eficiencia": 0.5513585994029246,
+     "coste_riesgo": 0.007162145754276923,
+     "prestamos_depositos": 0.5420471131608938,
+     "roe": 0.14655146121423213,
+     "roa": 0.012786316123293819,
+     "rote": 0.17585381563730584,
+     "patrimonio_tangible": 273244000000.0
+    }
+   },
+   "2024": {
+    "datos": {
+     "beneficio": 58471000000.0,
+     "patrimonio": 344758000000.0,
+     "activos": 4002814000000.0,
+     "preferentes": 0.0,
+     "dividendos_preferentes": 1259000000.0,
+     "dividendos": 14783000000.0,
+     "margen_intereses": 92583000000.0,
+     "ingresos_no_intereses": 84973000000.0,
+     "gastos_no_intereses": 91797000000.0,
+     "provisiones": 10678000000.0,
+     "prestamos": 1323643000000.0,
+     "depositos": 2406032000000.0,
+     "fondo_comercio": 52565000000.0,
+     "intangibles": 1700000000.0
+    },
+    "metricas": {
+     "nim": 0.0231294784119372,
+     "eficiencia": 0.5170030863502219,
+     "coste_riesgo": 0.00806712988320869,
+     "prestamos_depositos": 0.5501352434215339,
+     "roe": 0.16594828836459197,
+     "roa": 0.014607473642292647,
+     "rote": 0.19694794711060162,
+     "patrimonio_tangible": 290493000000.0
+    }
+   },
+   "2025": {
+    "datos": {
+     "beneficio": 57048000000.0,
+     "patrimonio": 362438000000.0,
+     "activos": 4424900000000.0,
+     "preferentes": 0.0,
+     "dividendos_preferentes": 1099000000.0,
+     "dividendos": 16625000000.0,
+     "margen_intereses": 95443000000.0,
+     "ingresos_no_intereses": 87004000000.0,
+     "gastos_no_intereses": 95640000000.0,
+     "provisiones": 14212000000.0,
+     "prestamos": 1467664000000.0,
+     "depositos": 2559320000000.0,
+     "fondo_comercio": 52731000000.0,
+     "intangibles": 1300000000.0
+    },
+    "metricas": {
+     "nim": 0.02156952699496034,
+     "eficiencia": 0.5242070299867907,
+     "coste_riesgo": 0.009683415277611225,
+     "prestamos_depositos": 0.5734585749339668,
+     "roe": 0.1543684712971598,
+     "roa": 0.01289249474564397,
+     "rote": 0.18141287324866168,
+     "patrimonio_tangible": 308407000000.0
+    }
+   }
+  },
+  "ltm": {
+   "datos": {
+    "beneficio": 65067000000.0,
+    "patrimonio": 374598000000.0,
+    "activos": 5015069000000.0,
+    "preferentes": 0.0,
+    "dividendos_preferentes": 1146000000.0,
+    "dividendos": 17313000000.0,
+    "margen_intereses": 99838000000.0,
+    "ingresos_no_intereses": 99570000000.0,
+    "gastos_no_intereses": 102430000000.0,
+    "provisiones": 13080000000.0,
+    "prestamos": 1516310000000.0,
+    "depositos": 2713700000000.0,
+    "fondo_comercio": 52711000000.0,
+    "intangibles": 0.0
+   },
+   "metricas": {
+    "nim": 0.019907602467682896,
+    "eficiencia": 0.5136704645751424,
+    "coste_riesgo": 0.008626204404112615,
+    "prestamos_depositos": 0.5587611010797067,
+    "roe": 0.1706389249275223,
+    "roa": 0.012974298060505249,
+    "rote": 0.19858211111352742,
+    "patrimonio_tangible": 321887000000.0
+   }
+  },
+  "acciones": 2658186195.0,
+  "calidad": {
+   "nivel": "verde",
+   "errores": [],
+   "avisos": []
+  }
+ },
+ "mercado_referencia": {
+  "cotizacion": 331.42999267578125,
+  "precio_modelo": 225.0511764361235,
+  "precio_objetivo": 225.0511764361235
+ }
+}

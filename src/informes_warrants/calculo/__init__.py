@@ -14,6 +14,7 @@
   crecimiento, cascada EBITDA → FCF, reacción a los resultados, cuotas y estabilidad del margen.
 - puntuaciones.py: Altman Z, Beneish M y Piotroski F.
 - notas.py: notas de contexto de los ratios.
-- sectoriales.py: métricas de banca, seguros, REIT y BDC.
+- sectoriales.py: métricas de banca, seguros, REIT y BDC (perfiles en perfiles.py).
+- valoracion_sectorial.py: múltiplos, valor contable justificado, descuento de dividendos y comparables de esos perfiles.
 - definiciones.py: texto del anexo de metodología.
 """

@@ -17,6 +17,10 @@ Umbrales de relevancia (fijos y documentados):
   múltiplo frente a su historia: alta si está en el percentil ≥ 90 o ≤ 10
   alarmas de la SEC: crítica; Beneish M o Altman Z en zona de riesgo: alta
   cliente con ≥ 20 % de los ingresos: alta (≥ 10 %: media); compras agrupadas de insiders: alta
+Perfiles sectoriales (B2, `observaciones_sectoriales`):
+  ROE (ROTE, NII) − Ke: alta si < 0, media si ≥ 5 pp
+  múltiplo principal frente al justificado por la rentabilidad: alta ≥ 30 %, media ≥ 15 % (por encima o por debajo)
+  dividendo: alta si no está cubierto (pago > 100 % del FFO o cobertura del NII < 1x); si no, media
 """
 
 RELEVANCIA = {"critica": 4, "alta": 3, "media": 2, "baja": 1}
@@ -68,6 +72,25 @@ def observaciones(e: dict) -> list[dict]:
         anadir("cliente", "riesgos", _nivel(c["porcentaje"], 0.20, 0.10), cliente=c["cliente"], porcentaje=c["porcentaje"], anio=c["anio"])
     if e.get("compras_agrupadas"):
         anadir("insiders", "riesgos", "alta", compradores=len(e["compras_agrupadas"]["compradores"]))
+    return obs
+
+
+def observaciones_sectoriales(e: dict) -> list[dict]:
+    """Banca, seguros, REIT y BDC: rentabilidad frente a Ke, múltiplo frente al justificado y dividendo, más las
+    observaciones comunes de `observaciones` (potencial, alarmas e insiders)."""
+    obs = observaciones({k: e.get(k) for k in ("potencial", "precio_objetivo", "recomendacion", "alarmas", "compras_agrupadas")})
+    if e.get("diferencial") is not None:
+        d = e["diferencial"]
+        obs.append({"clave": "rentabilidad", "tema": "rentabilidad", "relevancia": "alta" if d < 0 else "media" if d >= 0.05 else "baja",
+                    "nombre": e["rentabilidad_nombre"], "valor": e["rentabilidad"], "ke": e["ke"], "diferencial": d})
+    if e.get("prima") is not None:
+        obs.append({"clave": "multiplo", "tema": "valoracion", "relevancia": _nivel(e["prima"], 0.30, 0.15), "actual": e["multiplo"],
+                    "justo": e["multiplo_justo"], "prima": e["prima"], "base": e["base_nombre"]})
+    if e.get("rentabilidad_dividendo") is not None:
+        payout, cobertura = e.get("payout_ffo"), e.get("cobertura_dividendo")
+        descubierto = (payout is not None and payout > 1) or (cobertura is not None and cobertura < 1)
+        obs.append({"clave": "dividendo", "tema": "balance", "relevancia": "alta" if descubierto else "media",
+                    "rentabilidad": e["rentabilidad_dividendo"], "payout_ffo": payout, "cobertura": cobertura})
     return obs
 
 

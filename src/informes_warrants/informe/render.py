@@ -25,7 +25,7 @@ DIR_INFORME = DIR / "informe"
 MESES = ("enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre")
 
 _env = Environment(loader=FileSystemLoader(DIR_INFORME), undefined=StrictUndefined, autoescape=True)
-_env.filters.update(num=_num, pct=_pct, var=_var)
+_env.filters.update(num=_num, pct=_pct, var=_var, veces=lambda v, d=2: "n.d." if v is None else f"{_num(v, d)}x")
 
 
 def _md(texto: str) -> Markup:
@@ -371,10 +371,7 @@ def _graficos_extra(c) -> dict:
         if len(orden) > MAX_SERIES_GRAFICO:
             series["Resto"] = [sum((s.get(a) or 0) for _, s in orden[MAX_SERIES_GRAFICO:]) / 1e6 for a in principal.ejercicios]
         graficos_extra["segmentos"] = Markup(graficos.barras_apiladas([f"FY{a % 100:02d}" for a in principal.ejercicios], series))
-    rangos = [(m.nombre, m.valor, m.bajo, m.alto) for m in c["metodos"]]
-    rangos.append(("Cotización 12 meses", c["cotizacion"].medio_12m, c["cotizacion"].minimo_12m, c["cotizacion"].maximo_12m))
-    if any(r[1] is not None for r in rangos[:-1]):
-        graficos_extra["rangos"] = Markup(graficos.rangos_valoracion(rangos, c["cotizacion"].precio, c["precio_objetivo"]))
+    graficos_extra.update(_grafico_rangos(c))
     clave_hist = next((k for k in ("ev_ebitda", "per") if c["bandas"].get(k) and c["bandas"][k].n), None)
     if clave_hist:
         b = c["bandas"][clave_hist]
@@ -398,17 +395,122 @@ def _graficos_extra(c) -> dict:
                   [x.patrimonio / 1e6 for x in p]
             graficos_extra["balance"] = Markup(graficos.barras_pareadas(etiquetas, dfn, pat, "Deuda financiera neta", "Patrimonio neto",
                                                                         separar_en=len(ej) + 1))
-    if c.get("historial") and c.get("precios_semanales"):
-        import pandas as pd
-
-        # Cierres sin ajustar por dividendos: los precios objetivo de cada informe se fijaron sobre ellos
-        precios = pd.Series([p for _, p in c["precios_semanales"]], index=pd.to_datetime([f for f, _ in c["precios_semanales"]]))
-        puntos = [(pd.Timestamp(h["fecha"]), h["precio_objetivo"]) for h in c["historial"]]
-        graficos_extra["historial"] = Markup(graficos.historial_recomendacion(precios, puntos))
+    graficos_extra.update(_grafico_historial(c))
     return graficos_extra
 
 
+def _grafico_rangos(c) -> dict:
+    rangos = [(m.nombre, m.valor, m.bajo, m.alto) for m in c["metodos"]]
+    rangos.append(("Cotización 12 meses", c["cotizacion"].medio_12m, c["cotizacion"].minimo_12m, c["cotizacion"].maximo_12m))
+    if not any(r[1] is not None for r in rangos[:-1]):
+        return {}
+    return {"rangos": Markup(graficos.rangos_valoracion(rangos, c["cotizacion"].precio, c["precio_objetivo"]))}
+
+
+def _grafico_historial(c) -> dict:
+    if not (c.get("historial") and c.get("precios_semanales")):
+        return {}
+    import pandas as pd
+
+    # Cierres sin ajustar por dividendos: los precios objetivo de cada informe se fijaron sobre ellos
+    precios = pd.Series([p for _, p in c["precios_semanales"]], index=pd.to_datetime([f for f, _ in c["precios_semanales"]]))
+    puntos = [(pd.Timestamp(h["fecha"]), h["precio_objetivo"]) for h in c["historial"]]
+    return {"historial": Markup(graficos.historial_recomendacion(precios, puntos))}
+
+
+def _comunes(c: dict) -> dict:
+    """Variables de las piezas compartidas por la plantilla general y la sectorial."""
+    legal = (DIR / "legal" / "descargo.md").read_text(encoding="utf-8").replace("{{ anio }}", str(date.today().year))
+    return dict(
+        c=c, t={k: _md(v) for k, v in c["textos"].items()}, fecha_larga=_fecha_larga(c["fecha"]), insiders=_insiders(c),
+        calendario=_calendario(c), umbral_comprar=UMBRAL_COMPRAR, umbral_vender=UMBRAL_VENDER, legal=Markup(markdown.markdown(legal)),
+        horizontes=["1m", "3m", "12m", "YTD", "3a", "5a"], claves_horizonte=["1m", "3m", "12m", "ytd", "3a", "5a"],
+        etiquetas_comportamiento={k: "Absoluta" if k == "absoluta" else "Relativa " + k.replace("SPY", "S&P 500")
+                                  for k in c["comportamiento"]},
+    )
+
+
+# Gráficos del perfil sectorial: barras + línea (importe y rentabilidad) y hasta tres ratios ((claves), en %)
+GRAFICOS_SECTORIALES = {
+    "banco": (("beneficio", "Beneficio neto", "rote", "ROTE"), (("roe", "rote", "eficiencia"), True)),
+    "aseguradora": (("beneficio", "Beneficio neto", "roe", "ROE"), (("combinado", "siniestralidad", "gastos"), True)),
+    "reit": (("ffo", "FFO", "ltv", "LTV"), (("payout_ffo", "ltv", "roe"), True)),
+    "inversion": (("ingreso_neto_inversion", "Ingreso neto de inversiones", "rentabilidad_nii", "NII / patrimonio"),
+                  (("cobertura_dividendo", "apalancamiento"), False)),
+}
+
+
+def _serie_sectorial(r, clave):
+    v = r.metricas.get(clave)
+    if v is None and clave in r.datos:
+        v = r.datos[clave].valor
+    return None if v is None or (isinstance(v, float) and v != v) else v
+
+
+def _sectorial(c: dict) -> dict:
+    """Tablas, gráficos, comparables, trazas y definiciones de la plantilla sectorial (cifras ya calculadas)."""
+    from ..calculo.definiciones import COMUNES_SECTORIALES, DEFINICIONES_SECTORIALES
+    from ..calculo.perfiles import IMPORTES, NOMBRES_ENTRADAS, POR_ACCION
+    from ..calculo.valoracion_sectorial import MULTIPLO_PRINCIPAL, RENTABILIDAD
+    from ..calculo.valoracion_sectorial import NOMBRES as NOMBRES_MULTIPLOS
+    from .sectorial import CLAVE_SITUACION, CLAVES_PORTADA, formato_metrica
+
+    p, h, ltm, r = c["perfil_def"], c["historico"], c["ltm"], c["resultado_periodo"]
+    periodos = [(f"FY{a}", h[a]) for a in c["ejercicios"]] + ([(c["periodo"], ltm)] if ltm else [])
+
+    def partida(res, k):
+        d = res.datos.get(k)
+        if d is None:
+            return "n.d."
+        if d.concepto is None:
+            return "—"  # opcional y no declarada: cuenta como 0
+        return _num(d.valor, 2) if k in POR_ACCION else _mn(d.valor)
+
+    metricas = [{"nombre": m.nombre.replace("(USD)", "(USD mn)") if m.id in IMPORTES else m.nombre,
+                 "valores": [formato_metrica(m.id, res.metricas.get(m.id), unidades=False) for _, res in periodos],
+                 "clase": "total" if m.esencial else ""} for m in p.metricas]
+    partidas = [{"nombre": NOMBRES_ENTRADAS[k] if k in POR_ACCION else f"{NOMBRES_ENTRADAS[k]} (USD mn)",
+                 "valores": [partida(res, k) for _, res in periodos]} for k in p.entradas]
+    por_id = {m.id: m for m in p.metricas}
+    kpis = [{"valor": formato_metrica(k, r.metricas[k], unidades=False),
+             "nombre": por_id[k].nombre.replace("(USD)", "(USD mn)") if k in IMPORTES else por_id[k].nombre} for k in CLAVES_PORTADA[p.id]]
+    principal = MULTIPLO_PRINCIPAL[p.id]
+    rent = RENTABILIDAD.get(p.id) or CLAVE_SITUACION[p.id]
+    comparables = [{"nombre": x["nombre"], "ticker": x["ticker"], "ejercicio": x["ejercicio"],
+                    "capitalizacion": _num(x["multiplos"]["capitalizacion"] / 1e9, 1) if x["multiplos"]["capitalizacion"] else "n.d.",
+                    "rentabilidad": formato_metrica(rent, x["metricas"].get(rent)),
+                    "principal": _env.filters["veces"](x["multiplos"].get(principal)),
+                    "p_bv": _env.filters["veces"](x["multiplos"].get("p_bv")), "per": _env.filters["veces"](x["multiplos"].get("per"), 1),
+                    "dividendo": _pct(x["multiplos"].get("rentabilidad_dividendo"))} for x in c["comparables"]]
+    etiquetas = [f"FY{a % 100:02d}" for a in c["ejercicios"]]
+    (barra, nombre_barra, linea, nombre_linea), (lineas, en_pct) = GRAFICOS_SECTORIALES[p.id]
+    anuales = [h[a] for a in c["ejercicios"]]
+    serie_barra = [(_serie_sectorial(x, barra) or 0) / 1e6 for x in anuales]
+    g = {"base_100": Markup(graficos.base_100(c["series_bolsa"])),
+         "principal": Markup(graficos.barras_y_linea(etiquetas, serie_barra, [_serie_sectorial(x, linea) for x in anuales],
+                                                     nombre_barra, nombre_linea)),
+         "ratios": Markup(graficos.lineas(etiquetas, {por_id[k].nombre: [_serie_sectorial(x, k) for x in anuales] for k in lineas},
+                                          porcentaje=en_pct)),
+         "titulo_principal": f"{nombre_barra} (USD mn) y {nombre_linea}",
+         "titulo_ratios": " · ".join(por_id[k].nombre for k in lineas),
+         **_grafico_rangos(c), **_grafico_historial(c)}
+    trazas = [{"nombre": NOMBRES_ENTRADAS[k], "concepto": d.concepto or "— (no declarada: 0)",
+               "valor": partida(r, k), "origen": d.accession or "—"} for k, d in r.datos.items()]
+    definiciones = ([d for d in DEFINICIONES if (d[0], d[1]) in COMUNES_SECTORIALES] + list(DEFINICIONES_SECTORIALES)
+                    + [(p.nombre, m.nombre, m.descripcion or m.nombre) for m in p.metricas])
+    return dict(tabla={"cabecera": [e for e, _ in periodos], "metricas": metricas, "partidas": partidas}, kpis=kpis, g=g,
+                comparables=comparables, trazas=trazas, definiciones=definiciones, nombre_principal=NOMBRES_MULTIPLOS[principal],
+                nombre_rentabilidad=por_id[rent].nombre, rentabilidad_propia=formato_metrica(rent, r.metricas.get(rent)),
+                principal=principal)
+
+
+def html_sectorial(c: dict) -> str:
+    return _env.get_template("informe_sectorial.html.j2").render(**_comunes(c), **_sectorial(c))
+
+
 def html(c: dict) -> str:
+    if c.get("perfil"):  # banca, seguros, REIT y BDC (B2)
+        return html_sectorial(c)
     ejercicio = c["filing"]["ejercicio"]
     ultimo = ejercicio
     def _valor_traza(pid):
@@ -420,26 +522,18 @@ def html(c: dict) -> str:
               for p in PARTIDAS if ultimo in c["estados"].datos.get(p.id, {})]
     claves_sens = sorted(c["dcf"].sensibilidad) if c["dcf"] else []
     claves_op = sorted(c["dcf"].sensibilidad_operativa or {}) if c["dcf"] else []
-    legal = (DIR / "legal" / "descargo.md").read_text(encoding="utf-8").replace("{{ anio }}", str(date.today().year))
     ltm = etiqueta_ltm(c)
     return _env.get_template("informe.html.j2").render(
-        c=c, f=c["fundamentales"][ejercicio], fl=c["fund_ltm"], t={k: _md(v) for k, v in c["textos"].items()},
-        g=_graficos(c), fecha_larga=_fecha_larga(c["fecha"]), etiqueta_ltm=ltm,
+        **_comunes(c), f=c["fundamentales"][ejercicio], fl=c["fund_ltm"], g=_graficos(c), etiqueta_ltm=ltm,
         ns_portada=any(v == "n.s." for fila in _resumen(c) for v in fila["valores"]),
         anios_est=c["etiquetas_estimadas"], resumen=_resumen(c), resumen_cabecera=[f"FY{a}" for a in c["ejercicios"][-2:]] + [ltm],
         estimados_portada=c["etiquetas_estimadas"][:ESTIMADOS_PORTADA], proyeccion=_proyeccion(c),
         comparables=_comparables(c), multiplos_def=MULTIPLOS, definiciones=DEFINICIONES, segmentos=_segmentos(c),
-        trimestres=_trimestres(c), concentracion=_concentracion(c),
-        insiders=_insiders(c), publicaciones=_publicaciones(c), dupont=_dupont(c),
-        calendario=_calendario(c), flujo_balance=_flujo_balance(c), historicos=_historicos(c),
-        umbral_comprar=UMBRAL_COMPRAR, umbral_vender=UMBRAL_VENDER,
+        trimestres=_trimestres(c), concentracion=_concentracion(c), publicaciones=_publicaciones(c), dupont=_dupont(c),
+        flujo_balance=_flujo_balance(c), historicos=_historicos(c),
         estados=[{"titulo": t, "filas": _filas(c, filas)} for t, filas in ESTADOS], trazas=trazas,
-        horizontes=["1m", "3m", "12m", "YTD", "3a", "5a"], claves_horizonte=["1m", "3m", "12m", "ytd", "3a", "5a"],
         sens_w=sorted({w for w, _ in claves_sens}), sens_g=sorted({g for _, g in claves_sens}),
         sens_c=sorted({x for x, _ in claves_op}), sens_m=sorted({m for _, m in claves_op}),
-        legal=Markup(markdown.markdown(legal)),
-        etiquetas_comportamiento={k: "Absoluta" if k == "absoluta" else "Relativa " + k.replace("SPY", "S&P 500")
-                                  for k in c["comportamiento"]},
     )
 
 

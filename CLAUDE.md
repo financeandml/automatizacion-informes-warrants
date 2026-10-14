@@ -34,7 +34,7 @@ SaaS que genera informes de análisis (estilo *equity research*) sobre empresas 
 | Tareas que faltan (3 fases y pendientes P1-P3) y propuestas de los informes de referencia (valoradas) | [docs/hoja-de-ruta.md](docs/hoja-de-ruta.md) · [docs/propuestas-referencias.md](docs/propuestas-referencias.md) |
 | Carencias de contenido, soluciones y orden de trabajo | [docs/rigor-del-contenido.md](docs/rigor-del-contenido.md) |
 | Motor matemático y normalizador SEC | `src/informes_warrants/calculo/` (índice en su `__init__.py`; normalizador con LTM, trimestres, segmentos, clientes y vencimientos; métricas; DCF con escenarios, DCF inverso y atribución; proyección del BPA, flujo y balance; valoración relativa y suma de partes; múltiplos históricos; síntesis del precio objetivo; historial; puntuaciones; analítica; notas; definiciones; calidad) · tests en `tests/test_calculo.py` y `tests/test_bloque_r.py` |
-| Plantilla y PDF del informe | `src/informes_warrants/plantillas/informe/` · `informe/render.py` · [ejemplo](docs/ejemplos/AAPL_FY2025_borrador.pdf) |
+| Plantilla y PDF del informe | `src/informes_warrants/plantillas/informe/` (general `informe.html.j2`, sectorial `informe_sectorial.html.j2` y piezas compartidas `_*.html.j2`) · `informe/render.py` · [ejemplo](docs/ejemplos/AAPL_FY2025_borrador.pdf) |
 | Ingesta (SEC, mercado, comparables, gobierno, riesgos) | `src/informes_warrants/ingesta/` (índice en su `__init__.py`) |
 | Configuración de EDGAR | [src/informes_warrants/config.py](src/informes_warrants/config.py), [.env.example](.env.example) |
 | Texto legal del informe | [src/informes_warrants/plantillas/legal/descargo.md](src/informes_warrants/plantillas/legal/descargo.md) |

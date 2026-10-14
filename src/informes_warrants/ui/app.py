@@ -127,19 +127,23 @@ def _editor_textos(c: dict) -> None:
 def _editor_estimaciones(c: dict) -> None:
     est = c["estimaciones"]
     cambios = {}
-    st.caption("Supuestos del escenario base. Los porcentajes, en %.")
-    anios = c["etiquetas_estimadas"][:len(est.crecimiento_ventas)]
-    tabla = st.data_editor([{"Periodo": a, "Crecimiento de ventas (%)": g * 100, "Margen EBITDA (%)": m * 100}
-                            for a, g, m in zip(anios, est.crecimiento_ventas, est.margen_ebitda, strict=False)],
-                           disabled=["Periodo"], hide_index=True, key="tabla_explicitos")
-    cambios["crecimiento_ventas"] = [f["Crecimiento de ventas (%)"] / 100 for f in tabla]
-    cambios["margen_ebitda"] = [f["Margen EBITDA (%)"] / 100 for f in tabla]
+    if c.get("perfil"):
+        st.caption("Plantilla sectorial: valoración por múltiplos justificados, dividendos y comparables (sin DCF). "
+                   "Los porcentajes, en %.")
+    else:
+        st.caption("Supuestos del escenario base. Los porcentajes, en %.")
+        anios = c["etiquetas_estimadas"][:len(est.crecimiento_ventas)]
+        tabla = st.data_editor([{"Periodo": a, "Crecimiento de ventas (%)": g * 100, "Margen EBITDA (%)": m * 100}
+                                for a, g, m in zip(anios, est.crecimiento_ventas, est.margen_ebitda, strict=False)],
+                               disabled=["Periodo"], hide_index=True, key="tabla_explicitos")
+        cambios["crecimiento_ventas"] = [f["Crecimiento de ventas (%)"] / 100 for f in tabla]
+        cambios["margen_ebitda"] = [f["Margen EBITDA (%)"] / 100 for f in tabla]
     columnas = st.columns(2)
-    for i, nombre in enumerate(logica.ESCALARES):
+    for i, nombre in enumerate(logica.escalares(c)):
         valor = logica.a_pantalla(nombre, getattr(est, nombre))
-        if nombre == "precio_objetivo_analista":
+        if nombre in logica.OPCIONALES:
             texto = columnas[i % 2].text_input(logica.ETIQUETAS[nombre], "" if valor is None else f"{valor:.2f}", key=f"est_{nombre}")
-            cambios[nombre] = float(texto.replace(",", ".")) if texto.strip() else None
+            cambios[nombre] = logica.de_pantalla(nombre, float(texto.replace(",", "."))) if texto.strip() else None
         elif nombre == "anios_convergencia":
             cambios[nombre] = int(columnas[i % 2].number_input(logica.ETIQUETAS[nombre], 0, 15, int(valor), key=f"est_{nombre}"))
         else:

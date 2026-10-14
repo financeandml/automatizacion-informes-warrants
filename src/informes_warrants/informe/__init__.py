@@ -2,6 +2,7 @@
 
 - secciones.py: lista de bloques (AUTO, PLANTILLA, IA, ANALISTA).
 - construir.py: reúne los datos (construir) y compone el contexto del informe (componer, sin red).
+- sectorial.py: lo mismo para banca, seguros, REIT y BDC (B2); `construir` lo elige solo por la cobertura.
 - estimaciones.py: supuestos editables por el analista y sus escenarios.
 - plantillas.py: relleno de las plantillas Markdown y marcadores [[ANALISTA: …]].
 - render.py: contexto → HTML → PDF.

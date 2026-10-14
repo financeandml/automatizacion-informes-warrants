@@ -461,6 +461,11 @@ def test_alarmas_solo_con_frases_afirmativas():
     assert _frases(texto, CONTROL_NO_EFICAZ) == ["Management concluded that our internal control over financial reporting "
                                                  "was not effective as of December 31, 2025."]
     assert _frases(texto, CONTINUIDAD) == ["Factors raise substantial doubt about our ability to continue as a going concern."]
+    favorable = ("Based upon its assessment, management has concluded that the Company's internal control over financial "
+                 "reporting was effective at December 31, 2025, and that there were no material weaknesses in the Company's "
+                 "internal control over financial reporting as of that date. We did not identify any material weaknesses that "
+                 "remain unremediated.")  # TRV FY2025: falso positivo corregido
+    assert _frases(favorable, CONTROL_NO_EFICAZ) == []
 
 
 # --- A5: competencia ---------------------------------------------------------------------------------------------
