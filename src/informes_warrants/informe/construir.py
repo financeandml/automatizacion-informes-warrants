@@ -757,7 +757,7 @@ def _comunes(empresa, ticker: str, filing, xbrl, ejercicio: int, con_ia: bool, f
     from ..ingesta.damodaran import beta_sectorial
     from ..ingesta.derivados import cadena_opciones, posiciones_cortas
     from ..ingesta.directivos import filiales as filiales_10k
-    from ..ingesta.eventos import ANIOS_ALARMAS, categoria_presentador, eventos_8k, hechos_relevantes
+    from ..ingesta.eventos import ANIOS_ALARMAS, categoria_presentador, dividendos_declarados, eventos_8k, hechos_relevantes
     from ..ingesta.eventos import alarmas as alarmas_sec
     from ..ingesta.ficha import bolsa as bolsa_de
     from ..ingesta.ficha import cierre_fiscal
@@ -777,7 +777,8 @@ def _comunes(empresa, ticker: str, filing, xbrl, ejercicio: int, con_ia: bool, f
     catalizadores = {
         "calendario": borrador_calendario(
             hoy, [e["fecha"] for e in eventos if "2.02" in e["items"]], [e["fecha"] for e in eventos if "5.07" in e["items"]],
-            cierre_periodo, cierre_ejercicio, categoria_presentador(xbrl), vencimiento_proximo, ejercicio),
+            cierre_periodo, cierre_ejercicio, categoria_presentador(xbrl), vencimiento_proximo, ejercicio,
+            dividendos_declarados(empresa, eventos, hoy)),
         "hechos": hechos_relevantes(eventos, hoy), "ia": None}
     if con_ia and (tenk.management_discussion or ""):  # bloque de IA del MD&A: elige y resume frases literales
         from ..ia.bloques import catalizadores as catalizadores_ia

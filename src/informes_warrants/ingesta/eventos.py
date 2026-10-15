@@ -115,6 +115,71 @@ def hechos_relevantes(eventos: list[dict], hoy: date, dias: int = 365) -> list[d
     return sorted(salida, key=lambda h: h["fecha"], reverse=True)
 
 
+# Dividendos declarados (P7): la frase con la que la empresa los anuncia en el 8-K (comunicado de resultados o anuncio
+# propio); no hay fechas de dividendo en el XBRL de los 10-Q/10-K ni en companyfacts (comprobado con KO, AAPL, JNJ, JPM y XOM)
+_FECHA = r"(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\.?\s+\d{1,2}(?:,?\s*\d{4})?"
+DIVIDENDO = re.compile(
+    r"(?:dividend[^;]{0,120}?\$\s?(?P<importe>\d+\.\d{2,4})|\$\s?(?P<importe2>\d+\.\d{2,4})[^;]{0,60}?dividend)[^;]{0,300}?"
+    r"payable\s+(?:on\s+)?(?P<pago>" + _FECHA + r")[^.;]{0,40}?(?:share|stock)holders\s+of\s+record\s+"
+    r"(?:as\s+of\s+|at\s+the\s+close\s+of\s+business\s+(?:on\s+)?|on\s+)?(?:the\s+close\s+of\s+business\s+(?:on\s+)?)?"
+    r"(?P<registro>" + _FECHA + r")",
+    re.I | re.S)
+ITEMS_DIVIDENDO = {"2.02", "7.01", "8.01"}
+MAX_8K_DIVIDENDOS = 6  # los más recientes: acota el tiempo (JPM presenta decenas de 8-K al año)
+MESES_EN = {m: i + 1 for i, m in enumerate(("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"))}
+
+
+def _fecha_texto(texto: str, referencia: date) -> date | None:
+    """«August 14, 2026» o «Aug. 14» (sin año: el del 8-K, o el siguiente si quedaría muy atrás)."""
+    m = re.match(r"([A-Za-z]+)\.?\s+(\d{1,2})(?:,?\s*(\d{4}))?", texto.strip())
+    if not m or m.group(1)[:3].lower() not in MESES_EN:
+        return None
+    anio = int(m.group(3)) if m.group(3) else referencia.year
+    try:
+        d = date(anio, MESES_EN[m.group(1)[:3].lower()], int(m.group(2)))
+    except ValueError:
+        return None
+    return date(anio + 1, d.month, d.day) if not m.group(3) and d < referencia - timedelta(days=30) else d
+
+
+def dividendos_en_texto(texto: str, presentado: date) -> list[dict]:
+    """Dividendos anunciados en un texto: importe por acción, fecha de registro, de pago y la frase literal."""
+    salida = []
+    for m in DIVIDENDO.finditer(" ".join((texto or "").replace("\xa0", " ").split())):
+        pago, registro = _fecha_texto(m.group("pago"), presentado), _fecha_texto(m.group("registro"), presentado)
+        if pago and registro:
+            salida.append({"importe": float(m.group("importe") or m.group("importe2")), "pago": pago, "registro": registro,
+                           "frase": m.group(0)[:300]})
+    return salida
+
+
+def dividendos_declarados(empresa, eventos: list[dict], hoy: date, dias: int = 400) -> list[dict]:
+    """Dividendos declarados en los 8-K de los últimos `dias` (ítems 2.02, 7.01 y 8.01) con su filing."""
+    recientes = sorted((e for e in eventos if ITEMS_DIVIDENDO & set(e["items"]) and e["fecha"] >= hoy - timedelta(days=dias)),
+                       key=lambda e: e["fecha"], reverse=True)[:MAX_8K_DIVIDENDOS]
+    candidatos = {e["accession"]: e["fecha"] for e in recientes}
+    if not candidatos:
+        return []
+    salida, vistos = [], set()
+    try:
+        filings = [f for f in empresa.get_filings(form="8-K").head(60) if f.accession_no in candidatos]
+    except Exception as e:  # noqa: BLE001
+        log.warning("8-K de dividendos no disponibles: %s", e)
+        return []
+    for f in filings:
+        try:
+            textos = [a.text() or "" for a in f.attachments if str(getattr(a, "document_type", "")).startswith("EX-99")]
+        except Exception as e:  # noqa: BLE001  (un 8-K ilegible no impide el informe)
+            log.warning("8-K %s ilegible: %s", f.accession_no, e)
+            continue
+        for texto in textos:
+            for d in dividendos_en_texto(texto, candidatos[f.accession_no]):
+                if (d["pago"], d["importe"]) not in vistos:
+                    vistos.add((d["pago"], d["importe"]))
+                    salida.append({**d, "accession": f.accession_no, "presentado": candidatos[f.accession_no]})
+    return sorted(salida, key=lambda d: d["pago"])
+
+
 def categoria_presentador(xbrl) -> str | None:
     """Categoría de presentador de la portada del 10-K (dei:EntityFilerCategory): fija los plazos legales."""
     try:

@@ -223,3 +223,23 @@ def test_ficha_empleados_bolsa_y_cierre():
     assert empleados(aapl).frase.startswith("Human Capital As of September 27, 2025")
     assert empleados("We design and sell smartphones.") is None
     assert cierre_fiscal(date(2025, 9, 27)) == "27 de septiembre" and cierre_fiscal("2025-12-31") == "31 de diciembre"
+
+
+def test_dividendos_del_8k_en_el_calendario():
+    """P7: el dividendo declarado en el 8-K (frase literal) entra en el calendario; si ya se pagó, el siguiente estimado."""
+    from datetime import date
+
+    from informes_warrants.calculo.calendario import borrador
+    from informes_warrants.ingesta.eventos import dividendos_en_texto
+
+    texto = ("“…” Apple’s board of directors has declared a cash dividend of $0.27 per share of the Company’s common stock. "
+             "The dividend is payable on August 13, 2026, to shareholders of record as of the close of business on August 10, 2026.")
+    d = dividendos_en_texto(texto, date(2026, 7, 30))
+    assert [(x["importe"], x["registro"], x["pago"]) for x in d] == [(0.27, date(2026, 8, 10), date(2026, 8, 13))]
+    declarado = [{**d[0], "accession": "0000320193-26-000001", "presentado": date(2026, 7, 30)}]
+    eventos = borrador(date(2026, 8, 1), [], [], None, None, None, None, 2025, declarado)
+    assert [e["evento"] for e in eventos] == ["Fecha de registro y ex-dividendo", "Pago de dividendo de 0,27 USD por acción (declarado)"]
+    assert borrador(date(2026, 10, 15), [], [], None, None, None, None, 2025, declarado) == []  # un solo pago: sin cadencia
+    anterior = [{**declarado[0], "pago": date(2026, 5, 14), "registro": date(2026, 5, 11)}]
+    pasado = borrador(date(2026, 10, 15), [], [], None, None, None, None, 2025, anterior + declarado)
+    assert pasado[0]["fecha"] == date(2026, 11, 12) and "estimado" in pasado[0]["evento"]  # 13/08 + 91 días
