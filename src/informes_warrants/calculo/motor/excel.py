@@ -476,6 +476,7 @@ class Evaluador:
     def _orden(self):
         """Componentes fuertemente conexas en orden de cálculo (Tarjan iterativo)."""
         grafo = {k: self._dependencias(k) for k in self.arboles}
+        self._grafo = grafo  # se reutiliza en `_aguas_abajo` (tablas de datos)
         indice, bajo, en_pila, pila, componentes, contador = {}, {}, set(), [], [], [0]
         for inicio in grafo:
             if inicio in indice:
@@ -577,19 +578,24 @@ class Evaluador:
         self.valores.update(resultados)
 
     def _aguas_abajo(self, origen: set) -> set:
-        inversa = {}
-        for k in self.arboles:
-            for d in self._dependencias(k):
-                inversa.setdefault(d, set()).add(k)
+        """Celdas con fórmula que dependen (directa o indirectamente) de `origen`. El grafo inverso y las referencias de
+        cada fórmula se calculan una sola vez por evaluación (antes, en cada tabla de datos: decenas de segundos)."""
+        if getattr(self, "_inversa", None) is None:
+            self._inversa = {}
+            for k, deps in (getattr(self, "_grafo", None) or {k: self._dependencias(k) for k in self.arboles}).items():
+                for d in deps:
+                    self._inversa.setdefault(d, set()).add(k)
+            self._refs = {k: [r for r in referencias(a) if r[0] == "ref"] for k, a in self.arboles.items()}
+        directos = {}
         for e in origen:
             hoja, f, c = e
-            for k in self.arboles:  # las entradas suelen ser constantes: dependientes directos por referencia
-                if any(r[0] == "ref" and r[2] == hoja and r[3] <= f <= r[5] and r[4] <= c <= r[6] for r in referencias(self.arboles[k])):
-                    inversa.setdefault(e, set()).add(k)
+            for k, refs in self._refs.items():  # las entradas suelen ser constantes: dependientes directos por referencia
+                if any(r[2] == hoja and r[3] <= f <= r[5] and r[4] <= c <= r[6] for r in refs):
+                    directos.setdefault(e, set()).add(k)
         salida, pendientes = set(), list(origen)
         while pendientes:
             x = pendientes.pop()
-            for y in inversa.get(x, ()):
+            for y in self._inversa.get(x, set()) | directos.get(x, set()):
                 if y not in salida:
                     salida.add(y)
                     pendientes.append(y)

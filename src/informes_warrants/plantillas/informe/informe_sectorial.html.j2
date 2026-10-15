@@ -1,6 +1,7 @@
+{% import "_indice.html.j2" as ix with context %}{% import "_bloques.html.j2" as b with context %}
 {% set p = c.perfil_def %}{% set v = c.valoracion %}
 {% include "_inicio.html.j2" %}
-  <div class="rejilla">
+  <div class="rejilla" id="ap-1">
     <div class="principal">
       <h3>Tesis de inversión</h3>
       {{ t["portada.titulares"] }}
@@ -40,52 +41,51 @@
   </div>
 </section>
 
-<!-- ============ 2. CONCLUSIONES, NEGOCIO Y GOBIERNO ============ -->
+{{ ix.tabla_contenidos() }}
+
+<!-- ============ A. RESUMEN EJECUTIVO ============ -->
 <section class="salto">
-  <h2><span class="num">01</span>Conclusiones</h2>
+  {{ ix.seccion("A") }}
+  {{ ix.apartado(2) }}
   <h3>Hechos clave</h3>
   {{ t["conclusiones.hechos_clave"] }}
-  <h3>Perspectivas</h3>
-  {{ t["conclusiones.perspectivas"] }}
   {{ t["conclusiones.fortalezas_riesgos"] }}
-{% include "_gestion.html.j2" %}
-
-  <h2><span class="num">02</span>Descripción del negocio</h2>
+  {{ ix.seccion("B") }}
+  {{ ix.apartado(3) }}
   {{ t["negocio.descripcion"] }}
+  {{ ix.apartado(4) }}
+  {{ b.filiales() }}
+  {{ ix.apartado(5) }}
+  {{ b.consejo() }}
+  {{ b.equipo() }}
+  {{ ix.apartado(6) }}
   {{ t["negocio.pipeline"] }}
-{% include "_competencia.html.j2" %}
-  <h3>Posicionamiento competitivo</h3>
-  {{ t["negocio.posicionamiento"] }}
-  <h3>Industria y mercado</h3>
-  {{ t["industria.mercado"] }}
-{% include "_gobierno.html.j2" %}
-<!-- ============ 3. ANÁLISIS FINANCIERO ============ -->
+  {{ b.catalizadores() }}
+  {{ b.calendario_seguimiento() }}
+  {{ b.hechos_8k() }}
+</section>
+
+<!-- ============ C. ANÁLISIS FUNDAMENTAL ============ -->
 <section class="salto">
-  <h2><span class="num">04</span>Análisis financiero</h2>
+  {{ ix.seccion("C") }}
   {{ t["financiero.comentario"] }}
   <div class="graficos">
     <div class="grafico"><div class="titulo-g">{{ g.titulo_principal }}</div>{{ g.principal }}</div>
     <div class="grafico"><div class="titulo-g">{{ g.titulo_ratios }}</div>{{ g.ratios }}</div>
   </div>
-
-  <h3>Métricas del perfil «{{ p.nombre }}»</h3>
-  <table class="datos">
-    <tr><th></th>{% for a in tabla.cabecera %}<th>{{ a }}</th>{% endfor %}</tr>
-    {% for fila in tabla.metricas %}<tr class="{{ fila.clase }}"><td>{{ fila.nombre }}</td>{% for x in fila.valores %}<td>{{ x }}</td>{% endfor %}</tr>{% endfor %}
-  </table>
-  <div class="fuente">{% for m in p.metricas if m.descripcion %}{{ m.nombre }}: {{ m.descripcion }}. {% endfor %}n.d.: la empresa no declara la partida en XBRL estándar (el analista puede tomarla del 10-K).</div>
-
+  {{ ix.apartado(7) }}
   <h3>Partidas de la SEC</h3>
   <table class="datos">
     <tr><th></th>{% for a in tabla.cabecera %}<th>{{ a }}</th>{% endfor %}</tr>
     {% for fila in tabla.partidas %}<tr><td>{{ fila.nombre }}</td>{% for x in fila.valores %}<td>{{ x }}</td>{% endfor %}</tr>{% endfor %}
   </table>
-  <div class="fuente">Conceptos us-gaap de companyfacts (anexo A); {% if c.ltm %}{{ c.periodo }}: flujos de los cuatro últimos trimestres y saldos al cierre del último 10-Q. {% endif %}«—»: partida opcional que la empresa no declara (cuenta como 0). En este perfil no se usan: {{ p.no_aplica|join(", ") }}.</div>
-</section>
-
-<!-- ============ 4. VALORACIÓN ============ -->
-<section class="salto">
-  <h2><span class="num">05</span>Valoración</h2>
+  <div class="fuente">Conceptos us-gaap de companyfacts (apartado 26); {% if c.ltm %}{{ c.periodo }}: flujos de los cuatro últimos trimestres y saldos al cierre del último 10-Q. {% endif %}«—»: partida opcional que la empresa no declara (cuenta como 0). En este perfil no se usan: {{ p.no_aplica|join(", ") }}.</div>
+  {{ ix.apartado(8) }}
+  <p class="fuente">Perfil «{{ p.nombre }}»: el balance y el resultado se presentan con las partidas de la SEC del apartado 7 y las métricas del perfil del apartado 11 (sin los estados completos de la plantilla general).</p>
+  {{ ix.apartado(9) }}
+  <p class="fuente">Perfil «{{ p.nombre }}»: el balance y el resultado se presentan con las partidas de la SEC del apartado 7 y las métricas del perfil del apartado 11 (sin los estados completos de la plantilla general).</p>
+  <div class="salto"></div>
+  {{ ix.apartado(10) }}
   {{ t["valoracion.comentario"] }}
   <div style="break-inside: avoid">
   <h3>Derivación del precio objetivo</h3>
@@ -124,15 +124,65 @@
   <div class="fuente">Métricas con el mismo perfil sectorial y los mismos conceptos us-gaap. La mediana excluye valores negativos y exige al menos 3 comparables.{% if comp and not c.comparables_del_analista %} Valor implícito orientativo, fuera del precio objetivo.{% endif %}</div>
   {% else %}<p><span class="pendiente">no hay comparables con datos del perfil: añade la lista</span></p>{% endif %}
   </div>
+  {{ ix.apartado(11) }}
+  <h3>Métricas del perfil «{{ p.nombre }}»</h3>
+  <table class="datos">
+    <tr><th></th>{% for a in tabla.cabecera %}<th>{{ a }}</th>{% endfor %}</tr>
+    {% for fila in tabla.metricas %}<tr class="{{ fila.clase }}"><td>{{ fila.nombre }}</td>{% for x in fila.valores %}<td>{{ x }}</td>{% endfor %}</tr>{% endfor %}
+  </table>
+  <div class="fuente">{% for m in p.metricas if m.descripcion %}{{ m.nombre }}: {{ m.descripcion }}. {% endfor %}n.d.: la empresa no declara la partida en XBRL estándar (el analista puede tomarla del 10-K).</div>
+  {{ ix.apartado(12) }}
+  {{ b.criterios_del_fondo() }}
+  {{ ix.seccion("D") }}
+  {{ ix.apartado(13) }}
+  {{ t["industria.mercado"] }}
+  {{ ix.apartado(14) }}
+{% include "_competencia.html.j2" %}
+  <h3>Posicionamiento competitivo</h3>
+  {{ t["negocio.posicionamiento"] }}
+  {{ ix.seccion("E") }}
+  {{ ix.apartado(15) }}
+  {{ b.opciones() }}
+  {{ ix.apartado(16) }}
+  <p class="fuente">No incluido: las órdenes de barrido (<em>sweeps</em>) y el <em>dark pool</em> solo están en fuentes de pago o en FINRA con semanas de retraso.</p>
+  {{ ix.apartado(17) }}
+  {{ b.volatilidad() }}
+  {{ ix.seccion("F") }}
+  {{ ix.apartado(18) }}
+  {{ b.accionistas_e_insiders() }}
+  {{ ix.apartado(19) }}
+  {{ b.cortos() }}
+  {{ ix.seccion("G") }}
+  {{ ix.apartado(20) }}
+  {{ b.riesgos_principales() }}
+  {{ b.riesgos_cambios() }}
+  {{ b.puntuaciones() }}
+  {{ b.autonomia() }}
+  {{ b.factores_declarados() }}
+  {{ ix.apartado(21) }}
+  {{ b.alarmas() }}
+</section>
+
+<!-- ============ H. TESIS Y GESTIÓN DE LA POSICIÓN ============ -->
+<section class="salto">
+  {{ ix.seccion("H") }}
+  {{ ix.apartado(22) }}
+  {{ t["conclusiones.perspectivas"] }}
+  {{ ix.apartado(23) }}
+  <p class="fuente">Criterios cuantitativos del fondo: apartado 12.</p>
+  {{ b.checklist() }}
+  {{ ix.apartado(24) }}
+  {{ b.riesgo_de_la_posicion() }}
+  {{ ix.apartado(25) }}
+  {{ b.seguimiento() }}
 {% include "_cambios.html.j2" %}
 </section>
 
-<!-- ============ 6. RIESGOS ============ -->
-<section>
-{% include "_riesgos.html.j2" %}
-<!-- ============ ANEXO: TRAZABILIDAD Y CALIDAD ============ -->
+<!-- ============ I. APÉNDICES ============ -->
 <section class="salto">
-  <h2><span class="num">A</span>Anexo: trazabilidad y control de calidad</h2>
+  {{ ix.seccion("I") }}
+  {{ ix.apartado(26) }}
+  <h3>Trazabilidad y control de calidad</h3>
   <div class="semaforo">Control de calidad de los datos: <strong>{{ c.calidad.nivel }}</strong>.
     {% if c.calidad.errores %}Errores: {{ c.calidad.errores|join("; ") }}.{% endif %}
     {% if c.calidad.avisos %}Avisos: {{ c.calidad.avisos|join("; ") }}.{% endif %}
@@ -140,16 +190,13 @@
   </div>
   <p>Plantilla aplicada: {{ c.cobertura.motivo }}.</p>
   <h3>Origen de cada partida ({{ c.periodo }})</h3>
-  <table class="datos">
+  <table class="datos" style="break-inside: auto">
     <tr><th>Partida</th><th style="text-align:left">Concepto XBRL (us-gaap)</th><th>Valor (USD mn)</th><th>Filing (accession)</th></tr>
     {% for fila in trazas %}<tr><td>{{ fila.nombre }}</td><td style="text-align:left">{{ fila.concepto }}</td><td>{{ fila.valor }}</td><td>{{ fila.origen }}</td></tr>{% endfor %}
   </table>
   <div class="fuente">Todas las cifras proceden de la SEC (EDGAR, companyfacts y XBRL del 10-K) y se calculan de forma determinista. La IA no genera ni modifica cifras.</div>
-</section>
-
-<section class="salto">
-  <h2><span class="num">B</span>Anexo: metodología y fuentes</h2>
-  <table class="datos">
+  <h3>Metodología y fuentes</h3>
+  <table class="datos" style="break-inside: auto">
     <tr><th>Ámbito</th><th style="text-align:left">Concepto</th><th style="text-align:left">Definición</th></tr>
     {% for grupo, termino, definicion in definiciones %}<tr><td>{{ grupo }}</td><td style="text-align:left; white-space:nowrap">{{ termino }}</td><td style="text-align:left">{{ definicion }}</td></tr>{% endfor %}
   </table>
@@ -168,6 +215,6 @@
   </table>
 </section>
 
-<section class="salto legal">{{ legal }}</section>
+<section class="salto legal" id="legal">{{ legal }}</section>
 </body>
 </html>

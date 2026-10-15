@@ -1,0 +1,223 @@
+{# Bloques del informe (B6): el marcado de las piezas compartidas, sin cambios, en macros que las plantillas
+   colocan bajo su apartado del índice A-I (informe/indice.py). Se importan con contexto. #}
+
+{% macro consejo() %}
+  {{ t["gobierno.consejo"] }}
+{% endmacro %}
+
+{% macro filiales() %}
+  {% if c.filiales %}{% set fl_ = c.filiales %}
+  <div style="break-inside: avoid">
+  <p>{{ fl_.total }} filiales significativas declaradas en el Exhibit 21 del 10-K{% if fl_.jurisdicciones %}; las jurisdicciones más frecuentes: {% for j, n in fl_.jurisdicciones %}{{ j }} ({{ n }}){{ ", " if not loop.last else "" }}{% endfor %}{% endif %}.</p>
+  <table class="datos">
+    <tr><th>Filial</th><th>Jurisdicción</th></tr>
+    {% for f in fl_.lista %}<tr><td>{{ f.nombre }}</td><td>{{ f.jurisdiccion }}</td></tr>{% endfor %}
+  </table>
+  {% if fl_.total > fl_.lista|length %}<div class="fuente">Las {{ fl_.lista|length }} primeras de {{ fl_.total }}, en el orden del Exhibit 21.</div>{% endif %}
+  </div>
+  {% endif %}
+{% endmacro %}
+
+{% macro equipo() %}
+  {% if c.equipo %}
+  <div style="break-inside: avoid">
+  <table class="datos compacta">
+    <tr><th>Nombre</th><th>Cargo declarado</th><th>Insider desde (Form 3)</th><th>Rentabilidad de la acción desde entonces</th></tr>
+    {% for p in c.equipo %}<tr><td>{{ p.nombre }}</td><td>{{ p.cargo|truncate(40, True, "…") or "—" }}</td><td>{{ p.alta.strftime("%d/%m/%Y") if p.alta else "—" }}</td><td>{{ p.rentabilidad|var if p.rentabilidad is not none else "—" }}</td></tr>{% endfor %}
+  </table>
+  <div class="fuente">Directivos y consejeros que presentaron Form 4 en los últimos 12 meses, con el cargo tal como lo declaran. Alta: su Form 3 (declaración inicial), si está entre los más recientes; rentabilidad con cotizaciones ajustadas, solo si la serie llega a esa fecha.{% if c.cambios_direccion %} Cambios en el consejo o la alta dirección (8-K ítem 5.02) en 24 meses: {% for e in c.cambios_direccion %}{{ e.fecha.strftime("%d/%m/%Y") }}{{ ", " if not loop.last else "" }}{% endfor %}.{% endif %}</div>
+  </div>
+  {% endif %}
+{% endmacro %}
+
+{% macro accionistas_e_insiders() %}
+  {% if insiders %}{% set ins = c.insiders %}{% set a = ins.actividad %}
+  <h3>Accionistas de más del 5 %</h3>
+  {% if insiders.proxy %}<table class="datos">
+    <tr><th>Accionista</th><th>Acciones (mn)</th><th>% del capital</th></tr>
+    {% for f in insiders.proxy %}<tr><td>{{ f.nombre }}</td><td>{{ f.acciones }}</td><td>{{ f.porcentaje }}</td></tr>{% endfor %}
+  </table>
+  <div class="fuente">Proxy DEF 14A del {{ ins.accionistas.proxy_fecha.strftime("%d/%m/%Y") }} (Item 403), tal como lo declara la empresa.</div>{% endif %}
+  {% if insiders.declaraciones %}<table class="datos">
+    <tr><th>Declaraciones 13D/13G posteriores al proxy</th><th>% declarado</th><th>Fecha del hecho</th><th>Formulario</th></tr>
+    {% for f in insiders.declaraciones %}<tr><td>{{ f.nombre }}</td><td>{{ f.porcentaje }}</td><td>{{ f.fecha }}</td><td>{{ f.formulario }}</td></tr>{% endfor %}
+  </table>{% endif %}
+  {% set p = ins.participaciones %}{% if p %}
+  <p class="fuente" style="margin-top:2mm"><strong>Fuente externa, no auditada (yfinance, consulta del {{ p.consulta }}):</strong> insiders {{ p.insiders|pct }} del capital; instituciones {{ p.instituciones|pct }}{% if p.numero_instituciones %} ({{ p.numero_instituciones|num(0) }} instituciones){% endif %}.{% if p.principales %} Principales tenedores institucionales: {% for h in p.principales %}{{ h.nombre }} {{ h.porcentaje|pct }}{{ "; " if not loop.last else "" }}{% endfor %} (13F a {{ p.principales[0].fecha }}).{% endif %}
+  {% if not insiders.proxy and not insiders.declaraciones %}<p class="fuente">Sin accionistas de más del 5 % declarados en el último proxy ni en 13D/13G de los últimos 12 meses.</p>{% endif %}
+  <h3>Compras y ventas de insiders en mercado (12 meses)</h3>
+  <p>Entre el {{ ins.desde.strftime("%d/%m/%Y") }} y el {{ ins.hasta.strftime("%d/%m/%Y") }} ({{ ins.formularios }} Form 4), {% if a.compras or a.ventas %}{{ a.insiders }} insiders hicieron {{ a.compras }} compras ({{ (a.importe_compras / 1e6)|num(1) }} USD Mn) y {{ a.ventas }} ventas ({{ (a.importe_ventas / 1e6)|num(1) }} USD Mn) en mercado: saldo neto de {{ (a.saldo / 1e6)|num(1) }} USD Mn.{% if a.ventas_con_plan %} {{ a.ventas_con_plan }} de las ventas ({{ (a.importe_ventas_con_plan / 1e6)|num(1) }} USD Mn) se hicieron con un plan 10b5-1, programadas de antemano.{% endif %}{% if a.agrupadas %} Hubo compras agrupadas: {{ a.agrupadas.compradores|length }} insiders compraron entre el {{ a.agrupadas.desde.strftime("%d/%m/%Y") }} y el {{ a.agrupadas.hasta.strftime("%d/%m/%Y") }}.{% endif %}{% else %}no hubo compras ni ventas de insiders en mercado.{% endif %}{% if ins.retribucion.operaciones or ins.retenciones.operaciones %} Aparte, y sin ser compras ni ventas en mercado, recibieron {{ ins.retribucion.acciones|num(0) }} acciones como retribución ({{ ins.retribucion.operaciones }} concesiones o ejercicios) y entregaron {{ ins.retenciones.acciones|num(0) }} para pagar impuestos.{% endif %}</p>
+  {% if insiders.operaciones %}<table class="datos compacta">
+    <tr><th>Fecha</th><th>Insider</th><th>Cargo</th><th>Operación</th><th>Acciones</th><th>Precio (USD)</th><th>Importe (USD mn)</th><th>Plan 10b5-1</th></tr>
+    {% for o in insiders.operaciones %}<tr><td>{{ o.fecha }}</td><td>{{ o.nombre }}</td><td>{{ o.cargo|truncate(28, True, "…") }}</td><td>{{ o.tipo }}</td><td>{{ o.acciones }}</td><td>{{ o.precio }}</td><td>{{ o.importe }}</td><td>{{ o.plan }}</td></tr>{% endfor %}
+  </table>
+  <div class="fuente">Form 4 de la SEC: solo las operaciones en mercado (códigos P y S); las {{ insiders.operaciones|length }} de mayor importe. Cargo tal como figura en el formulario.</div>{% endif %}
+</p>{% endif %}
+  {% endif %}
+{% endmacro %}
+
+{% macro catalizadores() %}
+  {% set cat = c.catalizadores %}
+  <h3>Catalizadores según la dirección</h3>
+  {% if cat.ia and cat.ia.lista %}<ul>{% for s in cat.ia.lista %}<li><strong>{{ s.resumen }}</strong><br><span class="cita">«{{ s.cita }}»</span></li>{% endfor %}</ul>
+  <div class="fuente">{% if cat.ia.modelo %}Selección y resumen: {{ cat.ia.modelo }}, entre {{ cat.ia.candidatos }} frases prospectivas literales del MD&amp;A (Item 7). Cada cita se ha verificado en el texto del 10-K.{% else %}Catalizadores del analista.{% endif %}</div>
+  {% else %}<p><span class="pendiente">catalizadores de crecimiento según el MD&amp;A (Item 7)</span></p>{% endif %}
+{% endmacro %}
+
+{% macro calendario_seguimiento() %}
+  {% set cat = c.catalizadores %}
+  {% if calendario %}
+  <div style="break-inside: avoid">
+  <h3>Calendario</h3>
+  {% if not cat.del_analista %}<p class="aviso-revisar"><span class="revisar">Revisar</span> Borrador del SaaS con fechas estimadas a partir de los filings de la SEC (todas posteriores a la fecha de emisión): el analista debe confirmarlo o introducir el suyo.</p>{% endif %}
+  <table class="datos">
+    <tr><th>Evento</th><th>Fecha</th><th>Base</th></tr>
+    {% for e in calendario %}<tr><td>{{ e.evento }}</td><td>{{ e.fecha }}</td><td style="text-align:left">{{ e.base }}</td></tr>{% endfor %}
+  </table>
+  </div>
+  {% endif %}
+{% endmacro %}
+
+{% macro hechos_8k() %}
+  {% set cat = c.catalizadores %}
+  {% if cat.hechos %}
+  <div style="break-inside: avoid">
+  <h3>Hechos relevantes de los últimos 12 meses (8-K)</h3>
+  <table class="datos">
+    <tr><th>Fecha</th><th>Hecho comunicado</th><th>Filing</th></tr>
+    {% for h in cat.hechos %}<tr><td>{{ h.fecha.strftime("%d/%m/%Y") }}</td><td style="text-align:left">{{ h.hechos|join("; ") }}</td><td>{{ h.accession }}</td></tr>{% endfor %}
+  </table>
+  <div class="fuente">Ítems de cada 8-K según las instrucciones de la SEC; los de resultados (2.02) están en el apartado 21 y los anexos (9.01) no se listan.</div>
+  </div>
+  {% endif %}
+{% endmacro %}
+
+{% macro riesgos_principales() %}
+  {% if c.riesgos %}<ul>{% for r in c.riesgos %}<li><strong>{{ r.resumen }}</strong><br><span class="cita">«{{ r.cita }}»</span></li>{% endfor %}</ul>
+  <div class="fuente">Selección y resumen: {{ c.riesgos[0].modelo }}, entre los títulos literales del Item 1A. Cada cita se ha verificado en el texto del 10-K.</div>
+  {% else %}<p><span class="pendiente">resume los riesgos principales del Item 1A</span></p>{% endif %}
+{% endmacro %}
+
+{% macro riesgos_cambios() %}
+  {% if c.riesgos_cambios %}{% set rc = c.riesgos_cambios %}
+  <h3>Cambios frente al informe anual anterior</h3>
+  <p>Factores nuevos o reformulados: {{ rc.nuevos|length }} · eliminados: {{ rc.eliminados|length }} · modificados: {{ rc.modificados|length }} · sin cambios: {{ rc.sin_cambios }}.</p>
+  {% if rc.nuevos %}<p><strong>Nuevos o reformulados:</strong></p><ul>{% for r in rc.nuevos %}<li>{{ r.titulo }}{% if r.posible_origen %} <span class="fuente">(posible reformulación de: «{{ r.posible_origen }}»)</span>{% endif %}</li>{% endfor %}</ul>{% endif %}
+  {% if rc.eliminados %}<p><strong>Eliminados:</strong></p><ul>{% for r in rc.eliminados %}<li>{{ r }}</li>{% endfor %}</ul>{% endif %}
+  <div class="fuente">Comparación por similitud de texto de los títulos del Item 1A (sin IA). Las reformulaciones las confirma el analista.</div>
+  {% endif %}
+{% endmacro %}
+
+{% macro puntuaciones() %}
+  {% if c.puntuaciones %}
+  <h3>Puntuaciones de riesgo contable (FY{{ c.filing.ejercicio }})</h3>
+  <table class="datos">
+    <tr><th>Puntuación</th><th>Valor</th><th style="text-align:left">Lectura</th><th style="text-align:left">Modelo</th></tr>
+    {% for p in c.puntuaciones %}<tr><td>{{ p.nombre }}</td><td>{% if p.nombre == "Piotroski F" and p.valor is not none %}{{ p.valor|num(0) }} / 9{% elif p.valor is not none %}{{ "%.2f"|format(p.valor)|replace(".", ",")|replace("-", "−") }}{% else %}n.d.{% endif %}</td><td style="text-align:left">{{ p.lectura }}{% if p.faltan and p.valor is none %} (faltan: {{ p.faltan|join(", ") }}){% endif %}</td><td style="text-align:left">{{ p.modelo }}</td></tr>{% endfor %}
+  </table>
+  <div class="fuente">Altman Z (insolvencia), Beneish M (calidad del beneficio) y Piotroski F (solidez financiera), con las partidas del normalizador SEC. Definiciones en el apartado 26.</div>
+  {% endif %}
+{% endmacro %}
+
+{% macro alarmas() %}
+  <h3>Alarmas de la SEC (5 años)</h3>
+  {% if c.alarmas %}<table class="datos">
+    <tr><th>Alarma</th><th>Fecha</th><th>Detalle (cita literal del filing)</th><th>Filing</th></tr>
+    {% for a in c.alarmas %}<tr><td>{{ a.tipo }}</td><td>{{ a.fecha.strftime("%d/%m/%Y") }}</td><td style="text-align:left">{{ a.detalle or "—" }}</td><td>{{ a.accession }}</td></tr>{% endfor %}
+  </table>
+  <div class="fuente">8-K ítems 4.01 y 4.02, 10-K/A, 10-Q/A, NT 10-K y NT 10-Q; frases del último 10-K sobre control interno no eficaz o dudas sobre la continuidad (sin las hipotéticas de los factores de riesgo). Las valora el analista.</div>
+  {% else %}<p>Sin alarmas: ningún cambio de auditor ni reexpresión (8-K 4.01 y 4.02), informe modificado o presentación tardía en 5 años, y el último 10-K no recoge control interno no eficaz ni dudas sobre la continuidad de la empresa.</p>{% endif %}
+{% endmacro %}
+
+{% macro autonomia() %}
+  {% if c.autonomia %}
+  <h3>Autonomía de caja</h3>
+  <table class="datos">
+    <tr><td>Caja e inversiones a corto plazo (USD mn)</td><td>{{ (c.autonomia.liquidez/1e6)|num(0) }}</td></tr>
+    <tr><td>Consumo de caja de los últimos doce meses (flujo operativo − capex, USD mn)</td><td>{{ (c.autonomia.consumo_anual/1e6)|num(0) }}</td></tr>
+    <tr class="total"><td>Meses de caja al ritmo actual</td><td>{{ c.autonomia.meses|num(0) }}</td></tr>
+    {% if c.autonomia.dilucion_anual is not none %}<tr><td>Variación anual de las acciones diluidas ({{ c.autonomia.anios_dilucion }} años)</td><td>{{ c.autonomia.dilucion_anual|var }}</td></tr>{% endif %}
+  </table>
+  <div class="fuente">Solo para empresas que consumen caja. No incluye financiación futura (ampliaciones, deuda o cobros por acuerdos).</div>
+  {% endif %}
+{% endmacro %}
+
+{% macro opciones() %}
+  {% set op = c.opciones %}{% set ct = c.cortos %}
+  {% if op %}
+  <p class="aviso-revisar"><span class="revisar">Fuente externa</span> Datos de yfinance, no auditados (consulta del {{ (op or ct).consulta }}): se usan solo para estos apartados, nunca en las cifras financieras ni en la valoración.</p>
+  {% if op %}<table class="datos">
+    <tr><th>Opciones (vencimientos hasta {{ op.vencimientos[-1] }})</th><th></th></tr>
+    <tr><td>Ratio put/call por volumen / por posiciones abiertas</td><td>{{ op.put_call.volumen|num(2) }} / {{ op.put_call.posiciones|num(2) }}</td></tr>
+    <tr><td>Max pain del vencimiento {{ op.vencimiento_proximo }} (USD)</td><td>{{ op.max_pain|num(2) }}</td></tr>
+  </table>
+  {% if op.inusual %}<table class="datos compacta">
+    <tr><th>Actividad inusual</th><th>Strike (USD)</th><th>Vencimiento</th><th>Volumen</th><th>Posiciones abiertas</th><th>Prima estimada (USD mn)</th><th>Distancia al strike</th></tr>
+    {% for f in op.inusual %}<tr><td>{{ f.tipo }}</td><td>{{ f.strike|num(2) }}</td><td>{{ f.vencimiento }}</td><td>{{ f.volumen|num(0) }}</td><td>{{ f.posiciones|num(0) }}</td><td>{{ (f.prima_estimada / 1e6)|num(1) }}</td><td>{{ f.distancia|var }}</td></tr>{% endfor %}
+  </table>{% endif %}{% endif %}
+  <div class="fuente">Cálculos sobre la cadena de opciones como financial-research-analyst-agent (put/call, max pain, actividad inusual: volumen ≥ 500 y más del doble de las posiciones abiertas).</div>
+  {% else %}<p class="fuente">Sin cadena de opciones disponible para la empresa.</p>{% endif %}
+{% endmacro %}
+
+{% macro volatilidad() %}
+  {% set op = c.opciones %}
+  {% if op %}<table class="datos">
+    <tr><th>Volatilidad</th><th></th></tr>
+    <tr><td>Volatilidad implícita (ponderada por volumen): calls / puts / total</td><td>{{ op.iv_calls|pct }} / {{ op.iv_puts|pct }} / {{ op.iv|pct }}</td></tr>
+    <tr><td>Volatilidad realizada a 30 días (cotizaciones propias) y ratio implícita / realizada</td><td>{{ op.realizada_30d|pct }} · {{ op.iv_sobre_realizada|num(2) }}x</td></tr>
+  </table>
+  <div class="fuente">Implícita ponderada por volumen de la cadena de opciones (yfinance, no auditada); realizada con las cotizaciones propias. El percentil histórico de la implícita necesita guardar su historial.</div>
+  {% else %}<p class="fuente">Sin cadena de opciones disponible para la empresa.</p>{% endif %}
+{% endmacro %}
+
+{% macro cortos() %}
+  {% set op = c.opciones %}{% set ct = c.cortos %}
+  {% if ct %}
+  <p class="aviso-revisar"><span class="revisar">Fuente externa</span> Datos de yfinance, no auditados (consulta del {{ (op or ct).consulta }}): se usan solo para estos apartados, nunca en las cifras financieras ni en la valoración.</p>
+  <p>Posiciones cortas{% if ct.fecha %} a {{ ct.fecha }}{% endif %}: {{ (ct.acciones / 1e6)|num(1) }} millones de acciones{% if ct.sobre_flotante is not none %}, el {{ ct.sobre_flotante|pct }} del capital flotante (nivel {{ ct.lectura }}){% endif %}{% if ct.dias_para_cubrir %}; {{ ct.dias_para_cubrir|num(1) }} días para cubrir al volumen medio{% endif %}{% if ct.acciones_mes_anterior %} ({{ (ct.acciones / ct.acciones_mes_anterior - 1)|var }} frente al mes anterior){% endif %}.</p>
+  <div class="fuente">FINRA vía yfinance, no auditado. Nivel de cortos: bajo &lt; 5 %, moderado &lt; 10 %, elevado &lt; 25 %, muy elevado ≥ 25 % del flotante.</div>
+  {% else %}<p class="fuente">Sin datos de posiciones cortas para la empresa.</p>{% endif %}
+{% endmacro %}
+
+{% macro factores_declarados() %}
+  <h3>Factores de riesgo declarados en el 10-K ({{ c.riesgos_lista|length }})</h3>
+  <div class="dos-col" style="font-size:6.2pt"><ol>{% for r in c.riesgos_lista %}<li>{{ r }}</li>{% endfor %}</ol></div>
+{% endmacro %}
+
+{% macro criterios_del_fondo() %}
+  {% set gp = c.gestion %}
+  {% if gp and gp.criterios %}
+  <table class="datos">
+    <tr><th>Criterio del fondo</th><th>Umbral</th><th>Valor</th><th>Resultado</th></tr>
+    {% for k in gp.criterios %}<tr><td>{{ k.criterio }}</td><td>{{ k.signo|replace(">=", "≥")|replace("<=", "≤") }} {{ k.umbral|pct if k.porcentaje else (k.umbral|num(1) ~ "x") }}</td><td>{{ (k.valor|pct if k.porcentaje else (k.valor|num(1) ~ "x")) if k.valor is not none else "n.d." }}</td><td>{{ "Cumple" if k.cumple else ("No cumple" if k.cumple is not none else "Sin dato") }}</td></tr>{% endfor %}
+  </table>
+  {% endif %}
+  {% if not (gp and gp.criterios) %}<p class="fuente">Sin criterios del fondo: los fija el analista en la configuración del SaaS.</p>{% endif %}
+{% endmacro %}
+
+{% macro checklist() %}
+  {% set gp = c.gestion %}
+  {{ t["conclusiones.checklist"] }}
+{% endmacro %}
+
+{% macro riesgo_de_la_posicion() %}
+  {% set gp = c.gestion %}
+  {% if gp and gp.riesgo %}{% set r = gp.riesgo %}
+  <table class="datos">
+    <tr><th>Riesgo de la posición (parámetros del fondo)</th><th></th></tr>
+    <tr><td>Stop por volatilidad ({{ gp.parametros.multiplo_volatilidad|num(1) }} × volatilidad diaria × √{{ gp.parametros.horizonte_stop_dias }} sesiones)</td><td>{{ r.stop|num(2) }} USD ({{ (-r.perdida)|var }})</td></tr>
+    <tr><td>Tamaño para arriesgar el {{ gp.parametros.riesgo_por_posicion|pct }} de la cartera hasta el stop</td><td>{{ r.acciones|num(0) }} acciones · {{ (r.importe / 1e6)|num(2) }} USD Mn · {{ r.peso|pct }} de la cartera{% if r.limitada_por_peso %} (limitado por el peso máximo){% endif %}</td></tr>
+    {% if r.frecuencia_stop is not none %}<tr><td>Prueba histórica: ventanas de {{ gp.parametros.horizonte_stop_dias }} sesiones (5 años) en que se habría tocado el stop</td><td>{{ r.frecuencia_stop|pct }}</td></tr>{% endif %}
+    {% if gp.var %}<tr><td>VaR / CVaR diario al 95 % (histórico, 1 año)</td><td>{{ gp.var[0]|var }} / {{ gp.var[1]|var }}</td></tr>{% endif %}
+    {% if r.dias_para_construir is not none %}<tr><td>Sesiones para construir la posición ({{ gp.parametros.participacion_maxima_volumen|pct }} del volumen medio)</td><td>{{ r.dias_para_construir|num(1) }}</td></tr>{% endif %}
+  </table>
+  <div class="fuente">Parámetros del fondo fijados por el analista bajo su responsabilidad. Stop acotado entre la pérdida mínima y máxima que fije el analista; VaR con el percentil de los rendimientos diarios (como financial-research-analyst-agent).</div>
+  {% else %}<p class="fuente">Sin parámetros del fondo: el stop, el tamaño de la posición y el VaR se calculan cuando el analista los fija en la configuración del SaaS.</p>{% endif %}
+{% endmacro %}
+
+{% macro seguimiento() %}
+  {% set gp = c.gestion %}
+  {% if c.catalizadores.calendario %}<p><strong>Seguimiento.</strong> Próximas revisiones: {% for e in c.catalizadores.calendario if e.fecha %}{{ e.evento|lower }} ({{ e.fecha if e.fecha is string else e.fecha.strftime("%d/%m/%Y") }}){{ "; " if not loop.last else "" }}{% endfor %}. Precio objetivo de {{ c.precio_objetivo|num(2) }} USD{% if gp and gp.riesgo %} y stop de {{ gp.riesgo.stop|num(2) }} USD{% endif %}; cada 10-Q o 10-K nuevo crea una versión del informe.</p>{% endif %}
+  {{ t["conclusiones.seguimiento"] }}
+{% endmacro %}
+

@@ -103,3 +103,15 @@ table.lateral-tabla td:first-child { width: 55%; }
 .revisar { display: inline-block; border: 0.6pt solid var(--burdeos); background: var(--burdeos); color: var(--blanco); padding: 0 1.2mm; margin-right: 1.5mm; font: 700 5.6pt "Montserrat"; letter-spacing: 0.08em; text-transform: uppercase; }
 tr.seccion-base td { font-weight: 600; }
 .aviso-revisar { border: 0.6pt solid var(--burdeos); padding: 1.5mm 2.5mm; font-size: 6.6pt; margin: 1mm 0 2mm; }
+
+/* B6: índice A-I (tabla de contenidos y numeración de los apartados) */
+.apartado { font: 700 8.2pt "Montserrat"; color: var(--burdeos); margin: 4.5mm 0 1.4mm; break-after: avoid; }
+.apartado .n { color: var(--negro); margin-right: 1.8mm; }
+h2 + .apartado { margin-top: 2mm; }
+.indice a { color: var(--negro); text-decoration: none; }
+.indice a::after { content: leader(".") target-counter(attr(href), page); }
+.indice-seccion { font: 700 8.2pt "Montserrat"; margin: 3.2mm 0 1mm; padding-bottom: 0.6mm; border-bottom: 0.6pt solid var(--burdeos); }
+.indice-seccion a { color: var(--burdeos); }
+.indice-seccion .num { color: var(--negro); margin-right: 2mm; }
+.indice-apartado { font-size: 7.4pt; margin: 0.9mm 0 0.9mm 6mm; }
+.indice-apartado .n { display: inline-block; width: 6mm; font-weight: 600; }

@@ -104,7 +104,7 @@ def test_comparables_automaticos_avisan_sin_bloquear(contexto):
     v = Version("AAPL", 2023, "FY", 1, "x", "2023-11-03", contenido={"textos": {}, "avisos_emision": contexto["avisos_emision"]})
     assert AVISO_COMPARABLES in v.avisos() and v.confirmar().emitir().estado == "emitida"
     html = render.html(contexto)
-    assert "El analista debe introducir su lista de comparables" in html  # la sección de comparables se mantiene
+    assert "Comparables modelo del SaaS" in html  # la sección de comparables se mantiene
     for interno in ("informes-warrants", "--comparables", "pendiente*", AVISO_COMPARABLES):  # nada interno en el informe
         assert interno not in html, interno
 
@@ -245,7 +245,7 @@ def test_gestion_de_la_posicion_con_parametros_del_fondo():
     assert [k["criterio"] for k in g["criterios"]] == ["Potencial frente al precio objetivo", "PER (LTM)"]
     r = g["riesgo"]
     assert r["perdida"] <= 0.10 and r["peso"] <= 0.05 + 1e-9 and r["stop"] < c["cotizacion"].precio
-    assert "Gestión de la posición" in render.html(c) and "Stop por volatilidad" in render.html(c)
+    assert "Gestión del riesgo" in render.html(c) and "Stop por volatilidad" in render.html(c)  # apartado 24 (B6)
 
 
 # --- B1: motor de valoración en el informe ----------------------------------------------------------------------------
@@ -400,3 +400,19 @@ def test_damodaran_betas_y_sectores():
     assert damodaran.parsear_industrias(buffer.getvalue()) == {
         "KO": ["The Coca-Cola Company", "Beverage (Soft)"], "PEP": ["PepsiCo, Inc.", "Beverage (Soft)"],
         "BRK-B": ["Berkshire Hathaway", "Insurance (Prop/Cas.)"]}
+
+
+def test_indice_a_i_numera_el_informe(contexto):
+    """B6: los 26 apartados del índice A-I salen en orden, una sola vez, con su enlace en la tabla de contenidos."""
+    import re
+
+    from informes_warrants.informe import render
+    from informes_warrants.informe.indice import APARTADOS, SECCIONES
+
+    html = render.html(contexto)
+    orden = [int(n) for n in re.findall(r'class="apartado" id="ap-(\d+)"', html)]
+    assert orden == list(range(2, 27))  # el 1 (ficha de empresa) es la portada
+    assert 'id="ap-1"' in html and 'id="legal"' in html
+    assert re.findall(r'<h2 id="sec-([A-I])">', html) == list(SECCIONES)
+    enlaces = re.findall(r'<div class="indice-apartado"><a href="#ap-(\d+)">', html)
+    assert [int(n) for n in enlaces] == sorted(APARTADOS)

@@ -184,3 +184,26 @@ def test_gobierno_con_varios_primeros_ejecutivos():
     assert "el primer ejecutivo percibió 627,5 USD Mn" in uno
     varios = rellenar(bloque, {"auditor": "EY", "gobierno": replace(base, retribuciones_ceo=[627.5e6, 256.6e6, 10.1e6])})
     assert "3 primeros ejecutivos" in varios and "entre 10,1 y 627,5 USD Mn" in varios and "percibió" not in varios
+
+
+def test_13g_solo_de_la_propia_empresa():
+    """Las declaraciones 13D/13G en las que la empresa es la inversora (JPM declara miles) no son accionistas suyos."""
+    from datetime import date, timedelta
+    from types import SimpleNamespace
+
+    from informes_warrants.ingesta.insiders import accionistas_principales
+
+    hoy = date(2026, 10, 15)
+
+    def declaracion(emisor, nombre, pct):
+        s = SimpleNamespace(total_percent=pct, reporting_persons=[SimpleNamespace(name=nombre)], event_date="09/30/2026",
+                            issuer_info=SimpleNamespace(cik=emisor))
+        return SimpleNamespace(filing_date=hoy - timedelta(days=10), accession_no="x", form="SC 13G", obj=lambda: s)
+
+    def filings(form):
+        if form == "DEF 14A":
+            raise ValueError("sin proxy")
+        return [declaracion("0000019617", "Vanguard Capital Management", 7.1), declaracion("0000065984", "JPMORGAN CHASE & CO", 5.3)]
+
+    r = accionistas_principales(SimpleNamespace(cik=19617, get_filings=filings), hoy)
+    assert [(d["nombre"], d["porcentaje"]) for d in r["declaraciones"]] == [("Vanguard Capital Management", pytest.approx(0.071))]

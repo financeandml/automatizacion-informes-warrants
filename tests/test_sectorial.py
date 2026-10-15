@@ -226,3 +226,14 @@ def test_libro_del_motor_sectorial_cuadra_con_b2(contexto, tmp_path):
     destino = tmp_path / "modelo.xlsx"
     m.libro.guardar(destino)
     assert destino.stat().st_size > 0
+
+
+def test_indice_a_i_en_la_plantilla_sectorial(contexto):
+    """B6: la plantilla sectorial sigue la misma numeración A-I que la general."""
+    import re
+
+    from informes_warrants.informe import render
+
+    html = render.html(contexto)
+    assert [int(n) for n in re.findall(r'class="apartado" id="ap-(\d+)"', html)] == list(range(2, 27))
+    assert re.findall(r'<h2 id="sec-([A-I])">', html) == list("ABCDEFGHI")

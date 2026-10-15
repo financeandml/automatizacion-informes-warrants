@@ -1,0 +1,16 @@
+{# Índice A-I (B6): cabeceras de sección y de apartado con la numeración del índice del usuario (informe/indice.py) y la
+   tabla de contenidos con el número de página de cada apartado (WeasyPrint: target-counter). Se importa con contexto. #}
+{% macro seccion(letra) %}<h2 id="sec-{{ letra }}"><span class="num">{{ letra }}</span>{{ secciones[letra] }}</h2>{% endmacro %}
+
+{% macro apartado(n) %}<div class="apartado" id="ap-{{ n }}"><span class="n">{{ n }}</span>{{ apartados[n] }}</div>{% endmacro %}
+
+{% macro tabla_contenidos() %}
+<section class="salto indice">
+  <h2>Índice</h2>
+  {% for letra, titulo, lista in indice %}
+  <div class="indice-seccion"><a href="#{{ 'ap-1' if letra == 'A' else 'sec-' ~ letra }}"><span class="num">{{ letra }}</span>{{ titulo }}</a></div>
+  {% for n, t_ in lista %}<div class="indice-apartado"><a href="#ap-{{ n }}"><span class="n">{{ n }}</span>{{ t_ }}</a></div>{% endfor %}
+  {% endfor %}
+  <div class="indice-seccion"><a href="#legal">Descargo de responsabilidad</a></div>
+</section>
+{% endmacro %}

@@ -13,7 +13,7 @@ La maquetación aprobada es la del [ejemplo](ejemplos/AAPL_FY2025_borrador.pdf).
 
 | Apartado | Estado | Qué hay y dónde (o qué falta) |
 |---|---|---|
-| Tabla de contenidos | Ejecutable | WeasyPrint numera páginas (`target-counter`) |
+| Tabla de contenidos | Hecho | B6 (2026-10-15): este índice A-I es la tabla de contenidos (página 2) y la numeración del PDF, con el número de página de cada apartado; todos los apartados salen siempre (sin datos, una línea que lo dice). Fuente única: `informe/indice.py`; macros en `plantillas/informe/_indice.html.j2` y bloques en `_bloques.html.j2` |
 | Descargo de responsabilidad | Hecho | Al final del PDF y una línea en cada pie (`plantillas/legal/descargo.md`) |
 | **A. Resumen ejecutivo y contexto de la tesis** | | |
 | 1. Ficha de empresa | Hecho | Portada: mercado (con valor contable por acción, capital flotante y volumen en acciones), datos financieros (2 FY + LTM + 3 estimados), múltiplos LTM, comportamiento en bolsa, rango pesimista-optimista y autoría |

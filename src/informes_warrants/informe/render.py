@@ -18,6 +18,7 @@ from ..calculo.normalizador import LTM, PARTIDAS
 from ..calculo.valoracion_relativa import MULTIPLOS, significativo
 from ..visual import graficos
 from .estimaciones import UMBRAL_COMPRAR, UMBRAL_VENDER
+from .indice import APARTADOS, INDICE, SECCIONES
 from .plantillas import MARCADOR, MARCADOR_IA, _num, _pct, _var
 
 DIR = Path(__file__).resolve().parent.parent / "plantillas"
@@ -473,6 +474,7 @@ def _comunes(c: dict) -> dict:
     legal = (DIR / "legal" / "descargo.md").read_text(encoding="utf-8").replace("{{ anio }}", str(date.today().year))
     return dict(
         c=c, t={k: _md(v) for k, v in c["textos"].items()}, fecha_larga=_fecha_larga(c["fecha"]), insiders=_insiders(c),
+        indice=INDICE, secciones=SECCIONES, apartados=APARTADOS,  # B6: índice A-I (tabla de contenidos y numeración)
         calendario=_calendario(c), umbral_comprar=UMBRAL_COMPRAR, umbral_vender=UMBRAL_VENDER, legal=Markup(markdown.markdown(legal)),
         horizontes=["1m", "3m", "12m", "YTD", "3a", "5a"], claves_horizonte=["1m", "3m", "12m", "ytd", "3a", "5a"],
         etiquetas_comportamiento={k: "Absoluta" if k == "absoluta" else "Relativa " + k.replace("SPY", "S&P 500")

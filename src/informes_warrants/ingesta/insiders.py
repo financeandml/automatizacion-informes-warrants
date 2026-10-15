@@ -141,6 +141,9 @@ def accionistas_principales(empresa, hasta: date, dias: int = 365) -> dict:
             continue
         if porcentaje is None or not personas:
             continue
+        emisor = getattr(getattr(s, "issuer_info", None), "cik", None)
+        if emisor is not None and int(emisor) != int(empresa.cik):  # la empresa como inversora en otra (JPM, bancos, gestoras)
+            continue
         salida["declaraciones"].append({"nombre": _texto(getattr(personas[0], "name", "")), "porcentaje": porcentaje / 100,
                                         "fecha_hecho": _fecha_us(getattr(s, "event_date", "")), "formulario": filing.form,
                                         "presentado": presentado})
