@@ -25,13 +25,13 @@ SaaS que genera informes de análisis (estilo *equity research*) sobre empresas 
 | Contenido del informe (índice) | [docs/estructura-informe.md](docs/estructura-informe.md) |
 | Quién produce cada bloque, editor, versiones | [docs/editor-y-versiones.md](docs/editor-y-versiones.md) · código en `src/informes_warrants/informe/` y `almacenamiento/` |
 | Interfaz del analista (Streamlit) | `src/informes_warrants/ui/` · `informes-warrants interfaz` · lógica probada en `tests/test_render.py` |
-| Modelo de lenguaje (llama4/Groq, Ollama) | [docs/ia.md](docs/ia.md) · `src/informes_warrants/ia/` |
+| Modelo de lenguaje (Gemini, llama4/Groq, Ollama) | [docs/ia.md](docs/ia.md) · `src/informes_warrants/ia/` (Gemini con búsqueda y citas: `ia/gemini.py`) |
 | Cómo contribuir | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Qué reutilizar y dónde (rutas exactas) | [docs/inventario/README.md](docs/inventario/README.md) |
 | Resumen de los repos base y licencias | [docs/repositorios-base.md](docs/repositorios-base.md) |
 | Identidad corporativa (colores, tipografía, logo) | [docs/identidad-corporativa.md](docs/identidad-corporativa.md) |
 | Decisiones pendientes del usuario | [docs/requisitos-pendientes.md](docs/requisitos-pendientes.md) |
-| Tareas que faltan (3 fases y pendientes P1-P3) y propuestas de los informes de referencia (valoradas) | [docs/hoja-de-ruta.md](docs/hoja-de-ruta.md) · [docs/propuestas-referencias.md](docs/propuestas-referencias.md) |
+| Tareas que faltan (3 fases y pendientes P1-P3) y propuestas de los informes de referencia (valoradas) | [docs/hoja-de-ruta.md](docs/hoja-de-ruta.md) · [docs/plan-pendientes.md](docs/plan-pendientes.md) (plan de cada pendiente y API de Gemini) · [docs/propuestas-referencias.md](docs/propuestas-referencias.md) |
 | Carencias de contenido, soluciones y orden de trabajo | [docs/rigor-del-contenido.md](docs/rigor-del-contenido.md) |
 | Motor matemático y normalizador SEC | `src/informes_warrants/calculo/` (índice en su `__init__.py`; normalizador con LTM, trimestres, segmentos, clientes y vencimientos; métricas; DCF con escenarios, DCF inverso y atribución; proyección del BPA, flujo y balance; valoración relativa y suma de partes; múltiplos históricos; síntesis del precio objetivo; historial; puntuaciones; analítica; notas; definiciones; calidad) · tests en `tests/test_calculo.py` y `tests/test_bloque_r.py` |
 | Motor de valoración (libro de Excel descargable, plantillas, correcciones, segunda vía con LibreOffice) | [docs/motor-valoracion.md](docs/motor-valoracion.md) · `src/informes_warrants/calculo/motor/` · `informe/motor.py` · `informes-warrants modelo TICKER` · tests en `tests/test_motor.py` |

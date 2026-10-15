@@ -243,3 +243,12 @@ def test_dividendos_del_8k_en_el_calendario():
     anterior = [{**declarado[0], "pago": date(2026, 5, 14), "registro": date(2026, 5, 11)}]
     pasado = borrador(date(2026, 10, 15), [], [], None, None, None, None, 2025, anterior + declarado)
     assert pasado[0]["fecha"] == date(2026, 11, 12) and "estimado" in pasado[0]["evento"]  # 13/08 + 91 días
+
+
+def test_ratio_del_ads_del_20f():
+    """P4: acciones ordinarias por ADS tal como las declara el 20-F (número en cifra o en letra)."""
+    from informes_warrants.ingesta.ficha import acciones_por_ads
+
+    assert acciones_por_ads("(each ADS represents five (5) common shares)")[0] == 5
+    assert acciones_por_ads("Each ADR represents one deposited Novo Nordisk B share")[0] == 1
+    assert acciones_por_ads("No depositary arrangement.") is None

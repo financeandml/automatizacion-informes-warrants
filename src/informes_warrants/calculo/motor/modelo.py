@@ -195,27 +195,39 @@ def segmentos_del_modelo(desglose, estados, ejercicio: int, anios: list[int], no
     """Segmentos del modelo y por qué: los de negocio validados (suman las ventas consolidadas) con su resultado
     operativo en el último ejercicio, más los costes no asignados (EBIT consolidado − suma de segmentos); si no, un
     único bloque con la empresa entera (DCF consolidado de la plantilla, parte 1)."""
-    usar = (desglose is not None and len(desglose.miembros) >= 2 and ejercicio in desglose.ejercicios and desglose.resultado_operativo
-            and all(ejercicio in desglose.resultado_operativo.get(n, {}) for n in desglose.miembros))
+    from ..normalizador import MEDIDAS_SEGMENTO
+
+    conciliacion = set(getattr(desglose, "conciliacion", set()) or set()) if desglose is not None else set()
+    reales = ([n for n in desglose.miembros if n not in conciliacion and ejercicio in desglose.miembros[n]]
+              if desglose is not None else [])  # P21: los segmentos que ya no existen van con la conciliación
+    if desglose is not None:
+        conciliacion |= {n for n in desglose.miembros if n not in reales}
+    usar = (desglose is not None and len(reales) >= 2 and ejercicio in desglose.ejercicios and desglose.resultado_operativo
+            and all(ejercicio in desglose.resultado_operativo.get(n, {}) for n in reales))
     if not usar:
         ventas = {a: estados.valor("ingresos", a) for a in anios if estados.valor("ingresos", a) is not None}
         ebit = {a: estados.valor("resultado_operativo", a) for a in anios if estados.valor("resultado_operativo", a) is not None}
         motivo = "sin segmentos de negocio validados con su resultado operativo: un único bloque (DCF consolidado)"
         return [Segmento(nombre_empresa, ventas, ebit)], motivo
-    validos = [a for a in desglose.ejercicios if all(a in desglose.resultado_operativo.get(n, {}) for n in desglose.miembros)]
-    segmentos = [Segmento(n, {a: v for a, v in s.items() if a in desglose.ejercicios},
+    validos = [a for a in desglose.ejercicios if all(a in desglose.resultado_operativo.get(n, {}) for n in reales)]
+    segmentos = [Segmento(n, {a: v for a, v in desglose.miembros[n].items() if a in desglose.ejercicios},
                           {a: v for a, v in desglose.resultado_operativo[n].items() if a in validos},
                           amortizacion=dict(desglose.amortizacion.get(n, {})), capex=dict(desglose.capex.get(n, {})),
-                          origen=desglose.origen) for n, s in desglose.miembros.items()]
+                          origen=desglose.origen) for n in reales]
     no_asignado = {}
     for a in validos:
         consolidado = estados.valor("resultado_operativo", a)
         if consolidado is not None:
-            no_asignado[a] = consolidado - sum(desglose.resultado_operativo[n][a] for n in desglose.miembros)
+            no_asignado[a] = consolidado - sum(desglose.resultado_operativo[n][a] for n in reales)
     referencia = abs(estados.valor("resultado_operativo", ejercicio) or 0.0)
-    if no_asignado and abs(no_asignado.get(ejercicio, 0.0)) > UMBRAL_NO_ASIGNADO * referencia:
-        segmentos.append(Segmento("Costes no asignados", {}, no_asignado, no_asignado=True))
-    return segmentos, f"{len(desglose.miembros)} segmentos de negocio validados ({desglose.origen})"
+    # P21: el corporativo y las eliminaciones (conciliación ASC 280) son las ventas del bloque no asignado
+    ventas_conciliacion = ({a: sum(desglose.miembros[n].get(a, 0.0) for n in conciliacion) for a in desglose.ejercicios}
+                           if conciliacion else {})
+    if ventas_conciliacion or (no_asignado and abs(no_asignado.get(ejercicio, 0.0)) > UMBRAL_NO_ASIGNADO * referencia):
+        nombre = "Otros, corporativo, eliminaciones y costes no asignados" if ventas_conciliacion else "Costes no asignados"
+        segmentos.append(Segmento(nombre, ventas_conciliacion, no_asignado, no_asignado=True, origen=desglose.origen))
+    medida = MEDIDAS_SEGMENTO.get(getattr(desglose, "medida", "OperatingIncomeLoss"), "Resultado operativo")
+    return segmentos, f"{len(reales)} segmentos de negocio validados ({desglose.origen}); resultado por segmento: {medida.lower()}"
 
 
 # ------------------------------------------------------------------------------------------------------- construcción
@@ -506,8 +518,10 @@ class _Constructor:
             h.poner(fv, 1, s.nombre, "etiqueta")
             h.poner(fe, 1, s.nombre, "etiqueta")
             for j, a in enumerate([self.base] + self.anios):
-                if a in s.ingresos and not s.no_asignado:
-                    h.poner(fv, 2 + j, s.ingresos[a] / 1e6, "entrada", "mn", "Segmentos ASC 280 del XBRL de los 10-K")
+                if a in s.ingresos:
+                    h.poner(fv, 2 + j, s.ingresos[a] / 1e6, "entrada", "mn",
+                            "Corporativo y eliminaciones entre segmentos (conciliación ASC 280)" if s.no_asignado
+                            else "Segmentos ASC 280 del XBRL de los 10-K")
                 if a in s.ebit:
                     h.poner(fe, 2 + j, s.ebit[a] / 1e6, "entrada", "mn",
                             "EBIT consolidado − suma de segmentos" if s.no_asignado else "Resultado operativo del segmento (ASC 280)")
@@ -519,6 +533,10 @@ class _Constructor:
                     h.poner(fe, c, f"={ref(fv, c)}*Entradas!{ref(fm, 3 + k)}", "", "mn")
                 else:  # costes no asignados: % de las ventas totales
                     h.poner(fe, c, f"={ref(5, c)}*Entradas!{ref(fm, 3 + k)}", "", "mn")
+                    if s.ingresos:  # conciliación: su peso sobre los segmentos del último ejercicio (columna G)
+                        r1, r2 = ref(6, 7), ref(5 + n - 1, 7)
+                        peso = f"IF(SUM({r1}:{r2})=0,0,{ref(fv, 7)}/SUM({r1}:{r2}))"
+                        h.poner(fv, c, f"={peso}*SUM({ref(6, c)}:{ref(5 + n - 1, c)})", "", "mn")
         for c in range(2, 14):
             h.poner(5, c, f"=SUM({ref(6, c)}:{ref(5 + n, c)})", "total", "mn")
             h.poner(7 + n, c, f"=SUM({ref(8 + n, c)}:{ref(7 + 2 * n, c)})", "total", "mn")
@@ -553,6 +571,7 @@ class _Constructor:
                 h.poner(f, c, f'=IF(ISERROR({ref(base, c)}/{ref(base, c - 1)}-1),"--",{ref(base, c)}/{ref(base, c - 1)}-1)', "", "pct")
 
         segs = d.segmentos
+        conciliacion = any(s.no_asignado and s.ingresos for s in segs)  # P21: pesos sobre la suma de los segmentos
         f = 15
         h.poner(f, 2, "Revenue", "seccion")
         anios(f)
@@ -562,17 +581,20 @@ class _Constructor:
             filas_ventas[s.nombre] = f
             h.poner(f, 2, s.nombre, "etiqueta")
             h.poner(f + 1, 2, "% growth")
-            h.poner(f + 2, 2, "% of total sales")
+            h.poner(f + 2, 2, "% of segment sales" if conciliacion else "% of total sales")
             f += 4
         total_ventas = f
         for s in segs:
             fv = filas_ventas[s.nombre]
             for c in todas:
-                if s.no_asignado:
+                if s.no_asignado and not s.ingresos:
                     h.poner(fv, c, 0, "", "mn")
+                elif c in HIST and self.anios[c - HIST[0]] not in s.ingresos and not s.no_asignado:
+                    h.poner(fv, c, '="--"', "", "mn", "Sin desglose por segmentos validado este ejercicio")
                 else:
                     h.poner(fv, c, f"=Segments!{ref(self.seg_ventas[s.nombre], c)}", "", "mn")
-                h.poner(fv + 2, c, f"={ref(fv, c)}/{ref(total_ventas, c)}", "", "pct")
+                reales = "+".join(ref(filas_ventas[x.nombre], c) for x in segs if not x.no_asignado)
+                h.poner(fv + 2, c, f"={ref(fv, c)}/({reales})" if conciliacion else f"={ref(fv, c)}/{ref(total_ventas, c)}", "", "pct")
             crecimiento(fv + 1, fv)
         h.poner(total_ventas, 2, "Total", "total")
         h.poner(total_ventas + 1, 2, "% growth")

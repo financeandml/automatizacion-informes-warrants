@@ -55,17 +55,17 @@ Plan de trabajo de cada una y de la API de Gemini (2026-10-15): [plan-pendientes
 
 | # | Tarea | Cuándo |
 |---|---|---|
-| P1 | R1: hechos clave con etiqueta temática (A2) | Plan en [plan-pendientes.md](plan-pendientes.md) |
-| P2 | R5: taxonomía de riesgos para la clasificación del apartado 20 (A7) | Plan en [plan-pendientes.md](plan-pendientes.md) |
+| ~~P1~~ | R1: hechos clave con etiqueta temática (A2) | ✅ Hecho (2026-10-15), ver [plan-pendientes.md](plan-pendientes.md) |
+| ~~P2~~ | R5: taxonomía de riesgos para la clasificación del apartado 20 (A7) | ✅ Hecho (2026-10-15), ver [plan-pendientes.md](plan-pendientes.md) |
 | ~~P3~~ | R15: valoración de empresas sin beneficios | Cerrada (usuario, 2026-10-15): sin beneficios no se valora; el DCF negativo no entra en el precio objetivo |
-| P4 | Emisores extranjeros (20-F/40-F) en el PDF (antigua A10). Auditoría del 2026-10-13: faltan las listas IFRS (`ifrs-full`) en el normalizador (reutilizar edgar_analytics `synonyms.py` y `SynonymGroups` de edgartools), sin LTM trimestral (no hay 10-Q), sin Form 4 ni DEF 14A (Item 6 del 20-F); cifras a USD con `ingesta/divisas.py` y textos de `TwentyF` | Plan en [plan-pendientes.md](plan-pendientes.md) |
-| P5 | Ajuste de partidas no recurrentes del analista (`informe/bloque_fijo.py`): definido y probado, pero sin conectar al informe ni a la interfaz | Plan en [plan-pendientes.md](plan-pendientes.md) |
-| P6 | Apartado 1 (ficha): bolsa de cotización, cierre del ejercicio fiscal y empleados (edgartools `Company`) | Plan en [plan-pendientes.md](plan-pendientes.md) |
-| P7 | Apartado 6: fechas de dividendos en el calendario | Plan en [plan-pendientes.md](plan-pendientes.md) |
-| P8 | Apartado 22 (tesis consolidada): plantilla que ate cada asunción del analista a una cifra del modelo | Plan en [plan-pendientes.md](plan-pendientes.md) |
-| P9 | Apartado 25: comparación automática de lo real frente a lo estimado con cada 10-Q nuevo | Plan en [plan-pendientes.md](plan-pendientes.md) |
-| P10 | Apartado 26: fuentes externas (yfinance, FINRA) con su fecha en el anexo de documentos | Plan en [plan-pendientes.md](plan-pendientes.md) |
-| P11 | Apartado 18: tenedores institucionales desde los 13F de la SEC (trazable), en lugar de yfinance | Plan en [plan-pendientes.md](plan-pendientes.md) |
+| ~~P4~~ | Emisores extranjeros (20-F/40-F) en el PDF (antigua A10). Auditoría del 2026-10-13: faltan las listas IFRS (`ifrs-full`) en el normalizador (reutilizar edgar_analytics `synonyms.py` y `SynonymGroups` de edgartools), sin LTM trimestral (no hay 10-Q), sin Form 4 ni DEF 14A (Item 6 del 20-F); cifras a USD con `ingesta/divisas.py` y textos de `TwentyF` | ✅ Hecho (2026-10-15), ver [plan-pendientes.md](plan-pendientes.md) |
+| P5 | Ajuste de partidas no recurrentes del analista (`informe/bloque_fijo.py`): definido y probado, pero sin conectar al informe ni a la interfaz | Se conecta cuando el analista marque la primera partida (decisión del 2026-10-15) |
+| ~~P6~~ | Apartado 1 (ficha): bolsa de cotización, cierre del ejercicio fiscal y empleados (edgartools `Company`) | ✅ Hecho (2026-10-15), ver [plan-pendientes.md](plan-pendientes.md) |
+| ~~P7~~ | Apartado 6: fechas de dividendos en el calendario | ✅ Hecho (2026-10-15), ver [plan-pendientes.md](plan-pendientes.md) |
+| ~~P8~~ | Apartado 22 (tesis consolidada): plantilla que ate cada asunción del analista a una cifra del modelo | ✅ Hecho (2026-10-15), ver [plan-pendientes.md](plan-pendientes.md) |
+| ~~P9~~ | Apartado 25: comparación automática de lo real frente a lo estimado con cada 10-Q nuevo | ✅ Hecho (2026-10-15), ver [plan-pendientes.md](plan-pendientes.md) |
+| ~~P10~~ | Apartado 26: fuentes externas (yfinance, FINRA) con su fecha en el anexo de documentos | ✅ Hecho (2026-10-15), ver [plan-pendientes.md](plan-pendientes.md) |
+| ~~P11~~ | Apartado 18: tenedores institucionales desde los 13F de la SEC (trazable), en lugar de yfinance | ✅ Hecho (2026-10-15), ver [plan-pendientes.md](plan-pendientes.md) |
 | P12 | Apartados 15-17: sesgo, movimiento implícito, estructura temporal de la volatilidad y coste de cobertura; foto diaria de la volatilidad implícita para su ranking histórico; volumen de *dark pool* de FINRA (semanal, gratis, con 2-4 semanas de retraso) | Pendiente de decidir |
 | P13 | Batería de regresión con 15-20 empresas de sectores distintos (hoy 14: 10 generales y 4 sectoriales) | Pendiente |
 | P14 | Restos de la B2: segmentos y trimestres en los perfiles sectoriales, bandas históricas de P/BV y P/TBV, criterios del fondo propios del sector (hoy EV/EBITDA sale «sin dato») y nombres con mayúsculas internas («Jpmorgan») | Pendiente |
@@ -73,10 +73,10 @@ Plan de trabajo de cada una y de la API de Gemini (2026-10-15): [plan-pendientes
 | P16 | Apartado 20: matriz probabilidad × impacto de los riesgos (del analista) | Pendiente |
 | P17 | SPAC, ETF y fondos abiertos: hoy «plantilla pendiente de validar»; decidir si entran en el SaaS | Decidido (2026-10-15): no por ahora; se integrarán más adelante |
 | P18 | Apartado 5: fecha de alta (Form 3) de directivos con más de 120 formularios de antigüedad (p. ej. Tim Cook) | Pendiente |
-| P19 | Motor: DDM e ingreso residual (FinRobot) como métodos de la plantilla general; no están en las plantillas del usuario, así que antes se decide si entran | Plan en [plan-pendientes.md](plan-pendientes.md) |
+| ~~P19~~ | Motor: DDM e ingreso residual (FinRobot) como métodos de la plantilla general; no están en las plantillas del usuario, así que antes se decide si entran | ✅ Hecho (2026-10-15), ver [plan-pendientes.md](plan-pendientes.md) |
 | P20 | Beta modelo y comparables modelo de Damodaran también en los perfiles sectoriales (hoy, beta propia y empresas de referencia del perfil) | Pendiente |
-| P21 | Segmentos del motor: las empresas que miden el segmento con otra magnitud (JNJ: beneficio antes de impuestos) o que cambian sus segmentos (KO desde 2023) salen con DCF consolidado; decidir si se admite esa magnitud | Plan en [plan-pendientes.md](plan-pendientes.md) |
-| P22 | Consenso de analistas: FactSet aparcado; alternativa oficial, la *guidance* de la empresa en sus 8-K de resultados (Item 2.02, anexo 99.1), hoy la lee el analista | Plan en [plan-pendientes.md](plan-pendientes.md) |
+| ~~P21~~ | Segmentos del motor: las empresas que miden el segmento con otra magnitud (JNJ: beneficio antes de impuestos) o que cambian sus segmentos (KO desde 2023) salen con DCF consolidado; decidir si se admite esa magnitud | ✅ Hecho (2026-10-15), ver [plan-pendientes.md](plan-pendientes.md) |
+| ~~P22~~ | Consenso de analistas: FactSet aparcado; alternativa oficial, la *guidance* de la empresa en sus 8-K de resultados (Item 2.02, anexo 99.1), hoy la lee el analista | ✅ Hecho (2026-10-15), ver [plan-pendientes.md](plan-pendientes.md) |
 
 Descartados por decisión del usuario (fuentes externas solo para opciones y cortos, F3): consenso de analistas, sorpresas de BPA frente al consenso, ClinicalTrials.gov y el coste de préstamo de las acciones (de pago).
 

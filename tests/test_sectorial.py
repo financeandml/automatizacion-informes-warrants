@@ -237,3 +237,9 @@ def test_indice_a_i_en_la_plantilla_sectorial(contexto):
     html = render.html(contexto)
     assert [int(n) for n in re.findall(r'class="apartado" id="ap-(\d+)"', html)] == list(range(2, 27))
     assert re.findall(r'<h2 id="sec-([A-I])">', html) == list("ABCDEFGHI")
+
+
+def test_tesis_sectorial_atada_al_modelo(contexto):
+    """P8: en el perfil sectorial, Ke, g, rentabilidad sostenible y el valor de cada método."""
+    supuestos = [f["supuesto"] for f in contexto["tesis_cifras"]]
+    assert "Coste del capital (Ke)" in supuestos and "Valor por valor contable justificado" in supuestos and "Precio objetivo" in supuestos

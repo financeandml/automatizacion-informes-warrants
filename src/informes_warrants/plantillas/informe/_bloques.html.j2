@@ -108,7 +108,7 @@
 {% endmacro %}
 
 {% macro riesgos_principales() %}
-  {% if c.riesgos %}<ul>{% for r in c.riesgos %}<li><strong>{{ r.resumen }}</strong><br><span class="cita">«{{ r.cita }}»</span></li>{% endfor %}</ul>
+  {% if c.riesgos %}<ul>{% for r in c.riesgos %}<li>{% if r.get("categoria") %}<span class="revisar">{{ r.categoria|capitalize }} · amenaza: {{ r.supuesto }}</span> {% endif %}<strong>{{ r.resumen }}</strong><br><span class="cita">«{{ r.cita }}»</span></li>{% endfor %}</ul>
   <div class="fuente">Selección y resumen: {{ c.riesgos[0].modelo }}, entre los títulos literales del Item 1A. Cada cita se ha verificado en el texto del 10-K.</div>
   {% else %}<p><span class="pendiente">resume los riesgos principales del Item 1A</span></p>{% endif %}
 {% endmacro %}
@@ -210,6 +210,34 @@
   {% if not (gp and gp.criterios) %}<p class="fuente">Sin criterios del fondo: los fija el analista en la configuración del SaaS.</p>{% endif %}
 {% endmacro %}
 
+{% macro previsiones() %}
+  {% set co = c.get("consenso") or {} %}
+  {% if co.get("guidance") or co.get("externo") %}
+  <div style="break-inside: avoid">
+  <h3>Previsiones: guidance de la empresa y consenso publicado</h3>
+  {% if co.guidance %}<ul>{% for s in co.guidance.lista %}<li>{% if s.resumen %}<strong>{{ s.resumen }}</strong><br>{% endif %}<span class="cita">«{{ s.cita }}»</span></li>{% endfor %}</ul>
+  <div class="fuente">Guidance de la dirección en el comunicado de resultados (8-K {{ co.guidance.accession }}, {{ co.guidance.fecha }}, anexo 99.1). Selección y resumen: {{ co.guidance.modelo }}; cada cita se ha verificado en el texto y el resumen no añade cifras.</div>{% endif %}
+  {% if co.externo and co.externo.estimaciones %}
+  <p class="aviso-revisar"><span class="revisar">Fuente externa</span> Consenso publicado de analistas (búsqueda con {{ co.externo.modelo }}, consulta del {{ co.externo.consulta }}), no auditado: cada cifra se ha comprobado literalmente en su página. No entra en la valoración: el analista decide si la usa.</p>
+  <table class="datos">
+    <tr><th>Estimación</th><th>Ejercicio</th><th>Valor</th><th>Analistas</th><th style="text-align:left">Fuente</th></tr>
+    {% for e in co.externo.estimaciones %}<tr><td>{{ "Ventas" if e.concepto == "ventas" else "BPA" }}</td><td>{{ e.ejercicio }}</td><td>{{ e.valor }} {{ e.unidad }}</td><td>{{ e.analistas or "—" }}</td><td style="text-align:left">{{ e.url|truncate(60, True, "…") }}</td></tr>{% endfor %}
+  </table>{% if co.externo.descartadas %}<div class="fuente">{{ co.externo.descartadas }} estimaciones descartadas: su cifra no aparecía literalmente en la página citada.</div>{% endif %}
+  {% endif %}
+  </div>
+  {% endif %}
+{% endmacro %}
+
+{% macro tesis_cifras() %}
+  {% if c.get("tesis_cifras") %}
+  <table class="datos">
+    <tr><th>Supuesto de la tesis</th><th>Cifra del modelo</th><th style="text-align:left">Dónde está</th></tr>
+    {% for f in c.tesis_cifras %}<tr><td>{{ f.supuesto }}</td><td>{% if f.valor is none %}n.d.{% elif f.tipo == "pct" %}{{ f.valor|pct }}{% elif f.tipo == "rango_pct" %}{{ f.valor[0]|pct }}{% if f.valor[1] != f.valor[0] %} → {{ f.valor[1]|pct }}{% endif %}{% elif f.tipo == "usd" %}{{ f.valor|num(2) }} USD{% elif f.tipo == "var" %}{{ f.valor|var }}{% else %}{{ f.valor }}{% endif %}</td><td style="text-align:left">{{ f.donde }}</td></tr>{% endfor %}
+  </table>
+  <div class="fuente">Cada supuesto con la cifra del modelo que lo recoge; la tesis del analista (debajo) explica por qué se cumplirán. Las cifras se recalculan si el analista cambia sus estimaciones.</div>
+  {% endif %}
+{% endmacro %}
+
 {% macro checklist() %}
   {% set gp = c.gestion %}
   {{ t["conclusiones.checklist"] }}
@@ -228,6 +256,20 @@
   </table>
   <div class="fuente">Parámetros del fondo fijados por el analista bajo su responsabilidad. Stop acotado entre la pérdida mínima y máxima que fije el analista; VaR con el percentil de los rendimientos diarios (como financial-research-analyst-agent).</div>
   {% else %}<p class="fuente">Sin parámetros del fondo: el stop, el tamaño de la posición y el VaR se calculan cuando el analista los fija en la configuración del SaaS.</p>{% endif %}
+{% endmacro %}
+
+{% macro real_frente_a_estimado() %}
+  {% set rv = c.get("real_vs_estimado") %}
+  {% if rv %}
+  <div style="break-inside: avoid">
+  <h3>Real frente a lo estimado (informe del {{ rv.fecha_anterior }}, {{ rv.meses }} meses después)</h3>
+  <table class="datos">
+    <tr><th>Concepto</th><th>LTM anterior</th><th>Esperado</th><th>Real</th><th>Desviación</th></tr>
+    {% for f in rv.filas %}{% set mn = "USD mn" in f.concepto %}<tr><td>{{ f.concepto }}</td><td>{{ ((f.anterior / 1e6) if mn else f.anterior)|num(0 if mn else 2) }}</td><td>{{ ((f.esperado / 1e6) if mn else f.esperado)|num(0 if mn else 2) }}</td><td>{{ ((f.real / 1e6) if mn else f.real)|num(0 if mn else 2) }}</td><td>{{ f.desviacion|var }}</td></tr>{% endfor %}
+  </table>
+  <div class="fuente">Esperado: el LTM del informe anterior más la variación que preveía para su primer año proyectado, en proporción a los meses transcurridos. Real: el LTM con el último 10-Q.</div>
+  </div>
+  {% endif %}
 {% endmacro %}
 
 {% macro seguimiento() %}

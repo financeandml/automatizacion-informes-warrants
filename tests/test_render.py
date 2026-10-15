@@ -426,3 +426,28 @@ def test_fuentes_externas_fechadas_en_el_apartado_26():
     c = _componer(beta_sector=BetaSectorial("Computers/Peripherals", 1.32, 36, "January 2026"))
     html = render.html(c)
     assert "Beta y comparables modelo (fuente externa)" in html and "Computers/Peripherals" in html and "January 2026" in html
+
+
+def test_real_frente_a_estimado_en_el_seguimiento(contexto):
+    """P9: el informe con un 10-Q nuevo compara su LTM con lo que esperaba el anterior (apartado 25) y avisa si se desvía."""
+    from informes_warrants.informe import render
+    from informes_warrants.informe.cambios import resumen
+
+    anterior = {**resumen(contexto), "fecha": "2023-08-04", "fecha_ltm": "2023-07-01"}
+    anterior["ingresos_ltm"] = contexto["fund_ltm"]["ingresos"] * 0.80  # el anterior partía de mucho menos
+    c = _componer(anterior=anterior, fecha_ltm="2023-09-30")
+    rv = c["real_vs_estimado"]
+    assert rv["meses"] == 2 and rv["filas"][0]["concepto"] == "Ventas LTM (USD mn)"
+    assert any(a.startswith("Seguimiento: Ventas LTM") for a in c["avisos_emision"])
+    assert "Real frente a lo estimado" in render.html(c)
+
+
+def test_tesis_atada_a_las_cifras_del_modelo(contexto):
+    """P8: el apartado 22 ata cada supuesto de la tesis a su cifra del modelo (sin calcular nada nuevo)."""
+    from informes_warrants.informe import render
+
+    filas = {f["supuesto"]: f for f in contexto["tesis_cifras"]}
+    assert filas["Crecimiento a perpetuidad (g)"]["valor"] == contexto["estimaciones"].g
+    assert filas["Precio objetivo"]["valor"] == contexto["precio_objetivo"]
+    assert filas["Valor por comparables"]["valor"] == "falta la lista del analista"  # sin lista del analista
+    assert "Supuesto de la tesis" in render.html(contexto)

@@ -4,6 +4,7 @@
 
 | Prioridad | Proveedor | Modelo | Estado |
 |---|---|---|---|
+| 0 | **Gemini** (Google AI Studio, plan gratuito) | `gemini-2.5-flash` | Decisión del usuario (2026-10-15): se activa con `GEMINI_API_KEY` y pasa a ser el proveedor por defecto. Además, búsqueda en Google con citas para el consenso (P22), en `ia/gemini.py`. Plan en [plan-pendientes.md](plan-pendientes.md) §1 |
 | 1 | OpenRouter | `meta-llama/llama-4-scout` (**llama4**) | Se activa con `OPENROUTER_API_KEY`. De pago: 0,10 USD por millón de tokens de entrada y 0,30 USD de salida; con el uso mínimo de IA, menos de un céntimo por informe |
 | 2 | Groq (plan gratuito) | `openai/gpt-oss-120b` | ✅ **Activo** (con `GROQ_API_KEY`): modelo abierto de 120.000 millones de parámetros; riesgos de AAPL en unos 7 s |
 | 3 (respaldo) | Ollama local | `llama3.2:3b` (2 GB) | ✅ Instalado; sin conexión, unos 40-50 s por bloque. Se usa si el proveedor elegido falla, y lo registra con un aviso |
@@ -31,6 +32,8 @@ La IA tiene un papel mínimo: elige entre fragmentos literales numerados y resum
 ## Configuración (`.env`)
 
 ```bash
+GEMINI_API_KEY=...           # Gemini (prioridad 0) y búsqueda con citas del consenso
+# GEMINI_MODEL=gemini-2.5-flash
 OPENROUTER_API_KEY=sk-or-... # llama4 (prioridad 1)
 GROQ_API_KEY=gsk_...         # gpt-oss-120b gratis (prioridad 2); sin ninguna, Ollama local
 # LLM_PROVIDER=ollama        # forzar un proveedor: openrouter | groq | ollama | openai | anthropic | lmstudio | vllm

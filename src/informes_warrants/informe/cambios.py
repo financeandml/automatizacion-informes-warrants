@@ -35,6 +35,10 @@ def resumen(c: dict) -> dict:
         "datos_dcf": c.get("datos_dcf"),
         "ingresos_ltm": c["fund_ltm"].get("ingresos"), "ebitda_ltm": c["fund_ltm"].get("ebitda"),
         "bpa_ltm": c["fund_ltm"].get("bpa_diluido"),
+        # P9: lo que el informe espera para el primer año proyectado (para compararlo con el siguiente 10-Q)
+        "ingresos_est_1": c["proyeccion"][0].ventas if c.get("proyeccion") else None,
+        "ebitda_est_1": c["proyeccion"][0].ebitda if c.get("proyeccion") else None,
+        "bpa_est_1": c["proyeccion"][0].bpa if c.get("proyeccion") else None,
     }
 
 

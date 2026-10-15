@@ -187,3 +187,18 @@ def categoria_presentador(xbrl) -> str | None:
     except Exception:  # noqa: BLE001
         return None
     return str(df["value"].iloc[0]) if df is not None and not df.empty else None
+
+
+def comunicado_resultados(empresa, eventos: list[dict]) -> tuple[str, str, date] | None:
+    """Texto del anexo 99 del último 8-K de resultados (ítem 2.02), con su accession y fecha (P22: guidance)."""
+    ultimo = next((e for e in sorted(eventos, key=lambda e: e["fecha"], reverse=True) if "2.02" in e["items"]), None)
+    if ultimo is None:
+        return None
+    try:
+        f = next((x for x in empresa.get_filings(form="8-K").head(40) if x.accession_no == ultimo["accession"]), None)
+        textos = [a.text() or "" for a in f.attachments if str(getattr(a, "document_type", "")).startswith("EX-99")] if f else []
+    except Exception as e:  # noqa: BLE001
+        log.warning("Comunicado de resultados no disponible: %s", e)
+        return None
+    texto = "\n".join(t for t in textos if t)
+    return (texto, ultimo["accession"], ultimo["fecha"]) if texto else None

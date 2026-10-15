@@ -408,3 +408,31 @@ def test_ddm_por_etapas_e_ingreso_residual():
     ri = ingreso_residual(20.0, 0.15, 0.10, 0.02)
     assert ri["valor"] == pytest.approx(20.0 * (1 + (0.15 - 0.10) / (0.10 - 0.02)))  # FinRobot: BVPS × [1 + (ROE − Ke)/(Ke − g)]
     assert ingreso_residual(-5.0, 0.15, 0.10, 0.02) is None and ingreso_residual(20.0, 0.01, 0.10, 0.02) is None
+
+
+def test_real_frente_a_estimado():
+    """P9: con un 10-Q nuevo (3 meses después), lo esperado es el LTM anterior + 3/12 de lo previsto para el primer año."""
+    from informes_warrants.calculo.historial import real_frente_a_estimado
+
+    anterior = {"fecha": "2026-08-01", "fecha_ltm": "2026-06-30", "ingresos_ltm": 100e6, "ingresos_est_1": 112e6,
+                "ebitda_ltm": 30e6, "ebitda_est_1": 34e6, "bpa_ltm": 2.0, "bpa_est_1": None, "estimaciones": {}}
+    actual = {"fecha_ltm": "2026-09-30", "ingresos_ltm": 101e6, "ebitda_ltm": 31e6, "bpa_ltm": 2.1}
+    r = real_frente_a_estimado(anterior, actual)
+    assert r["meses"] == 3 and [f["concepto"] for f in r["filas"]] == ["Ventas LTM (USD mn)", "EBITDA LTM (USD mn)"]  # sin BPA estimado
+    assert r["filas"][0]["esperado"] == pytest.approx(103e6) and r["filas"][0]["desviacion"] == pytest.approx(101 / 103 - 1)
+    assert real_frente_a_estimado(anterior, {**actual, "fecha_ltm": "2026-06-30"}) is None  # mismo periodo
+
+
+def test_conversion_a_usd_y_por_ads():
+    """P4: flujos al tipo medio, saldos al de cierre, acciones / ratio del ADS y BPA × tipo × ratio (TSM: 1 ADS = 5)."""
+    from informes_warrants.calculo.conversion import a_usd_y_ads
+    from informes_warrants.calculo.normalizador import Dato, EstadosNormalizados
+
+    e = EstadosNormalizados("TSM", [2025], {
+        "ingresos": {2025: Dato(3_800e9, "Revenue", 2025, "x")}, "caja": {2025: Dato(2_000e9, "CashAndCashEquivalents", 2025, "x")},
+        "acciones_diluidas": {2025: Dato(25_930e6, "AdjustedWeightedAverageShares", 2025, "x")},
+        "bpa_diluido": {2025: Dato(66.0, "DilutedEarningsLossPerShare", 2025, "x")}})
+    a_usd_y_ads(e, {2025: (0.032, 0.031)}, "TWD", 5)
+    assert e.valor("ingresos", 2025) == pytest.approx(3_800e9 * 0.032) and e.valor("caja", 2025) == pytest.approx(2_000e9 * 0.031)
+    assert e.valor("acciones_diluidas", 2025) == pytest.approx(5_186e6) and e.valor("bpa_diluido", 2025) == pytest.approx(66 * 0.032 * 5)
+    assert "TWD×0.031000 (cierre)" in e.datos["caja"][2025].origen

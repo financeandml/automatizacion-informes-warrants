@@ -184,6 +184,63 @@ PARTIDAS: tuple[Partida, ...] = (
     Partida("impuestos_pagados", "Impuestos pagados", ("IncomeTaxesPaidNet", "IncomeTaxesPaid"), opcional=True),
     Partida("intereses_pagados", "Intereses pagados", ("InterestPaidNet", "InterestPaid"), opcional=True),
 )
+
+# P4: emisores extranjeros con 20-F/40-F en IFRS (empresas con ADR en NYSE/Nasdaq). Equivalentes `ifrs-full` verificados
+# en los XBRL de NVO (DKK) y TSM (TWD), con la lista de edgar_analytics `synonyms.py` como punto de partida (MIT). Van
+# DETRÁS de los us-gaap: una empresa en US GAAP nunca los declara, así que no cambian sus cifras.
+IFRS: dict[str, tuple[str, ...]] = {
+    "ingresos": ("Revenue", "RevenueFromContractsWithCustomers"),
+    "coste_ventas": ("CostOfSales",),
+    "resultado_operativo": ("ProfitLossFromOperatingActivities",),
+    "gasto_intereses": ("FinanceCosts", "InterestExpenseOnBorrowings"),
+    "ingresos_intereses": ("InterestIncomeOnCashAndCashEquivalents", "FinanceIncome"),
+    "bai": ("ProfitLossBeforeTax",),
+    "impuestos": ("IncomeTaxExpenseContinuingOperations",),
+    "beneficio_neto": ("ProfitLossAttributableToOwnersOfParent", "ProfitLoss"),
+    "bpa_diluido": ("DilutedEarningsLossPerShare",),
+    "acciones_diluidas": ("AdjustedWeightedAverageShares", "WeightedAverageShares"),
+    "caja": ("CashAndCashEquivalents",),
+    "clientes": ("CurrentTradeReceivables", "TradeAndOtherCurrentReceivables"),
+    "activo_corriente": ("CurrentAssets",),
+    "inmovilizado": ("PropertyPlantAndEquipment", "PropertyPlantAndEquipmentIncludingRightofuseAssets"),
+    "intangibles": ("IntangibleAssetsOtherThanGoodwill",),
+    "proveedores": ("TradeAndOtherCurrentPayablesToTradeSuppliers", "TradeAndOtherCurrentPayables"),
+    "pasivo_corriente": ("CurrentLiabilities",),
+    "deuda_cp": ("CurrentBorrowingsAndCurrentPortionOfNoncurrentBorrowings",),
+    "deuda_lp": ("NoncurrentPortionOfNoncurrentBorrowings", "LongtermBorrowings"),
+    "patrimonio": ("EquityAttributableToOwnersOfParent",),
+    "minoritarios": ("NoncontrollingInterests",),
+    "flujo_operativo": ("CashFlowsFromUsedInOperatingActivities",),
+    "capex": ("PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities",),
+    "amortizacion": ("DepreciationAndAmortisationExpense",
+                     "DepreciationAmortisationAndImpairmentLossReversalOfImpairmentLossRecognisedInProfitOrLoss"),
+    "pagos_basados_acciones": ("AdjustmentsForSharebasedPayments", "ExpenseFromSharebasedPaymentTransactionsWithEmployees"),
+    "dividendos": ("DividendsPaidClassifiedAsFinancingActivities", "DividendsPaid"),
+    "recompras": ("PaymentsToAcquireOrRedeemEntitysShares",),
+    "impuestos_pagados": ("IncomeTaxesPaidRefundClassifiedAsOperatingActivities",),
+    "intereses_pagados": ("InterestPaidClassifiedAsOperatingActivities", "InterestPaidClassifiedAsFinancingActivities"),
+}
+# Deuda a corto IFRS sin total declarado (NVO): préstamos a corto + parte corriente de la deuda a largo
+_SUMA_IFRS = {"deuda_cp": {"ShortTermBorrowings": "ShorttermBorrowings", "LongTermDebtCurrent": "CurrentPortionOfLongtermBorrowings"}}
+# Patrimonio IFRS con minoritarios (Equity) menos los minoritarios
+_DERIVADAS_IFRS = {"patrimonio": (Derivada("Equity", ((-1, "NoncontrollingInterests"),)),)}
+
+
+def _con_ifrs(p: Partida) -> Partida:
+    from dataclasses import replace
+
+    cambios = {}
+    if p.id in IFRS:
+        cambios["conceptos"] = p.conceptos + tuple(c for c in IFRS[p.id] if c not in p.conceptos)
+    if p.id in _SUMA_IFRS:  # cada componente admite también su nombre IFRS
+        equivalentes = _SUMA_IFRS[p.id]
+        cambios["suma"] = tuple(comp + tuple(equivalentes[c] for c in comp if c in equivalentes) for comp in p.suma)
+    if p.id in _DERIVADAS_IFRS:
+        cambios["derivadas"] = p.derivadas + _DERIVADAS_IFRS[p.id]
+    return replace(p, **cambios) if cambios else p
+
+
+PARTIDAS = tuple(_con_ifrs(p) for p in PARTIDAS)
 POR_ID = {p.id: p for p in PARTIDAS}
 
 
@@ -213,6 +270,9 @@ class FuenteXBRL:
     def __init__(self, xbrl, accession: str):
         df = xbrl.facts.query().to_dataframe()
         df = df[(~df["is_dimensioned"].astype(bool)) & df["numeric_value"].notna()].copy()
+        if "currency" in df and df["currency"].notna().any():  # P4: solo la moneda de presentación (TSM añade una
+            principal = df["currency"].dropna().mode().iloc[0]  # traducción de conveniencia a USD en el 20-F)
+            df = df[df["currency"].isna() | (df["currency"] == principal)]
         df["concepto"] = df["concept"].str.split(":").str[-1]
         dias = (df["period_end"].astype("datetime64[ns]") - df["period_start"].astype("datetime64[ns]")).dt.days
         saldo = df["period_type"].eq("instant")  # los saldos no traen fiscal_period
@@ -641,6 +701,33 @@ TOLERANCIA_SEGMENTOS = 0.01  # los miembros deben sumar el total consolidado (±
 # tags por prioridad; solo los miembros y ejercicios ya validados por los ingresos
 SEGMENTO_AMORTIZACION = ("DepreciationDepletionAndAmortization", "DepreciationAmortizationAndAccretionNet",
                          "DepreciationAndAmortization", "Depreciation")
+# P21: medida del resultado de cada segmento, estandarizada. ASC 280 deja a la empresa elegir la medida que revisa la
+# dirección; se toma la primera que declara por esta prioridad y se dice cuál es (JNJ: beneficio antes de impuestos).
+SEGMENTO_RESULTADO = ("OperatingIncomeLoss",
+                      "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+                      "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments",
+                      "GrossProfit")
+MEDIDAS_SEGMENTO = {"OperatingIncomeLoss": "Resultado operativo",
+                    SEGMENTO_RESULTADO[1]: "Beneficio antes de impuestos", SEGMENTO_RESULTADO[2]: "Beneficio antes de impuestos",
+                    "GrossProfit": "Beneficio bruto"}
+# P21: partidas de conciliación de ASC 280 (solo en el eje de consolidación): con ellas el desglose suma el total
+# (KO desde 2023: segmentos 48.806 + corporativo 144 − eliminaciones 1.009 = 47.941 USD mn)
+CONCILIACION = {"ConsolidationEliminationsMember": "Eliminaciones entre segmentos",
+                "IntersegmentEliminationMember": "Eliminaciones entre segmentos",
+                "CorporateNonSegmentMember": "Corporativo (fuera de segmentos)", "CorporateAndOtherMember": "Corporativo y otros"}
+_CONCILIACION_NOMBRE = (
+    ("Eliminaciones entre segmentos", re.compile(r"^(?:Intersegment|Consolidation|Segment)?Eliminations?(?:AndOther)?Member$", re.I)),
+    ("Corporativo (fuera de segmentos)", re.compile(
+        r"^(?:Corporate(?:NonSegment|AndOther|AndEliminations|Other|Segment|Items)?|Unallocated\w*|ReconcilingItems?\w*)Member$", re.I)))
+
+
+def nombre_conciliacion(local: str) -> str | None:
+    """Nombre estándar de una partida de conciliación de ASC 280 (corporativo o eliminaciones), o None si es un segmento."""
+    if local in CONCILIACION:
+        return CONCILIACION[local]
+    return next((nombre for nombre, patron in _CONCILIACION_NOMBRE if patron.search(local or "")), None)
+
+
 SEGMENTO_CAPEX = ("SegmentExpenditureAdditionToLongLivedAssets", "PaymentsToAcquirePropertyPlantAndEquipment",
                   "PaymentsToAcquireProductiveAssets")
 PAISES = {"US": "EE. UU.", "CN": "China", "JP": "Japón", "GB": "Reino Unido", "DE": "Alemania", "FR": "Francia", "IN": "India",
@@ -654,6 +741,8 @@ class Desglose:
     concepto: str  # tag de ingresos usado
     miembros: dict[str, dict[int, float]] = field(default_factory=dict)  # nombre → ejercicio → ingresos
     resultado_operativo: dict[str, dict[int, float]] = field(default_factory=dict)  # solo negocio
+    medida: str = "OperatingIncomeLoss"  # tag del resultado por segmento (SEGMENTO_RESULTADO)
+    conciliacion: set = field(default_factory=set)  # nombres de las partidas de conciliación (corporativo, eliminaciones)
     amortizacion: dict[str, dict[int, float]] = field(default_factory=dict)  # solo negocio (si la empresa lo publica)
     capex: dict[str, dict[int, float]] = field(default_factory=dict)  # solo negocio (si la empresa lo publica)
     ejercicios: list[int] = field(default_factory=list)  # ejercicios que cuadran con el total
@@ -663,6 +752,7 @@ class Desglose:
     ltm: dict[str, float] = field(default_factory=dict)  # nombre → ingresos LTM
     ltm_origen: str = ""
     ltm_motivo: str = ""  # por qué no hay LTM (vacío si lo hay)
+    ltm_nombres_10q: list = field(default_factory=list)  # miembros del 10-Q (F7: para emparejar nombres que cambian)
 
 
 def _nombre_miembro(miembro: str, etiqueta: str | None) -> str:
@@ -746,6 +836,32 @@ def _hechos_eje(xbrl, concepto: str, eje: str, dias: tuple[int, int] = (350, 380
     return filas
 
 
+def _hechos_conciliacion(xbrl, concepto: str, dias: tuple[int, int] = (350, 380)) -> list[dict]:
+    """Hechos de `concepto` declarados SOLO en el eje de consolidación con un miembro de conciliación (CONCILIACION)."""
+    try:
+        with _silencio():
+            df = xbrl.facts.query().by_concept(concepto).by_dimension(EJE_CONSOLIDACION).to_dataframe()
+    except Exception:  # noqa: BLE001
+        return []
+    if df is None or df.empty or "concept" not in df:
+        return []
+    df = df[df["concept"] == f"us-gaap:{concepto}"]
+    columnas = [c for c in df.columns if c.startswith("dim_")]
+    filas = []
+    for _, r in df.iterrows():
+        dims = {c: r[c] for c in columnas if isinstance(r[c], str) and r[c]}
+        if len(dims) != 1 or not next(iter(dims)).endswith(EJE_CONSOLIDACION):
+            continue
+        local = _local(str(next(iter(dims.values()))))
+        if local not in CONCILIACION or not all(str(r.get(c) or "")[:4].isdigit() for c in ("period_start", "period_end")):
+            continue
+        inicio, fin = (date.fromisoformat(str(r[c])[:10]) for c in ("period_start", "period_end"))
+        if dias[0] <= (fin - inicio).days <= dias[1] and r.get("numeric_value") is not None:
+            filas.append({"miembro": local, "etiqueta": CONCILIACION[local], "inicio": inicio, "fin": fin,
+                          "valor": float(r["numeric_value"])})
+    return filas
+
+
 def segmentos(xbrls: list[tuple], totales: dict[int, float], fines: dict[int, date]) -> dict[str, Desglose]:
     """Desgloses de ingresos por eje para los ejercicios de `totales`, solo con los años que cuadran.
 
@@ -762,9 +878,12 @@ def segmentos(xbrls: list[tuple], totales: dict[int, float], fines: dict[int, da
         d = Desglose(clave, "")
         crudo: dict[int, dict[str, tuple[str, float]]] = {}
         grupos_de: dict[int, list[set[str]]] = {}
+        medida = None  # P21: medida del resultado por segmento (la fija el 10-K más reciente)
         for xbrl, accession in xbrls:
             for concepto in POR_ID["ingresos"].conceptos:
                 filas = _hechos_eje(xbrl, concepto, eje)
+                if filas and clave == "negocio":  # P21: corporativo y eliminaciones, para que el desglose sume el total
+                    filas = filas + _hechos_conciliacion(xbrl, concepto)
                 if filas:
                     d.concepto = d.concepto or concepto
                     grupos = dominios_declarados(xbrl)
@@ -772,18 +891,23 @@ def segmentos(xbrls: list[tuple], totales: dict[int, float], fines: dict[int, da
                     for f in filas:
                         ej = ejercicio_de(f["fin"])
                         if ej in totales and ej not in crudo:  # cada año, del 10-K más reciente que lo trae
-                            nuevos.setdefault(ej, {}).setdefault(_local(f["miembro"]),
-                                                                 (_nombre_miembro(f["miembro"], f["etiqueta"]), f["valor"]))
+                            nombre = nombre_conciliacion(_local(f["miembro"])) or _nombre_miembro(f["miembro"], f["etiqueta"])
+                            nuevos.setdefault(ej, {}).setdefault(_local(f["miembro"]), (nombre, f["valor"]))
                     for ej, miembros in nuevos.items():
                         crudo[ej], grupos_de[ej] = miembros, grupos
                     d.origen = d.origen or accession
                     break
             if clave == "negocio":
-                for f in _hechos_eje(xbrl, "OperatingIncomeLoss", eje):
-                    ej = ejercicio_de(f["fin"])
-                    if ej in totales:
-                        nombre = _nombre_miembro(f["miembro"], f["etiqueta"])
-                        d.resultado_operativo.setdefault(nombre, {}).setdefault(ej, f["valor"])
+                for concepto in ([medida] if medida else SEGMENTO_RESULTADO):  # P21: la del 10-K más reciente
+                    filas = _hechos_eje(xbrl, concepto, eje)
+                    for f in filas:
+                        ej = ejercicio_de(f["fin"])
+                        if ej in totales:
+                            nombre = _nombre_miembro(f["miembro"], f["etiqueta"])
+                            d.resultado_operativo.setdefault(nombre, {}).setdefault(ej, f["valor"])
+                    if filas:
+                        medida = medida or concepto
+                        break
                 for destino, conceptos in ((d.amortizacion, SEGMENTO_AMORTIZACION), (d.capex, SEGMENTO_CAPEX)):
                     for concepto in conceptos:  # el primer tag con datos en este 10-K
                         filas = _hechos_eje(xbrl, concepto, eje)
@@ -812,19 +936,23 @@ def segmentos(xbrls: list[tuple], totales: dict[int, float], fines: dict[int, da
             valores = {k: {ej: x for ej, x in v.items() if ej in d.miembros.get(k, {})} for k, v in getattr(d, atributo).items()
                        if k in d.miembros}
             setattr(d, atributo, {k: v for k, v in valores.items() if v})
+        d.medida = medida or "OperatingIncomeLoss"
+        d.conciliacion = {n for n in d.miembros if n in set(CONCILIACION.values()) | {x for x, _ in _CONCILIACION_NOMBRE}}
         if d.ejercicios:
             salida[clave] = d
     return salida
 
 
 def segmentos_ltm(desgloses: dict[str, Desglose], xbrl_10q, accession: str, ejercicio: int, fin_ejercicio: date,
-                  fecha_ltm: date, total_ltm: float | None) -> None:
+                  fecha_ltm: date, total_ltm: float | None, equivalencias: dict[str, str] | None = None) -> None:
     """LTM provisional por segmento (decisión F7 del usuario, abierta): las empresas no lo publican.
 
     LTM = último ejercicio + acumulado del año en curso − acumulado del mismo periodo del año anterior, con los
     hechos del último 10-Q (que trae los dos acumulados). Solo se publica si están todos los miembros del último
     ejercicio y la suma cuadra con los ingresos LTM consolidados (±1 %); si no, queda el motivo en `ltm_motivo`.
-    Rellena `ltm`, `ltm_origen` y `ltm_motivo` de cada desglose.
+    Rellena `ltm`, `ltm_origen` y `ltm_motivo` de cada desglose. P21: incluye el corporativo y las eliminaciones del
+    10-Q. `equivalencias` (nombre en el 10-Q → nombre en el 10-K): miembros que cambian de nombre (las propone la IA en
+    informe/construir.py y solo valen si la suma cuadra). Guarda los nombres del 10-Q en `ltm_nombres_10q`.
     """
     inicio_actual = fin_ejercicio + timedelta(days=1)
     for d in desgloses.values():
@@ -832,14 +960,19 @@ def segmentos_ltm(desgloses: dict[str, Desglose], xbrl_10q, accession: str, ejer
             d.ltm_motivo = f"el último ejercicio (FY{ejercicio}) no tiene desglose validado"
             continue
         actual, anterior = {}, {}
-        for f in _hechos_eje(xbrl_10q, d.concepto, EJES_SEGMENTOS[d.eje], dias=(80, 290)):
-            nombre = _nombre_miembro(f["miembro"], f["etiqueta"])
+        hechos = _hechos_eje(xbrl_10q, d.concepto, EJES_SEGMENTOS[d.eje], dias=(80, 290))
+        if d.eje == "negocio":
+            hechos += _hechos_conciliacion(xbrl_10q, d.concepto, dias=(80, 290))
+        for f in hechos:
+            nombre = nombre_conciliacion(_local(f["miembro"])) or _nombre_miembro(f["miembro"], f["etiqueta"])
+            nombre = (equivalencias or {}).get(nombre, nombre)
             if abs((f["fin"] - fecha_ltm).days) <= TOLERANCIA_DIAS and abs((f["inicio"] - inicio_actual).days) <= TOLERANCIA_DIAS:
                 actual.setdefault(nombre, f["valor"])
             elif (abs((f["fin"] - (fecha_ltm - timedelta(days=364))).days) <= TOLERANCIA_DIAS
                   and abs((f["inicio"] - (inicio_actual - timedelta(days=364))).days) <= TOLERANCIA_DIAS):
                 anterior.setdefault(nombre, f["valor"])
         nombres = [n for n, s in d.miembros.items() if ejercicio in s]
+        d.ltm_nombres_10q = sorted(set(actual) | set(anterior))
         faltan = [n for n in nombres if n not in actual or n not in anterior]
         if faltan:
             d.ltm_motivo = f"el 10-Q no trae los dos acumulados de: {', '.join(faltan)}"
@@ -849,7 +982,7 @@ def segmentos_ltm(desgloses: dict[str, Desglose], xbrl_10q, accession: str, ejer
             d.ltm_motivo = (f"la suma ({sum(ltm.values()) / 1e6:,.0f} USD mn) no cuadra con los ingresos LTM"
                             + (f" ({total_ltm / 1e6:,.0f})" if total_ltm else ""))
             continue
-        d.ltm, d.ltm_origen = ltm, accession
+        d.ltm, d.ltm_origen, d.ltm_motivo = ltm, accession, ""
 
 
 # --- Concentración de clientes (A3) ------------------------------------------------------------------------------

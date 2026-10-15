@@ -14,7 +14,7 @@ from markupsafe import Markup
 
 from ..calculo.definiciones import DEFINICIONES
 from ..calculo.historico import METRICAS as METRICAS_HISTORICAS
-from ..calculo.normalizador import LTM, PARTIDAS
+from ..calculo.normalizador import LTM, MEDIDAS_SEGMENTO, PARTIDAS
 from ..calculo.valoracion_relativa import MULTIPLOS, significativo
 from ..visual import graficos
 from .estimaciones import UMBRAL_COMPRAR, UMBRAL_VENDER
@@ -194,7 +194,8 @@ def _segmentos(c) -> list[dict]:
             continue
         ultimo = d.ejercicios[-1]
         total = {a: c["estados"].valor("ingresos", a) for a in d.ejercicios}
-        orden = sorted(d.miembros.items(), key=lambda kv: -(kv[1].get(ultimo) or 0))
+        conciliacion = getattr(d, "conciliacion", set()) or set()  # P21: corporativo y eliminaciones, al final
+        orden = sorted(d.miembros.items(), key=lambda kv: (kv[0] in conciliacion, -(kv[1].get(ultimo) or 0)))
         filas = [{"nombre": n, "valores": [_mn(s.get(a)) for a in d.ejercicios],
                   "peso": _pct(s[ultimo] / total[ultimo]) if ultimo in s and total[ultimo] else "—"} for n, s in orden]
         resultado = []
@@ -210,7 +211,8 @@ def _segmentos(c) -> list[dict]:
         tablas.append({"clave": clave, "titulo": titulo, "ejercicios": d.ejercicios, "filas": filas,
                        "total": [_mn(total[a]) for a in d.ejercicios], "resultado": resultado, "rechazados": rechazados,
                        "origen": d.origen, "ltm": bool(d.ltm), "total_ltm": _mn(sum(d.ltm.values())) if d.ltm else None,
-                       "ltm_origen": d.ltm_origen})
+                       "ltm_origen": d.ltm_origen,
+                       "medida": MEDIDAS_SEGMENTO.get(getattr(d, "medida", "OperatingIncomeLoss"), "Resultado operativo")})
     return tablas
 
 
@@ -367,7 +369,9 @@ def _graficos_extra(c) -> dict:
         graficos_extra["vencimientos"] = Markup(graficos.vencimientos(etiquetas, importes))
     principal = next((c["segmentos"][k] for k in ("negocio", "producto") if k in c["segmentos"]), None)
     if principal:
-        orden = sorted(principal.miembros.items(), key=lambda kv: -(kv[1].get(principal.ejercicios[-1]) or 0))
+        fuera = getattr(principal, "conciliacion", set()) or set()  # el gráfico, sin corporativo ni eliminaciones
+        orden = sorted(((n, s) for n, s in principal.miembros.items() if n not in fuera),
+                       key=lambda kv: -(kv[1].get(principal.ejercicios[-1]) or 0))
         series = {n: [(s.get(a) or 0) / 1e6 for a in principal.ejercicios] for n, s in orden[:MAX_SERIES_GRAFICO]}
         if len(orden) > MAX_SERIES_GRAFICO:
             series["Resto"] = [sum((s.get(a) or 0) for _, s in orden[MAX_SERIES_GRAFICO:]) / 1e6 for a in principal.ejercicios]

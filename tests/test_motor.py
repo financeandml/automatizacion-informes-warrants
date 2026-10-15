@@ -77,3 +77,29 @@ def test_el_evaluador_reproduce_excel_en_las_plantillas_originales(tmp_path):
         assert not diferencias(libro, calculados, guardados, 1e-6), ruta.name
         total += sum(1 for v in libro.celdas.values() if isinstance(v, str) and v.startswith("="))
     assert total > 7000
+
+
+def test_segmentos_estandarizados_con_conciliacion():
+    """P21: corporativo, eliminaciones y segmentos que ya no existen van al bloque de conciliación; las ventas del modelo
+    suman las consolidadas y el resultado no asignado cuadra con el EBIT consolidado (KO desde 2023)."""
+    from types import SimpleNamespace
+
+    from informes_warrants.calculo.motor.modelo import segmentos_del_modelo
+    from informes_warrants.calculo.normalizador import Desglose, nombre_conciliacion
+
+    assert nombre_conciliacion("CorporateMember") == "Corporativo (fuera de segmentos)"
+    assert nombre_conciliacion("IntersegmentEliminationMember") == "Eliminaciones entre segmentos"
+    assert nombre_conciliacion("CorporateAndInvestmentBankMember") is None  # un segmento de JPM, no una conciliación
+    d = Desglose("negocio", "Revenues", ejercicios=[2024, 2025], conciliacion={"Eliminaciones entre segmentos"},
+                 miembros={"Norte": {2024: 60.0, 2025: 70.0}, "Sur": {2024: 40.0, 2025: 45.0}, "Antiguo": {2024: 10.0},
+                           "Eliminaciones entre segmentos": {2024: -5.0, 2025: -6.0}},
+                 resultado_operativo={"Norte": {2024: 12.0, 2025: 14.0}, "Sur": {2024: 6.0, 2025: 7.0}, "Antiguo": {2024: 1.0}})
+    totales = {("ingresos", 2024): 105.0, ("ingresos", 2025): 109.0,
+               ("resultado_operativo", 2024): 17.0, ("resultado_operativo", 2025): 19.0}
+    estados = SimpleNamespace(valor=lambda p, a: totales.get((p, a)))
+    segs, motivo = segmentos_del_modelo(d, estados, 2025, [2024, 2025], "Empresa")
+    assert [s.nombre for s in segs] == ["Norte", "Sur", "Otros, corporativo, eliminaciones y costes no asignados"]
+    otros = segs[-1]
+    assert otros.no_asignado and otros.ingresos == {2024: 5.0, 2025: -6.0}  # «Antiguo» (10) + eliminaciones (−5) en 2024
+    assert sum(s.ingresos[2025] for s in segs) == 109.0 and otros.ebit[2025] == 19.0 - 14.0 - 7.0
+    assert "resultado operativo" in motivo

@@ -71,7 +71,7 @@
     <tr><th></th>{% for a in s.ejercicios %}<th>FY{{ a }}</th>{% endfor %}{% if s.ltm %}<th>{{ etiqueta_ltm }}*</th>{% endif %}<th>Peso FY{{ s.ejercicios[-1] }}</th></tr>
     {% for fila in s.filas %}<tr><td>{{ fila.nombre }}</td>{% for v in fila.valores %}<td>{{ v }}</td>{% endfor %}{% if s.ltm %}<td>{{ fila.ltm }}</td>{% endif %}<td>{{ fila.peso }}</td></tr>{% endfor %}
     <tr class="total"><td>Total (= ingresos consolidados)</td>{% for v in s.total %}<td>{{ v }}</td>{% endfor %}{% if s.ltm %}<td>{{ s.total_ltm }}</td>{% endif %}<td>100 %</td></tr>
-    {% if s.resultado %}<tr class="seccion"><td colspan="{{ s.ejercicios|length + 2 + (1 if s.ltm else 0) }}">Resultado operativo por segmento (margen del último ejercicio)</td></tr>
+    {% if s.resultado %}<tr class="seccion"><td colspan="{{ s.ejercicios|length + 2 + (1 if s.ltm else 0) }}">{{ s.medida }} por segmento (margen del último ejercicio)</td></tr>
     {% for fila in s.resultado %}<tr><td>{{ fila.nombre }}</td>{% for v in fila.valores %}<td>{{ v }}</td>{% endfor %}{% if s.ltm %}<td>—</td>{% endif %}<td>{{ fila.margen }}</td></tr>{% endfor %}{% endif %}
   </table>
   <div class="fuente">XBRL de los 10-K ({{ s.origen }}). Solo los ejercicios en que los miembros declarados suman los ingresos consolidados; los subtotales que la empresa también declara no se cuentan dos veces.{% if s.rechazados %} Sin desglose en {{ s.rechazados }}: los miembros declarados no suman el total.{% endif %}{% if s.ltm %} *{{ etiqueta_ltm }} provisional: la empresa no publica el LTM por segmento; se calcula como último ejercicio + acumulado del año − acumulado del año anterior (10-Q {{ s.ltm_origen }}) y cuadra con los ingresos LTM consolidados.{% endif %}</div>
@@ -295,6 +295,7 @@
   <div class="fuente">Resultado de cada segmento declarado (ASC 280) por su múltiplo EV/EBIT (el del analista o la mediana de sus comparables). Los costes no asignados (EBIT consolidado − suma de segmentos) se valoran al mismo múltiplo.</div>
   </div>
   {% elif c.segmentos.get("negocio") and c.segmentos.negocio.resultado_operativo %}<p class="fuente">Suma de partes: necesita la lista de comparables del analista (mediana EV/EBIT) o un múltiplo por segmento.</p>{% endif %}
+  {{ b.previsiones() }}
   {{ ix.apartado(11) }}
   {{ estado("Ratios") }}
   {% if dupont %}
@@ -355,6 +356,7 @@
 <section class="salto">
   {{ ix.seccion("H") }}
   {{ ix.apartado(22) }}
+  {{ b.tesis_cifras() }}
   {{ t["conclusiones.perspectivas"] }}
   {{ ix.apartado(23) }}
   <p class="fuente">Criterios cuantitativos del fondo: apartado 12.</p>
@@ -363,6 +365,7 @@
   {{ b.riesgo_de_la_posicion() }}
   {{ ix.apartado(25) }}
   {{ b.seguimiento() }}
+  {{ b.real_frente_a_estimado() }}
 {% include "_cambios.html.j2" %}
 </section>
 
@@ -400,7 +403,7 @@
     <tr><td>Prima de riesgo de mercado</td><td>{{ c.origen_prima }}</td></tr>
     {% if motor %}<tr><td>Modelo de valoración</td><td>Libro de Excel de Warrants &amp; Co. con {{ motor.formulas|num(0) }} fórmulas vivas y el origen de cada dato de la SEC (se descarga desde el SaaS)</td></tr>{% endif %}
     <tr><td>Comparables</td><td>{{ c.comparables_criterio or "sin comparables" }}</td></tr>
-    {% set fi = c.get("ficha") or {} %}{% if fi.get("empleados") %}<tr><td>Empleados (Item 1 del 10-K)</td><td>«{{ fi.empleados.frase|truncate(160, True, "…") }}»</td></tr>{% endif %}
+    {% set fi = c.get("ficha") or {} %}{% if fi.get("empleados") %}<tr><td>Empleados (informe anual)</td><td>«{{ fi.empleados.frase|truncate(160, True, "…") }}»</td></tr>{% endif %}
     {% if c.beta_sector %}<tr><td>Beta y comparables modelo (fuente externa)</td><td>{{ c.beta_sector.origen }}</td></tr>{% endif %}
     {% set part = (c.insiders or {}).get("participaciones") %}{% if part %}<tr><td>Participación de insiders e instituciones (externa, no auditada)</td><td>yfinance · consulta del {{ part.consulta }}</td></tr>{% endif %}
     {% if c.opciones %}<tr><td>Cadena de opciones (externa, no auditada)</td><td>yfinance · consulta del {{ c.opciones.consulta }}</td></tr>{% endif %}

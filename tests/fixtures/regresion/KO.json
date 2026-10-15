@@ -4,7 +4,7 @@
   "filing": "0001628280-26-010047",
   "ultimo_periodico": "0001628280-26-028802",
   "fecha_ltm": "2026-04-03",
-  "fecha": "2026-10-13"
+  "fecha": "2026-10-15"
  },
  "sec": {
   "ltm": {
@@ -59,14 +59,17 @@
    "negocio": {
     "ejercicios": [
      2021,
-     2022
+     2022,
+     2023,
+     2024,
+     2025
     ],
     "miembros": [
      "Asia Pacific",
      "Bottling Investments",
-     "Corporate",
+     "Corporativo (fuera de segmentos)",
      "EMEA",
-     "Eliminations",
+     "Eliminaciones entre segmentos",
      "Global Ventures",
      "Latin America",
      "North America"
@@ -156,8 +159,8 @@
   }
  },
  "mercado_referencia": {
-  "cotizacion": 89.95999908447266,
-  "valor_dcf": 51.47462619442461,
-  "precio_objetivo": 51.47462619442461
+  "cotizacion": 91.96499633789062,
+  "valor_dcf": 47.71168586200239,
+  "precio_objetivo": 47.71168586200239
  }
 }

@@ -84,6 +84,7 @@ from .plantillas import MARCADOR, con_borradores, pendientes, rellenar
 from .secciones import BLOQUES, Tipo
 
 log = logging.getLogger(__name__)
+UMBRAL_DESVIACION = 0.05  # P9: desviación de lo real frente a lo esperado que se avisa antes de emitir
 ANIOS = 5
 PARTIDAS_CONTRASTE = ("ingresos", "resultado_operativo", "beneficio_neto", "activos", "patrimonio", "flujo_operativo")
 AVISO_PARAMETROS = "Parámetros del fondo sin definir: la gestión de la posición no sale en el informe (Configuración)."
@@ -231,7 +232,8 @@ def componer_general(*, ticker: str, empresa: str, sic, cobertura, filing: dict,
              fechas_disponibles: dict | None = None,
              anterior: dict | None = None, historial_resumenes: list | None = None, autoria=None,
              capital_flotante: tuple | None = None, prima=None, beta_sector=None, bolsa: str | None = None,
-             cierre_fiscal: str | None = None) -> dict:
+             cierre_fiscal: str | None = None, consenso: dict | None = None, lecturas_hechos: list | None = None,
+             modelo_lecturas: str | None = None) -> dict:
     """Parte pura (sin red): de los datos ya reunidos al contexto completo del informe.
 
     Sin `estimaciones` ni `escenarios`, se usan los de por defecto; el editor pasa los del analista y todo se
@@ -374,7 +376,9 @@ def componer_general(*, ticker: str, empresa: str, sic, cobertura, filing: dict,
     negocio = (segmentos_dict or {}).get("negocio")
     if negocio and negocio.resultado_operativo:
         resultado = {n: s[ejercicio] for n, s in negocio.resultado_operativo.items() if ejercicio in s}
-        if resultado and len(resultado) == len([n for n, s in negocio.miembros.items() if ejercicio in s]):
+        reales = [n for n, s in negocio.miembros.items() if ejercicio in s and n not in (getattr(negocio, "conciliacion", set()) or set())]
+        # P21: EV/EBIT solo sobre un resultado operativo (no sobre beneficio antes de impuestos ni beneficio bruto)
+        if resultado and len(resultado) == len(reales) and getattr(negocio, "medida", "OperatingIncomeLoss") == "OperatingIncomeLoss":
             mediana_ev_ebit = mediana_comparables(comps, "ev_ebit", 50.0) if comparables_del_analista else None
             sotp = suma_de_partes(resultado, f["ebit"], base.multiplos_sotp, mediana_ev_ebit, dfn, minoritarios, acciones)
 
@@ -466,7 +470,9 @@ def componer_general(*, ticker: str, empresa: str, sic, cobertura, filing: dict,
         "compras_agrupadas": (insiders or {}).get("actividad", {}).get("agrupadas"),
     }))
     datos = {
-        "hechos": hechos,
+        "hechos": hechos, "lecturas_hechos": lecturas_hechos or [], "modelo_lecturas": modelo_lecturas,
+        "temas": {"crecimiento": "Crecimiento", "rentabilidad": "Rentabilidad", "balance": "Balance y caja", "valoracion": "Valoración",
+                  "riesgos": "Riesgos"},
         "empresa": empresa, "ticker": ticker, "ejercicio": f"FY{ejercicio}",
         "recomendacion_propuesta": propuesta, "precio_objetivo": precio_objetivo, "precio": cotizacion.precio,
         "potencial": potencial, "potencial_dcf": potencial_dcf, "ventas": f["ingresos"] / 1e6,
@@ -517,7 +523,7 @@ def componer_general(*, ticker: str, empresa: str, sic, cobertura, filing: dict,
         "valor_dcf_escenarios": valor_dcf_escenarios,
         "potencial_dcf_escenarios": valor_dcf_escenarios / cotizacion.precio - 1 if valor_dcf_escenarios else None,
         "motor": motor, "wacc_motor": wacc_motor, "origen_prima": origen_prima, "beta_sector": beta_sector,
-        "ficha": {"bolsa": bolsa, "cierre_fiscal": cierre_fiscal, "empleados": empleados(texto_negocio)},
+        "ficha": {"bolsa": bolsa, "cierre_fiscal": cierre_fiscal, "empleados": empleados(texto_negocio)}, "consenso": consenso,
         "precio_modelo": precio_modelo,
         "precio_objetivo": precio_objetivo, "potencial": potencial, "potencial_dcf": potencial_dcf, "recomendacion": propuesta,
         "avisos_valoracion": avisos_valoracion, "avisos_emision": avisos_emision, "datos_dcf": datos_dcf,
@@ -545,6 +551,17 @@ def componer_general(*, ticker: str, empresa: str, sic, cobertura, filing: dict,
         "series_bolsa": series_bolsa,
     }
     c["cambios"] = comparar_versiones(anterior, resumen_version(c)) if anterior else None  # R16
+    # P9: lo real del LTM nuevo frente a lo que esperaba el informe anterior (con cada 10-Q)
+    from ..calculo.historial import real_frente_a_estimado
+
+    c["real_vs_estimado"] = real_frente_a_estimado(anterior, resumen_version(c)) if anterior else None
+    from .tesis import cifras_generales
+
+    c["tesis_cifras"] = cifras_generales(c)  # P8: apartado 22
+    for fila in (c["real_vs_estimado"] or {}).get("filas", []):
+        if fila["desviacion"] is not None and abs(fila["desviacion"]) > UMBRAL_DESVIACION:
+            c["avisos_emision"].append(f"Seguimiento: {fila['concepto']} real {fila['desviacion'] * 100:+.1f} % frente a lo esperado "
+                                       f"en el informe anterior; revisa las estimaciones".replace(".", ","))
     c["historial"] = historial_recomendaciones(historial_resumenes or [], cotizacion.precio,
                                                date.fromisoformat(c["fecha"]))  # R17
     return c
@@ -672,7 +689,8 @@ def reunir(ticker: str, con_ia: bool = True, comparables: list[str] | None = Non
         from .sectorial import reunir_sectorial
 
         return reunir_sectorial(empresa, ticker, cobertura, con_ia, comparables, anterior, historial_resumenes, estimaciones)
-    anuales_10k = empresa.get_filings(form="10-K", amendments=False).head(3)
+    anuales = ["20-F", "40-F"] if cobertura.extranjera else ["10-K"]  # P4: emisores extranjeros con ADR en EE. UU.
+    anuales_10k = empresa.get_filings(form=anuales, amendments=False).head(3)
     filing = anuales_10k[0]
     xbrl = filing.xbrl()
     ejercicio = int(xbrl.entity_info["fiscal_year"])
@@ -681,6 +699,16 @@ def reunir(ticker: str, con_ia: bool = True, comparables: list[str] | None = Non
     facts = empresa.get_facts()
     fuente_anual = FuenteEntityFacts(facts)
     estados = normalizar(fuente_anual, ejercicios, ticker)
+    del_10k = normalizar(FuenteXBRL(xbrl, filing.accession_no), [ejercicio], ticker)
+    relleno = estados.valor("ingresos", ejercicio) is None and del_10k.valor("ingresos", ejercicio) is not None
+    if relleno:  # companyfacts aún sin el último ejercicio (TSM: 20-F de abril, ausente en octubre): el XBRL del propio filing
+        for partida, por_anio in del_10k.datos.items():
+            if ejercicio in por_anio:
+                estados.datos.setdefault(partida, {})[ejercicio] = por_anio[ejercicio]
+        if del_10k.faltan.get(ejercicio):
+            estados.faltan[ejercicio] = list(del_10k.faltan[ejercicio])
+        else:
+            estados.faltan.pop(ejercicio, None)
     # Empresa reciente (p. ej. salida a bolsa en 2021): los años sin estados no son errores, sino falta de historial.
     con_datos = [a for a in ejercicios if estados.valor("ingresos", a) is not None and estados.valor("activos", a) is not None]
     sin_historial = [a for a in ejercicios if con_datos and a < min(con_datos)]
@@ -690,7 +718,9 @@ def reunir(ticker: str, con_ia: bool = True, comparables: list[str] | None = Non
     calidad = revisar(estados, estados.ejercicios[-ANIOS:])  # el año anterior solo es la base del crecimiento
     if sin_historial:
         calidad.avisos.append(f"Sin estados financieros anteriores a FY{min(con_datos)}: historial de {len(con_datos)} ejercicios")
-    del_10k = normalizar(FuenteXBRL(xbrl, filing.accession_no), [ejercicio], ticker)
+    if relleno:
+        calidad.avisos.append(f"FY{ejercicio}: la API companyfacts de la SEC aún no lo incluye; se toma del XBRL del {filing.form} "
+                              f"({filing.accession_no})")
     for p in PARTIDAS_CONTRASTE:  # contraste entre fuentes: companyfacts vs XBRL del último 10-K
         a, b = estados.valor(p, ejercicio), del_10k.valor(p, ejercicio)
         if a is not None and b is not None and abs(a - b) > 0.005 * max(abs(a), abs(b)):
@@ -699,7 +729,7 @@ def reunir(ticker: str, con_ia: bool = True, comparables: list[str] | None = Non
     # LTM: hasta el cierre del último 10-Q/10-K. La API companyfacts de la SEC tarda a veces semanas en incluir el
     # último 10-Q (KO, XOM: cierre de julio aún ausente en octubre): entonces, el periodo anterior. Si ninguno cuadra
     # (o no hay trimestres, 20-F), el último ejercicio.
-    periodicos = empresa.get_filings(form=["10-Q", "10-K"], amendments=False).head(2)
+    periodicos = empresa.get_filings(form=["10-Q", "10-K"] + (anuales if cobertura.extranjera else []), amendments=False).head(2)
     estados_ltm, fecha_ltm, periodico, incompletos = None, None, None, []
     for p in (p for p in periodicos if p.period_of_report):
         candidata = str(p.period_of_report)
@@ -718,9 +748,16 @@ def reunir(ticker: str, con_ia: bool = True, comparables: list[str] | None = Non
     if incompletos:
         destino = f"LTM a {fecha_ltm}" if fecha_ltm else f"FY{ejercicio}"
         calidad.avisos.append(f"{'; '.join(incompletos)}: se usa {destino}")
+    ratio_ads, moneda = 1.0, "USD"
+    if cobertura.extranjera:  # P4: estados en USD y por ADS (la unidad de la cotización)
+        moneda, ratio_ads, ratio_estados, aviso = _a_usd_y_ads(filing, xbrl, facts, fuente_anual, estados, estados_ltm, ejercicio)
+        calidad.avisos.append(aviso)
     acciones, acciones_origen = acciones_en_circulacion(
         facts, date.fromisoformat(fecha_ltm) if fecha_ltm else date.today(),
         (estados_ltm or estados).valor("acciones_diluidas", LTM if estados_ltm else ejercicio))
+    divisor = ratio_ads if acciones_origen.startswith(("dei:", "edgartools")) else 1.0  # portada: ordinarias; respaldo: ya en ADS
+    if divisor != 1 and acciones:
+        acciones, acciones_origen = acciones / divisor, f"{acciones_origen} · /{divisor:g} acciones por ADS"
 
     del_analista = comparables is not None
     criterio = "lista del analista"
@@ -742,11 +779,24 @@ def reunir(ticker: str, con_ia: bool = True, comparables: list[str] | None = Non
             xbrls.append((anuales_10k[2].xbrl(), anuales_10k[2].accession_no))
         except Exception as e:  # noqa: BLE001  (sin el 10-K antiguo, los segmentos cubren 3 años)
             log.warning("XBRL del 10-K de hace dos años no disponible: %s", e)
-    desgloses = segmentos(xbrls, totales, cierres)
+    desgloses = segmentos(xbrls, totales, cierres) if moneda == "USD" else {}  # segmentos en otra moneda: sin desglose
     if desgloses and periodico is not None and periodico.form == "10-Q" and fecha_ltm and cierres.get(ejercicio):
         try:  # LTM provisional por segmento (F7): último ejercicio + acumulados del 10-Q
-            segmentos_ltm(desgloses, periodico.xbrl(), periodico.accession_no, ejercicio, cierres[ejercicio],
+            xbrl_10q = periodico.xbrl()
+            segmentos_ltm(desgloses, xbrl_10q, periodico.accession_no, ejercicio, cierres[ejercicio],
                           date.fromisoformat(fecha_ltm), estados_ltm.valor("ingresos", LTM))
+            if con_ia:  # F7: miembros que cambian de nombre en el 10-Q; la IA propone, la suma del LTM decide
+                from ..ia.etiquetas import emparejar_miembros
+
+                for clave, d in desgloses.items():
+                    if d.ltm_motivo.startswith("el 10-Q no trae") and d.ltm_nombres_10q:
+                        nombres_10k = [n for n, s in d.miembros.items() if ejercicio in s]
+                        equivalencias = emparejar_miembros(nombres_10k, d.ltm_nombres_10q)
+                        if equivalencias:
+                            segmentos_ltm({clave: d}, xbrl_10q, periodico.accession_no, ejercicio, cierres[ejercicio],
+                                          date.fromisoformat(fecha_ltm), estados_ltm.valor("ingresos", LTM), equivalencias)
+                            if d.ltm:
+                                d.ltm_origen += " (nombres del 10-Q emparejados por la IA; la suma cuadra con el total LTM)"
         except Exception as e:  # noqa: BLE001  (sin XBRL del 10-Q: los segmentos se quedan sin columna LTM)
             log.warning("Segmentos LTM no disponibles: %s", e)
     lista_trimestres = trimestres(facts, date.fromisoformat(fecha_ltm)) if fecha_ltm else []
@@ -779,7 +829,58 @@ def con_borradores_ia(datos: dict, con_ia: bool) -> dict:
         borrador = componer(**datos)
         instrucciones = [m.strip() for texto in borrador["textos"].values() for m in MARCADOR.findall(texto)]
         datos["borradores_ia"] = generar(instrucciones, contexto(borrador, datos["texto_negocio"]))
+        from ..ia.etiquetas import lecturas_hechos  # P1 (R1): una lectura por hecho clave, sin cifras nuevas
+
+        lineas = [linea[2:] for linea in (borrador["textos"].get("conclusiones.hechos_clave") or "").splitlines() if linea.startswith("- ")]
+        datos["lecturas_hechos"], datos["modelo_lecturas"] = lecturas_hechos(lineas)
     return datos
+
+
+def _a_usd_y_ads(filing, xbrl, facts, fuente_anual, estados, estados_ltm, ejercicio: int) -> tuple[str, float, float, str]:
+    """P4: convierte en el sitio los estados de un 20-F/40-F a USD (tipo medio para flujos, de cierre para saldos) y por
+    ADS (acciones ordinarias por ADS del propio 20-F). Algunas empresas ya declaran las acciones y el BPA por ADS (TSM):
+    se detecta comparando las acciones diluidas × ratio con las ordinarias de la portada (dei), y entonces no se dividen.
+    Devuelve (moneda, ratio del ADS, ratio aplicado a los estados, aviso para el semáforo)."""
+    from ..calculo.conversion import a_usd_y_ads
+    from ..ingesta.divisas import tipos_del_ejercicio
+    from ..ingesta.ficha import acciones_por_ads
+
+    anio_dato = next((a for a in reversed(estados.ejercicios) if a in estados.datos.get("ingresos", {})
+                      and fuente_anual.fact(estados.datos["ingresos"][a].concepto, a) is not None), None)
+    dato = estados.datos["ingresos"][anio_dato] if anio_dato else None
+    hecho = fuente_anual.fact(dato.concepto, anio_dato) if dato else None
+    moneda = str(getattr(hecho, "unit", "") or "USD").split("/")[0].upper()
+    ads = acciones_por_ads(filing.text() or "")
+    ratio = ads[0] if ads else 1.0
+    ratio_estados = ratio
+    anio_acciones = next((a for a in reversed(estados.ejercicios) if estados.valor("acciones_diluidas", a)), None)
+    diluidas = estados.valor("acciones_diluidas", anio_acciones) if anio_acciones else None
+    try:
+        ordinarias = float(facts.shares_outstanding or 0)
+    except Exception:  # noqa: BLE001
+        ordinarias = 0.0
+    if ratio != 1 and diluidas and ordinarias and abs(diluidas * ratio / ordinarias - 1) < 0.25:
+        ratio_estados = 1.0  # el XBRL ya viene por ADS
+    tipos, fuente = {}, ""
+    if moneda != "USD":
+        for a in estados.ejercicios:
+            ingreso = estados.datos.get("ingresos", {}).get(a)
+            cierre = (fuente_anual.presentacion(ingreso.concepto, a)[0] if ingreso else None) or (
+                filing.period_of_report if a == ejercicio else None)
+            medio, fin, fuente = tipos_del_ejercicio(moneda, a, cierre, xbrl if a == ejercicio else None)
+            tipos[a] = (medio, fin)
+    else:
+        tipos = {a: (1.0, 1.0) for a in estados.ejercicios}
+    a_usd_y_ads(estados, tipos, moneda, ratio_estados)
+    if estados_ltm is not None:  # LTM y LTM − 1: los tipos de su último ejercicio y del anterior
+        a_usd_y_ads(estados_ltm, {LTM: tipos.get(ejercicio, (1.0, 1.0)), LTM_PREVIO: tipos.get(ejercicio - 1, (1.0, 1.0))}, moneda,
+                    ratio_estados)
+    aviso = (f"Emisor extranjero (20-F): cifras en {moneda} convertidas a USD ({fuente})" if moneda != "USD"
+             else "Emisor extranjero (20-F) con cifras en USD")
+    aviso += (f"; por ADS: «{ads[1]}»" if ads else "; sin ratio de ADS en el 20-F: se supone 1 ADS = 1 acción (Revisar)")
+    if ratio != ratio_estados:
+        aviso += " (el XBRL ya declara las acciones y el BPA por ADS)"
+    return moneda, ratio, ratio_estados, aviso
 
 
 def _comunes(empresa, ticker: str, filing, xbrl, ejercicio: int, con_ia: bool, facts, cierre_periodo, cierre_ejercicio,
@@ -823,6 +924,18 @@ def _comunes(empresa, ticker: str, filing, xbrl, ejercicio: int, con_ia: bool, f
                                    "modelo": f"{cfg.proveedor} · {cfg.modelo}", "candidatos": candidatos}
         except Exception as e:  # noqa: BLE001  (sin modelo: el bloque queda para el analista)
             log.warning("Catalizadores del MD&A sin IA: %s", e)
+    consenso = None
+    if con_ia:  # P22: guidance del último comunicado de resultados (oficial) y consenso publicado (Gemini, verificado)
+        from ..ia.consenso import consenso_publicado, guidance_8k
+        from ..ingesta.eventos import comunicado_resultados
+
+        consenso = {"guidance": None, "externo": None}
+        try:
+            comunicado = comunicado_resultados(empresa, eventos)
+            consenso["guidance"] = guidance_8k(*comunicado) if comunicado else None
+        except Exception as e:  # noqa: BLE001  (sin guidance el informe sale igual)
+            log.warning("Guidance sin IA: %s", e)
+        consenso["externo"] = consenso_publicado(ticker, nombre_legible(empresa.name))
     competencia_texto = None
     literal = apartado_competencia(texto_negocio)
     if literal:  # A5: tercer bloque de IA, solo traduce el texto literal; sin IA, el original para el analista
@@ -847,12 +960,17 @@ def _comunes(empresa, ticker: str, filing, xbrl, ejercicio: int, con_ia: bool, f
 
         elegidos, cfg = riesgos_principales(riesgos_lista, texto_1a)
         riesgos = [{"resumen": s.resumen, "cita": s.cita, "modelo": f"{cfg.proveedor} · {cfg.modelo}"} for s in elegidos]
+        from ..ia.etiquetas import clasificar_riesgos  # P2 (R5): categoría y supuesto del modelo que amenaza
+        from .cobertura import es_biotecnologia
+
+        riesgos = clasificar_riesgos(riesgos, es_biotecnologia(empresa.sic))
     return dict(
         ticker=ticker, empresa=nombre_legible(empresa.name), sic=empresa.sic, cotizacion=cotizacion(ticker),
         beta_estimada=_beta_semanal(ticker), comportamiento=comportamiento(ticker, empresa.sic),
         series_bolsa=_series_bolsa(ticker, etf_sectorial(empresa.sic), historico, INDICE),
         riesgos=riesgos, riesgos_lista=riesgos_lista, texto_negocio=texto_negocio, competencia_texto=competencia_texto,
         rf=tipo_libre_riesgo(), prima=prima_riesgo(), beta_sector=beta_sectorial(ticker), gobierno=datos_gobierno(empresa, xbrl),
+        consenso=consenso,
         bolsa=bolsa_de(empresa), cierre_fiscal=cierre_fiscal(cierre_ejercicio),  # P6: ficha de empresa
         insiders=_insiders(empresa, ticker), eventos=eventos, alarmas=alarmas_sec(empresa, date.today(), filing, eventos),
         riesgos_cambios=cambios, catalizadores=catalizadores, filiales=filiales_10k(tenk),

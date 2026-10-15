@@ -40,3 +40,33 @@ def historial(resumenes: list[dict], precio_actual: float, hoy: date) -> list[di
                       "cotizacion": r["cotizacion"],
                       "senal": senal(r["precio_objetivo"], r["cotizacion"], precio_actual, fecha, hoy)})
     return filas
+
+
+def real_frente_a_estimado(anterior: dict, actual: dict) -> dict | None:
+    """P9 (apartado 25): con un 10-Q nuevo, lo real (LTM nuevo) frente a lo que esperaba el informe anterior para esa fecha.
+
+    Esperado = LTM anterior + (estimación del primer año − LTM anterior) × meses transcurridos / 12 (interpolación
+    lineal del primer año proyectado; sin la estimación guardada, las ventas con el primer crecimiento compuesto).
+    Devuelve None si no ha pasado tiempo entre los dos LTM o faltan datos."""
+    from datetime import date
+
+    try:
+        f0, f1 = date.fromisoformat(str(anterior["fecha_ltm"])[:10]), date.fromisoformat(str(actual["fecha_ltm"])[:10])
+    except (KeyError, TypeError, ValueError):
+        return None
+    meses = (f1.year - f0.year) * 12 + f1.month - f0.month
+    if meses <= 0:
+        return None
+    fraccion = min(meses, 12) / 12
+    filas = []
+    for nombre, clave in (("Ventas LTM (USD mn)", "ingresos"), ("EBITDA LTM (USD mn)", "ebitda"), ("BPA LTM (USD)", "bpa")):
+        base, real, est = anterior.get(f"{clave}_ltm"), actual.get(f"{clave}_ltm"), anterior.get(f"{clave}_est_1")
+        if est is None and clave == "ingresos" and base is not None:
+            crecimiento = ((anterior.get("estimaciones") or {}).get("crecimiento_ventas") or [None])[0]
+            est = base * (1 + crecimiento) if crecimiento is not None else None
+        if base is None or real is None or est is None:
+            continue
+        esperado = base + (est - base) * fraccion
+        filas.append({"concepto": nombre, "anterior": base, "esperado": esperado, "real": real,
+                      "desviacion": real / esperado - 1 if esperado else None})
+    return {"meses": meses, "fecha_anterior": str(anterior.get("fecha")), "filas": filas} if filas else None

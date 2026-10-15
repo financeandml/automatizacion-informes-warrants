@@ -49,3 +49,18 @@ def bolsa(empresa) -> str | None:
         return ", ".join(dict.fromkeys(empresa.get_exchanges() or [])) or None
     except Exception:  # noqa: BLE001  (sin dato de la SEC: la ficha lo omite)
         return None
+
+
+_NUMEROS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10, "twenty": 20}
+_ADS = re.compile(r"\b(?:each|one|every)\s+(?:ADS|ADR|American\s+Depositary\s+(?:Share|Receipt))s?\b[^.;]{0,40}?\brepresents?\s+"
+                  r"(?P<n>\d+(?:\.\d+)?|one|two|three|four|five|six|seven|eight|nine|ten|twenty)(?:\s*\(\d+\))?"
+                  r"(?:\s+[A-Za-z-]+){0,4}?\s+shares?\b", re.I)  # «one deposited Novo Nordisk B share»
+
+
+def acciones_por_ads(texto: str) -> tuple[float, str] | None:
+    """Acciones ordinarias por ADS que declara el 20-F (p. ej. TSM: «each ADS represents five (5) common shares»)."""
+    m = _ADS.search(" ".join((texto or "").replace("\xa0", " ").split()))
+    if not m:
+        return None
+    n = m.group("n").lower()
+    return float(_NUMEROS.get(n) or n), m.group(0)

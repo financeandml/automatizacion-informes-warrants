@@ -124,6 +124,7 @@
   <div class="fuente">Métricas con el mismo perfil sectorial y los mismos conceptos us-gaap. La mediana excluye valores negativos y exige al menos 3 comparables.{% if comp and not c.comparables_del_analista %} Valor implícito orientativo, fuera del precio objetivo.{% endif %}</div>
   {% else %}<p><span class="pendiente">no hay comparables con datos del perfil: añade la lista</span></p>{% endif %}
   </div>
+  {{ b.previsiones() }}
   {{ ix.apartado(11) }}
   <h3>Métricas del perfil «{{ p.nombre }}»</h3>
   <table class="datos">
@@ -168,6 +169,7 @@
 <section class="salto">
   {{ ix.seccion("H") }}
   {{ ix.apartado(22) }}
+  {{ b.tesis_cifras() }}
   {{ t["conclusiones.perspectivas"] }}
   {{ ix.apartado(23) }}
   <p class="fuente">Criterios cuantitativos del fondo: apartado 12.</p>
@@ -176,6 +178,7 @@
   {{ b.riesgo_de_la_posicion() }}
   {{ ix.apartado(25) }}
   {{ b.seguimiento() }}
+  {{ b.real_frente_a_estimado() }}
 {% include "_cambios.html.j2" %}
 </section>
 
@@ -213,7 +216,7 @@
     <tr><td>Prima de riesgo de mercado</td><td>{{ c.origen_prima }}</td></tr>
     {% if c.motor and c.motor.get("modelo") %}<tr><td>Modelo de valoración</td><td>Libro de Excel de Warrants &amp; Co. con la valoración del perfil y la hoja de comparables, con fórmulas vivas (se descarga desde el SaaS)</td></tr>{% endif %}
     <tr><td>Comparables</td><td>{{ c.comparables_criterio or "sin comparables" }}</td></tr>
-    {% set fi = c.get("ficha") or {} %}{% if fi.get("empleados") %}<tr><td>Empleados (Item 1 del 10-K)</td><td>«{{ fi.empleados.frase|truncate(160, True, "…") }}»</td></tr>{% endif %}
+    {% set fi = c.get("ficha") or {} %}{% if fi.get("empleados") %}<tr><td>Empleados (informe anual)</td><td>«{{ fi.empleados.frase|truncate(160, True, "…") }}»</td></tr>{% endif %}
     {% if c.beta_sector %}<tr><td>Beta y comparables modelo (fuente externa)</td><td>{{ c.beta_sector.origen }}</td></tr>{% endif %}
     {% set part = (c.insiders or {}).get("participaciones") %}{% if part %}<tr><td>Participación de insiders e instituciones (externa, no auditada)</td><td>yfinance · consulta del {{ part.consulta }}</td></tr>{% endif %}
     {% if c.opciones %}<tr><td>Cadena de opciones (externa, no auditada)</td><td>yfinance · consulta del {{ c.opciones.consulta }}</td></tr>{% endif %}

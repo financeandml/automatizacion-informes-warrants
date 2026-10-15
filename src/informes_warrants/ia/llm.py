@@ -4,7 +4,7 @@ Configuración adaptada de `LLMSettings` de financial-research-analyst-agent (sr
 MIT, Copyright (c) 2024 Gopal Saini): proveedor elegible por .env, temperatura 0,1, 4096 tokens.
 Todos los proveedores se usan por su API compatible con OpenAI, así que hay un solo camino de código.
 
-Sin LLM_PROVIDER se usa el primero disponible de PRIORIDAD (llama4 en OpenRouter, gpt-oss-120b en
+Sin LLM_PROVIDER se usa el primero disponible de PRIORIDAD (Gemini, llama4 en OpenRouter, gpt-oss-120b en
 Groq, Ollama local); si el elegido falla, se recurre a Ollama local. Ver docs/ia.md.
 """
 
@@ -16,6 +16,7 @@ from dotenv import load_dotenv
 
 PROVEEDORES = {
     # proveedor: (URL base compatible con OpenAI, modelo por defecto, variable de la API key)
+    "gemini": ("https://generativelanguage.googleapis.com/v1beta/openai/", "gemini-2.5-flash", "GEMINI_API_KEY"),  # 2026-10-15
     "openrouter": ("https://openrouter.ai/api/v1", "meta-llama/llama-4-scout", "OPENROUTER_API_KEY"),  # llama4
     "groq": ("https://api.groq.com/openai/v1", "openai/gpt-oss-120b", "GROQ_API_KEY"),  # Groq retiró llama4
     "ollama": ("http://localhost:11434/v1", "llama3.2:3b", None),
@@ -26,7 +27,7 @@ PROVEEDORES = {
 }
 RESPALDO = "ollama"
 log = logging.getLogger(__name__)
-PRIORIDAD = ("openrouter", "groq", RESPALDO)  # sin LLM_PROVIDER, el primero con API key
+PRIORIDAD = ("gemini", "openrouter", "groq", RESPALDO)  # sin LLM_PROVIDER, el primero con API key (Gemini: usuario, 2026-10-15)
 
 
 class LLMError(RuntimeError):
