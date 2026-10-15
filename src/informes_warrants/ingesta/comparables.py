@@ -133,18 +133,20 @@ def _proponer(sic: int, cik_propio: int, ingresos_propios: float | None, n: int)
     return [str(tabla.loc[c, "ticker"]) for c in elegidos], f"{criterio}, cotizadas en NYSE/Nasdaq, las {n} más parecidas por ingresos"
 
 
+PARTIDAS_CRECIMIENTO = ("ingresos", "resultado_operativo", "bpa_diluido")
+
+
 def crecimiento_3_anios(fuente, por_id, normalizar, cagr, ticker: str) -> dict:
     """Crecimiento anual compuesto de ventas y BPA en los 3 últimos ejercicios fiscales (R10), con el normalizador."""
     ultimos = [h.fiscal_year for c in por_id["ingresos"].conceptos if (h := fuente.fact(c, None)) is not None and h.fiscal_year]
     if not ultimos:
         return {"tacc_ventas_3a": None, "tacc_bpa_3a": None}
-    from ..calculo.analitica import estabilidad_margen
-    from ..calculo.metricas import fundamentales
+    from ..calculo.analitica import estabilidad_margen, margenes_operativos
 
     fin = max(ultimos)
     anios = list(range(fin - 4, fin + 1))
-    e = normalizar(fuente, anios, ticker)
-    margenes = [fundamentales(e, a)["margen_operativo"] for a in anios if a in e.ejercicios and a not in e.faltan]
+    e = normalizar(fuente, anios, ticker, PARTIDAS_CRECIMIENTO)  # C5: solo lo necesario (antes, ~50 partidas × 5 años)
+    margenes = margenes_operativos(e, anios)
     return {"tacc_ventas_3a": cagr(e.valor("ingresos", fin - 3), e.valor("ingresos", fin), 3),
             "tacc_bpa_3a": cagr(e.valor("bpa_diluido", fin - 3), e.valor("bpa_diluido", fin), 3), "ejercicio_crecimiento": fin,
             "estabilidad_margen_5a": estabilidad_margen(margenes)}  # A5

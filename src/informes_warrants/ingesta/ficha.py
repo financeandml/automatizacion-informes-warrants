@@ -64,3 +64,16 @@ def acciones_por_ads(texto: str) -> tuple[float, str] | None:
         return None
     n = m.group("n").lower()
     return float(_NUMEROS.get(n) or n), m.group(0)
+
+
+_MERCADO = re.compile(r"(?:market|addressable|TAM\b|industry|opportunity)[^.;]{0,140}?\$\s?\d[\d.,]*\s*(?:billion|trillion|million)"
+                      r"|\$\s?\d[\d.,]*\s*(?:billion|trillion)[^.;]{0,100}?(?:market|addressable|opportunity|industry)"
+                      r"|(?:addressable market|market opportunity|total market|market size|size of the market)[^.;]{0,180}?\d", re.I)
+MAX_CITAS_MERCADO = 4
+
+
+def citas_mercado(texto_negocio: str) -> list[str]:
+    """P15 (apartado 13): frases literales del Item 1 en las que la empresa cifra su mercado (apoyo para el analista)."""
+    texto = " ".join((texto_negocio or "").replace("\xa0", " ").split())
+    frases = re.split(r"(?<=[.;])\s+(?=[A-Z])", texto)
+    return [f for f in frases if 40 <= len(f) <= 500 and _MERCADO.search(f)][:MAX_CITAS_MERCADO]

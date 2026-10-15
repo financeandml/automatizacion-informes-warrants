@@ -75,7 +75,8 @@ from ..calculo.valoracion_relativa import (
     valor_implicito,
     valor_por_multiplos,
 )
-from ..ingesta.ficha import empleados
+from ..ingesta.ficha import citas_mercado, empleados
+from ..observabilidad import medido
 from .cambios import comparar as comparar_versiones
 from .cambios import resumen as resumen_version
 from .cobertura import PENDIENTE_VALIDAR, PLANTILLA_GENERAL, cobertura_de, es_biotecnologia
@@ -208,6 +209,7 @@ def _gastos(estados, clave):
     return {"id": estados.valor("id", clave), "gastos_generales": estados.valor("gastos_generales", clave)}
 
 
+@medido("componer")
 def componer(**datos) -> dict:
     """Contexto del informe sin red: la plantilla sectorial si los datos traen un perfil (B2); si no, la general."""
     if "perfil" in datos:
@@ -524,6 +526,7 @@ def componer_general(*, ticker: str, empresa: str, sic, cobertura, filing: dict,
         "potencial_dcf_escenarios": valor_dcf_escenarios / cotizacion.precio - 1 if valor_dcf_escenarios else None,
         "motor": motor, "wacc_motor": wacc_motor, "origen_prima": origen_prima, "beta_sector": beta_sector,
         "ficha": {"bolsa": bolsa, "cierre_fiscal": cierre_fiscal, "empleados": empleados(texto_negocio)}, "consenso": consenso,
+        "citas_mercado": citas_mercado(texto_negocio),
         "precio_modelo": precio_modelo,
         "precio_objetivo": precio_objetivo, "potencial": potencial, "potencial_dcf": potencial_dcf, "recomendacion": propuesta,
         "avisos_valoracion": avisos_valoracion, "avisos_emision": avisos_emision, "datos_dcf": datos_dcf,
@@ -631,8 +634,9 @@ def _equipo(insiders: dict | None, cierres) -> list[dict]:
     rentabilidad de la acción desde entonces (solo si la serie de cotizaciones llega a esa fecha)."""
     if not insiders:
         return []
-    altas = insiders.get("altas") or {}
-    return sorted(({"nombre": n, "cargo": cargo, "alta": altas.get(n), "rentabilidad": rentabilidad_desde(cierres, altas.get(n))}
+    altas, aproximadas = insiders.get("altas") or {}, insiders.get("altas_aproximadas") or set()
+    return sorted(({"nombre": n, "cargo": cargo, "alta": altas.get(n),
+                    "aproximada": n in aproximadas, "rentabilidad": rentabilidad_desde(cierres, altas.get(n))}
                    for n, cargo in (insiders.get("personas") or {}).items()), key=lambda p: (p["alta"] or date.max))
 
 
@@ -660,7 +664,8 @@ def _insiders(empresa, ticker: str) -> dict:
     hoy = date.today()
     tr = transacciones(empresa, hoy)
     return {**tr, "actividad": actividad(tr["operaciones"]), "accionistas": accionistas_principales(empresa, hoy),
-            "participaciones": participaciones(ticker), "altas": altas_como_insider(empresa, list(tr["personas"])),
+            "participaciones": participaciones(ticker), **dict(zip(("altas", "altas_aproximadas"),
+                       altas_como_insider(empresa, list(tr["personas"]), tr.get("ciks")), strict=True)),
             "trece_f": tenedores_13f(ticker)}  # P11: 13F de la SEC por emisora
 
 
@@ -670,6 +675,7 @@ def construir(ticker: str, con_ia: bool = True, comparables: list[str] | None = 
     return componer(**reunir(ticker, con_ia, comparables, anterior, historial_resumenes, estimaciones))
 
 
+@medido("reunir")
 def reunir(ticker: str, con_ia: bool = True, comparables: list[str] | None = None, anterior: dict | None = None,
            historial_resumenes: list[dict] | None = None, estimaciones: Estimaciones | None = None) -> dict:
     """Datos del informe (SEC, mercado, IA opcional), listos para `componer`. Requiere EDGAR_IDENTITY y red.
@@ -764,7 +770,10 @@ def reunir(ticker: str, con_ia: bool = True, comparables: list[str] | None = Non
     if not del_analista:
         ingresos_ref = (estados_ltm or estados).valor("ingresos", LTM if estados_ltm else ejercicio)
         comparables, criterio = ingesta_comparables.proponer(empresa.sic, empresa.cik, ingresos_ref, ticker=ticker)
-    datos_comparables = [d for d in (ingesta_comparables.datos(t) for t in comparables) if d]
+    from concurrent.futures import ThreadPoolExecutor  # C5: comparables en paralelo (antes, uno tras otro)
+
+    with ThreadPoolExecutor(max_workers=6) as grupo:
+        datos_comparables = [d for d in grupo.map(ingesta_comparables.datos, comparables) if d]
 
     # Fecha de cierre y de presentación de cada ejercicio: segmentos (R14) y múltiplos sin sesgo de anticipación (R11)
     cierres, disponibles = {}, {}
@@ -906,6 +915,20 @@ def _comunes(empresa, ticker: str, filing, xbrl, ejercicio: int, con_ia: bool, f
     with _silencio_edgar():
         flotante = (facts.public_float, getattr(facts.public_float_fact, "period_end", None))
     eventos = eventos_8k(empresa, date.today() - timedelta(days=365 * ANIOS_ALARMAS))
+    # C5: las consultas independientes (SEC y mercado) en paralelo mientras se procesa el 10-K
+    from concurrent.futures import ThreadPoolExecutor
+
+    grupo = ThreadPoolExecutor(max_workers=8)
+    en_paralelo = {
+        "insiders": grupo.submit(_insiders, empresa, ticker),
+        "alarmas": grupo.submit(alarmas_sec, empresa, date.today(), filing, eventos),
+        "gobierno": grupo.submit(datos_gobierno, empresa, xbrl),
+        "series": grupo.submit(_series_bolsa, ticker, etf_sectorial(empresa.sic), historico, INDICE),
+        "comportamiento": grupo.submit(comportamiento, ticker, empresa.sic),
+        "opciones": grupo.submit(cadena_opciones, ticker), "cortos": grupo.submit(posiciones_cortas, ticker),
+        "cotizacion": grupo.submit(cotizacion, ticker), "beta": grupo.submit(_beta_semanal, ticker),
+        "rf": grupo.submit(tipo_libre_riesgo), "prima": grupo.submit(prima_riesgo), "beta_sector": grupo.submit(beta_sectorial, ticker),
+    }
     tenk = filing.obj()
     texto_negocio = tenk.business or ""
     hoy = date.today()
@@ -964,16 +987,16 @@ def _comunes(empresa, ticker: str, filing, xbrl, ejercicio: int, con_ia: bool, f
         from .cobertura import es_biotecnologia
 
         riesgos = clasificar_riesgos(riesgos, es_biotecnologia(empresa.sic))
+    r = {k: f.result() for k, f in en_paralelo.items()}  # los errores de cada consulta se propagan como antes
+    grupo.shutdown()
     return dict(
-        ticker=ticker, empresa=nombre_legible(empresa.name), sic=empresa.sic, cotizacion=cotizacion(ticker),
-        beta_estimada=_beta_semanal(ticker), comportamiento=comportamiento(ticker, empresa.sic),
-        series_bolsa=_series_bolsa(ticker, etf_sectorial(empresa.sic), historico, INDICE),
+        ticker=ticker, empresa=nombre_legible(empresa.name), sic=empresa.sic, cotizacion=r["cotizacion"],
+        beta_estimada=r["beta"], comportamiento=r["comportamiento"], series_bolsa=r["series"],
         riesgos=riesgos, riesgos_lista=riesgos_lista, texto_negocio=texto_negocio, competencia_texto=competencia_texto,
-        rf=tipo_libre_riesgo(), prima=prima_riesgo(), beta_sector=beta_sectorial(ticker), gobierno=datos_gobierno(empresa, xbrl),
-        consenso=consenso,
+        rf=r["rf"], prima=r["prima"], beta_sector=r["beta_sector"], gobierno=r["gobierno"], consenso=consenso,
         bolsa=bolsa_de(empresa), cierre_fiscal=cierre_fiscal(cierre_ejercicio),  # P6: ficha de empresa
-        insiders=_insiders(empresa, ticker), eventos=eventos, alarmas=alarmas_sec(empresa, date.today(), filing, eventos),
+        insiders=r["insiders"], eventos=eventos, alarmas=r["alarmas"],
         riesgos_cambios=cambios, catalizadores=catalizadores, filiales=filiales_10k(tenk),
-        opciones_cadena=cadena_opciones(ticker), cortos=posiciones_cortas(ticker),
+        opciones_cadena=r["opciones"], cortos=r["cortos"],
         autoria=cargar_autoria(), parametros=cargar_parametros(), capital_flotante=flotante if flotante[0] else None,
     )

@@ -61,7 +61,7 @@ def test_proveedor_por_defecto(monkeypatch):
     assert LLMSettings.desde_entorno().proveedor == "groq"
     monkeypatch.delenv("LLM_PROVIDER")
     monkeypatch.setenv("GEMINI_API_KEY", "g-x")  # Gemini, primero si hay clave (usuario, 2026-10-15)
-    assert (LLMSettings.desde_entorno().proveedor, LLMSettings.desde_entorno().modelo) == ("gemini", "gemini-2.5-flash")
+    assert (LLMSettings.desde_entorno().proveedor, LLMSettings.desde_entorno().modelo) == ("gemini", "gemini-3.8-flash")
 
 
 
@@ -83,10 +83,12 @@ def test_clasificacion_de_riesgos_solo_con_categorias_validas(monkeypatch):
     """P2: categoría y supuesto de una lista cerrada; lo demás se ignora."""
     from informes_warrants.ia import etiquetas
 
-    respuesta = '[{"n": 1, "categoria": "competencia", "supuesto": "margen"}, {"n": 2, "categoria": "astrología", "supuesto": "margen"}]'
+    respuesta = ('[{"n": 1, "categoria": "competencia", "supuesto": "margen", "probabilidad": "alta", "impacto": "media"}, '
+                 '{"n": 2, "categoria": "astrología", "supuesto": "margen"}]')
     monkeypatch.setattr(etiquetas, "completar", lambda s, u: (respuesta, _cfg()))
     r = etiquetas.clasificar_riesgos([{"resumen": "a", "cita": "Markets are competitive."}, {"resumen": "b", "cita": "Other."}])
     assert (r[0]["categoria"], r[0]["supuesto"]) == ("competencia", "margen") and "categoria" not in r[1]
+    assert (r[0]["probabilidad"], r[0]["impacto"]) == ("alta", "media")  # P16: matriz de riesgos
 
 
 def test_emparejar_miembros_de_segmento(monkeypatch):

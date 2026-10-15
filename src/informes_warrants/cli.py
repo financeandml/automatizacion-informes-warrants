@@ -175,7 +175,8 @@ def _interfaz(args) -> None:
     app = Path(__file__).parent / "ui" / "app.py"
     tema = ["--theme.base=light", "--theme.primaryColor=#2B0B02", "--theme.backgroundColor=#FFFFFF",
             "--theme.secondaryBackgroundColor=#FFFFFF", "--theme.textColor=#000000"]  # los tres colores de la marca
-    subprocess.run([sys.executable, "-m", "streamlit", "run", str(app), "--browser.gatherUsageStats=false", *tema], check=False)
+    seguridad = ["--server.address=localhost", "--server.enableXsrfProtection=true", "--server.maxUploadSize=20"]  # C5: solo este equipo
+    subprocess.run([sys.executable, "-m", "streamlit", "run", str(app), "--browser.gatherUsageStats=false", *seguridad, *tema], check=False)
 
 
 def _regresion(args) -> None:
@@ -221,9 +222,23 @@ def _ia(args) -> None:
     print(f"{cfg.proveedor} · {cfg.modelo}: {respuesta}")
 
 
+def _diagnostico(args) -> None:
+    """C8: comprueba la instalación y resume los tiempos de las últimas ejecuciones."""
+    from .observabilidad import carpeta, diagnostico, resumen_tiempos
+
+    for nombre, bien, detalle in diagnostico():
+        print(f"{'OK ' if bien else 'NO '} {nombre}: {detalle}")
+    for etapa, r in resumen_tiempos().items():
+        print(f"    {etapa:9} {r['n']:4} veces · mediana {r['mediana']:6.1f} s · máximo {r['maximo']:6.1f} s · errores {r['errores']}")
+    print(f"Registro: {carpeta()}")
+
+
 def main() -> None:
     sys.stdout.reconfigure(encoding="utf-8")  # acentos y «» en cualquier consola de Windows (también en la ayuda)
     logging.basicConfig(level=logging.WARNING, format="Aviso: %(message)s")
+    from .observabilidad import configurar_registro
+
+    configurar_registro()  # C8: registro rotativo en la carpeta de datos
     parser = argparse.ArgumentParser(prog="informes-warrants", description="Informes de empresas cotizadas en EEUU")
     sub = parser.add_subparsers(dest="comando", required=True)
 
@@ -276,6 +291,9 @@ def main() -> None:
     p.add_argument("ticker")
     p.add_argument("--sin-ia", action="store_true", help="Al preparar, sin modelo de lenguaje")
     p.set_defaults(func=_versiones, sec=True)
+
+    p = sub.add_parser("diagnostico", help="Comprueba la instalación (PDF, LibreOffice, claves) y resume los tiempos")
+    p.set_defaults(func=_diagnostico, sec=False)
 
     p = sub.add_parser("ia", help="Comprueba la conexión con el modelo de lenguaje")
     p.set_defaults(func=_ia, sec=False)

@@ -16,6 +16,7 @@ from ..calculo.definiciones import DEFINICIONES
 from ..calculo.historico import METRICAS as METRICAS_HISTORICAS
 from ..calculo.normalizador import LTM, MEDIDAS_SEGMENTO, PARTIDAS
 from ..calculo.valoracion_relativa import MULTIPLOS, significativo
+from ..observabilidad import medido
 from ..visual import graficos
 from .estimaciones import UMBRAL_COMPRAR, UMBRAL_VENDER
 from .indice import APARTADOS, INDICE, SECCIONES
@@ -593,6 +594,7 @@ def html(c: dict) -> str:
     )
 
 
+@medido("pdf")
 def pdf(c: dict, destino: Path) -> Path:
     from ..visual.pdf import html_a_pdf
 

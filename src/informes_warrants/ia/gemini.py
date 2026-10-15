@@ -18,8 +18,8 @@ import urllib.request
 from datetime import date
 
 log = logging.getLogger(__name__)
-URL = "https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={clave}"
-MODELO = "gemini-2.5-flash"  # rápido y con búsqueda; se cambia con GEMINI_MODEL
+URL = "https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent"  # clave en cabecera, no en la URL
+MODELO = "gemini-3.8-flash"  # rápido y con búsqueda; se cambia con GEMINI_MODEL
 TIEMPO_MAXIMO = 90  # segundos por llamada
 
 
@@ -63,8 +63,8 @@ def generar(sistema: str, usuario: str, buscar: bool = False, json_salida: bool 
         cuerpo["tools"] = [{"google_search": {}}]
     elif json_salida:
         cuerpo["generationConfig"]["responseMimeType"] = "application/json"
-    peticion = urllib.request.Request(URL.format(modelo=modelo, clave=api), data=json.dumps(cuerpo).encode(),
-                                      headers={"Content-Type": "application/json"})
+    peticion = urllib.request.Request(URL.format(modelo=modelo), data=json.dumps(cuerpo).encode(),
+                                      headers={"Content-Type": "application/json", "x-goog-api-key": api})
     try:
         with urllib.request.urlopen(peticion, timeout=TIEMPO_MAXIMO) as r:
             respuesta = json.loads(r.read())

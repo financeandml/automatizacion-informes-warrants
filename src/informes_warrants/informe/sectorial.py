@@ -44,7 +44,7 @@ from ..calculo.valoracion_sectorial import (
     valorar,
 )
 from ..calculo.valoracion_sectorial import NOMBRES as NOMBRES_MULTIPLOS
-from ..ingesta.ficha import empleados
+from ..ingesta.ficha import citas_mercado, empleados
 from .cambios import comparar as comparar_versiones
 from .cambios import resumen as resumen_version
 from .construir import (
@@ -66,6 +66,8 @@ from .plantillas import _num, _pct, con_borradores, pendientes, rellenar
 from .secciones import BLOQUES, Tipo
 
 log = logging.getLogger(__name__)
+AVISO_BETA_SECTORIAL = ("Perfil sectorial (banca, seguros, REIT o BDC): fija tú la beta y la lista de comparables; el SaaS no "
+                        "propone beta ni comparables modelo en estos sectores (hoy: beta propia y empresas de referencia del perfil)")
 ACCIONES_DILUIDAS = "WeightedAverageNumberOfDilutedSharesOutstanding"  # respaldo de las acciones en circulación
 PLANTILLAS = {b: f"sectorial/{a}.md.j2" for b, a in (
     ("portada.titulares", "titulares"), ("portada.recomendacion", "recomendacion"), ("conclusiones.hechos_clave", "hechos_clave"),
@@ -289,6 +291,8 @@ def componer_sectorial(*, ticker: str, empresa: str, sic, cobertura, perfil: str
     pot = potencial(precio_objetivo, cotizacion.precio)
     propuesta = recomendacion_propuesta(pot) if pot is not None else "Pendiente"
     avisos_emision = [] if comparables_del_analista else [AVISO_COMPARABLES]
+    if estimaciones is None:  # P20: en estos perfiles la beta y los comparables los fija el analista (no hay «modelo»)
+        avisos_emision.append(AVISO_BETA_SECTORIAL)
     catalizadores = catalizadores_del_informe(catalizadores, base, avisos_emision)
     # Libro del motor (D4): la valoración B2 con fórmulas vivas y la hoja de comparables de la plantilla; se contrasta con val
     from ..calculo.motor.sectorial import construir as libro_sectorial
@@ -387,6 +391,7 @@ def componer_sectorial(*, ticker: str, empresa: str, sic, cobertura, perfil: str
         "cortos": {**cortos, "lectura": lectura_cortos(cortos.get("sobre_flotante"))} if cortos else None,
         "motor": motor, "beta_sector": beta_sector,
         "ficha": {"bolsa": bolsa, "cierre_fiscal": cierre_fiscal, "empleados": empleados(texto_negocio)}, "consenso": consenso,
+        "citas_mercado": citas_mercado(texto_negocio),
         "origen_prima": (f"{prima.fuente}{', ' + prima.fecha if prima.fecha else ''}" if prima is not None
                                          else "Estimaciones del informe"),
         "textos": textos, "pendientes": [x for t in textos.values() for x in pendientes(t)],

@@ -580,11 +580,12 @@ def _resolver(fuente, partida: Partida, ejercicio: int) -> Dato | None:
     return None
 
 
-def normalizar(fuente, ejercicios: list[int], empresa: str = "") -> EstadosNormalizados:
-    """Partidas canónicas de cada ejercicio con su tag y su origen."""
+def normalizar(fuente, ejercicios: list[int], empresa: str = "", partidas: tuple[str, ...] | None = None) -> EstadosNormalizados:
+    """Partidas canónicas de cada ejercicio con su tag y su origen (`partidas`: solo esas, p. ej. para los comparables)."""
     estados = EstadosNormalizados(empresa, sorted(ejercicios))
+    lista = [p for p in PARTIDAS if partidas is None or p.id in partidas]
     for ejercicio in estados.ejercicios:
-        for partida in PARTIDAS:
+        for partida in lista:
             dato = _resolver(fuente, partida, ejercicio)
             if dato is None and not partida.opcional:
                 estados.faltan.setdefault(ejercicio, []).append(partida.id)

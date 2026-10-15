@@ -22,6 +22,7 @@ SISTEMA = ("Eres un analista financiero que escribe en español de España, con 
 MAX_PALABRAS = 25
 CATEGORIAS = ("macro", "crecimiento", "rentabilidad", "competencia", "regulatorio", "financiero", "ejecución", "M&A")
 CATEGORIAS_BIOTEC = ("clínico", "regulatorio", "comercial", "precio", "financiero", "competencia", "macro")
+NIVELES = ("baja", "media", "alta")  # P16: probabilidad e impacto de la matriz de riesgos
 SUPUESTOS = ("crecimiento de ventas", "margen", "coste del capital", "múltiplo de salida", "balance y liquidez")
 
 
@@ -66,8 +67,9 @@ def clasificar_riesgos(riesgos: list[dict], biotecnologia: bool = False) -> list
     categorias = CATEGORIAS_BIOTEC if biotecnologia else CATEGORIAS
     lista = "\n".join(f"{i}. {r['cita']}" for i, r in enumerate(riesgos, 1))
     usuario = (f"Clasifica cada riesgo en una categoría de esta lista: {', '.join(categorias)}; y di qué supuesto del modelo de "
-               f"valoración amenaza más, de esta lista: {', '.join(SUPUESTOS)}. Devuelve una lista JSON de "
-               '{"n": número, "categoria": "...", "supuesto": "..."}.\n\n' + lista)
+               f"valoración amenaza más, de esta lista: {', '.join(SUPUESTOS)}; y estima su probabilidad y su impacto en la "
+               "tesis (baja, media o alta) a partir de lo que dice el texto. Devuelve una lista JSON de "
+               '{"n": número, "categoria": "...", "supuesto": "...", "probabilidad": "...", "impacto": "..."}.\n\n' + lista)
     try:
         respuesta, _ = completar(SISTEMA, usuario)
     except Exception as e:  # noqa: BLE001
@@ -81,6 +83,9 @@ def clasificar_riesgos(riesgos: list[dict], biotecnologia: bool = False) -> list
         categoria, supuesto = str(item.get("categoria", "")).strip(), str(item.get("supuesto", "")).strip()
         if 0 <= i < len(riesgos) and categoria in categorias and supuesto in SUPUESTOS:
             riesgos[i] = {**riesgos[i], "categoria": categoria, "supuesto": supuesto}
+            probabilidad, impacto = str(item.get("probabilidad", "")).strip(), str(item.get("impacto", "")).strip()
+            if probabilidad in NIVELES and impacto in NIVELES:  # P16: matriz probabilidad × impacto (borrador)
+                riesgos[i] = {**riesgos[i], "probabilidad": probabilidad, "impacto": impacto}
     return riesgos
 
 

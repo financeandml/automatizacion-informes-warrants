@@ -252,3 +252,13 @@ def test_ratio_del_ads_del_20f():
     assert acciones_por_ads("(each ADS represents five (5) common shares)")[0] == 5
     assert acciones_por_ads("Each ADR represents one deposited Novo Nordisk B share")[0] == 1
     assert acciones_por_ads("No depositary arrangement.") is None
+
+
+def test_citas_del_mercado_en_el_10k():
+    """P15: frases literales del Item 1 que cifran el mercado (en dinero o en pacientes)."""
+    from informes_warrants.ingesta.ficha import citas_mercado
+
+    texto = ("We design products. We estimate a global addressable market of more than 70,000 frontline advanced melanoma "
+             "patients per year. The cloud data market is expected to reach $300 billion by 2030. Our revenue grew 29%.")
+    citas = citas_mercado(texto)
+    assert len(citas) == 2 and citas[0].startswith("We estimate") and citas[1].startswith("The cloud data")

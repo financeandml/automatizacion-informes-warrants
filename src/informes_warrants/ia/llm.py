@@ -14,9 +14,11 @@ from dataclasses import dataclass
 
 from dotenv import load_dotenv
 
+from ..observabilidad import medido
+
 PROVEEDORES = {
     # proveedor: (URL base compatible con OpenAI, modelo por defecto, variable de la API key)
-    "gemini": ("https://generativelanguage.googleapis.com/v1beta/openai/", "gemini-2.5-flash", "GEMINI_API_KEY"),  # 2026-10-15
+    "gemini": ("https://generativelanguage.googleapis.com/v1beta/openai/", "gemini-3.8-flash", "GEMINI_API_KEY"),  # 2026-10-15
     "openrouter": ("https://openrouter.ai/api/v1", "meta-llama/llama-4-scout", "OPENROUTER_API_KEY"),  # llama4
     "groq": ("https://api.groq.com/openai/v1", "openai/gpt-oss-120b", "GROQ_API_KEY"),  # Groq retiró llama4
     "ollama": ("http://localhost:11434/v1", "llama3.2:3b", None),
@@ -73,6 +75,7 @@ def _llamar(cfg: LLMSettings, sistema: str, usuario: str) -> str:
     return (respuesta.choices[0].message.content or "").strip()
 
 
+@medido("ia")
 def completar(sistema: str, usuario: str, cfg: LLMSettings | None = None) -> tuple[str, LLMSettings]:
     """Respuesta del modelo y la configuración que la produjo (para registrarla en la versión)."""
     cfg = cfg or LLMSettings.desde_entorno()
@@ -81,9 +84,14 @@ def completar(sistema: str, usuario: str, cfg: LLMSettings | None = None) -> tup
     except Exception as error:
         if cfg.proveedor == RESPALDO:
             raise LLMError(f"Ollama no responde en {cfg.url_base}: ¿está instalado y arrancado? ({error})") from error
-        log.warning("Falló %s · %s (%s); se usa el respaldo local %s.", cfg.proveedor, cfg.modelo, error, RESPALDO)
-        respaldo = LLMSettings.desde_entorno(RESPALDO)
-        try:
-            return _llamar(respaldo, sistema, usuario), respaldo
-        except Exception as error2:
-            raise LLMError(f"Falló {cfg.proveedor} ({error}) y el respaldo local ({error2}).") from error2
+        # C5: primero los demás proveedores con clave (p. ej. Groq si falla Gemini) y, al final, el respaldo local
+        siguientes = [x for x in PRIORIDAD if x not in (cfg.proveedor, RESPALDO) and os.getenv(PROVEEDORES[x][2] or "")] + [RESPALDO]
+        errores = [f"{cfg.proveedor}: {error}"]
+        for proveedor in siguientes:
+            log.warning("Falló %s · %s (%s); se usa %s.", cfg.proveedor, cfg.modelo, str(errores[-1])[:200], proveedor)
+            respaldo = LLMSettings.desde_entorno(proveedor)
+            try:
+                return _llamar(respaldo, sistema, usuario), respaldo
+            except Exception as error2:  # noqa: BLE001
+                errores.append(f"{proveedor}: {error2}")
+        raise LLMError("Fallaron todos los proveedores: " + "; ".join(e[:200] for e in errores)) from error

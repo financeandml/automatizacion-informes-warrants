@@ -23,9 +23,9 @@
   <div style="break-inside: avoid">
   <table class="datos compacta">
     <tr><th>Nombre</th><th>Cargo declarado</th><th>Insider desde (Form 3)</th><th>Rentabilidad de la acción desde entonces</th></tr>
-    {% for p in c.equipo %}<tr><td>{{ p.nombre }}</td><td>{{ p.cargo|truncate(40, True, "…") or "—" }}</td><td>{{ p.alta.strftime("%d/%m/%Y") if p.alta else "—" }}</td><td>{{ p.rentabilidad|var if p.rentabilidad is not none else "—" }}</td></tr>{% endfor %}
+    {% for p in c.equipo %}<tr><td>{{ p.nombre }}</td><td>{{ p.cargo|truncate(40, True, "…") or "—" }}</td><td>{% if p.alta %}{{ "≥ " if p.get("aproximada") else "" }}{{ p.alta.strftime("%d/%m/%Y") }}{% else %}—{% endif %}</td><td>{{ p.rentabilidad|var if p.rentabilidad is not none else "—" }}</td></tr>{% endfor %}
   </table>
-  <div class="fuente">Directivos y consejeros que presentaron Form 4 en los últimos 12 meses, con el cargo tal como lo declaran. Alta: su Form 3 (declaración inicial), si está entre los más recientes; rentabilidad con cotizaciones ajustadas, solo si la serie llega a esa fecha.{% if c.cambios_direccion %} Cambios en el consejo o la alta dirección (8-K ítem 5.02) en 24 meses: {% for e in c.cambios_direccion %}{{ e.fecha.strftime("%d/%m/%Y") }}{{ ", " if not loop.last else "" }}{% endfor %}.{% endif %}</div>
+  <div class="fuente">Directivos y consejeros que presentaron Form 4 en los últimos 12 meses, con el cargo tal como lo declaran. Alta: su Form 3 (declaración inicial); «≥», su primer Form 4 sobre la empresa (sin Form 3 electrónico, anterior a 2003); rentabilidad con cotizaciones ajustadas, solo si la serie llega a esa fecha.{% if c.cambios_direccion %} Cambios en el consejo o la alta dirección (8-K ítem 5.02) en 24 meses: {% for e in c.cambios_direccion %}{{ e.fecha.strftime("%d/%m/%Y") }}{{ ", " if not loop.last else "" }}{% endfor %}.{% endif %}</div>
   </div>
   {% endif %}
 {% endmacro %}
@@ -111,6 +111,20 @@
   {% if c.riesgos %}<ul>{% for r in c.riesgos %}<li>{% if r.get("categoria") %}<span class="revisar">{{ r.categoria|capitalize }} · amenaza: {{ r.supuesto }}</span> {% endif %}<strong>{{ r.resumen }}</strong><br><span class="cita">«{{ r.cita }}»</span></li>{% endfor %}</ul>
   <div class="fuente">Selección y resumen: {{ c.riesgos[0].modelo }}, entre los títulos literales del Item 1A. Cada cita se ha verificado en el texto del 10-K.</div>
   {% else %}<p><span class="pendiente">resume los riesgos principales del Item 1A</span></p>{% endif %}
+{% endmacro %}
+
+{% macro matriz_riesgos() %}
+  {% set con = (c.riesgos or [])|selectattr("probabilidad", "defined")|list %}
+  {% if con %}
+  <div style="break-inside: avoid">
+  <h3>Matriz de riesgos: probabilidad × impacto (borrador de la IA)</h3>
+  <table class="datos">
+    <tr><th>Impacto / probabilidad</th><th>Baja</th><th>Media</th><th>Alta</th></tr>
+    {% for imp in ("alta", "media", "baja") %}<tr><td>{{ imp|capitalize }}</td>{% for prob in ("baja", "media", "alta") %}<td>{% for r in c.riesgos %}{% if r.get("impacto") == imp and r.get("probabilidad") == prob %}<span class="revisar">{{ loop.index }}</span> {% endif %}{% endfor %}</td>{% endfor %}</tr>{% endfor %}
+  </table>
+  <div class="fuente">Número = orden del riesgo en la lista de riesgos principales. Probabilidad e impacto propuestos por la IA a partir del texto del 10-K: los confirma o cambia el analista.</div>
+  </div>
+  {% endif %}
 {% endmacro %}
 
 {% macro riesgos_cambios() %}
@@ -225,6 +239,13 @@
   </table>{% if co.externo.descartadas %}<div class="fuente">{{ co.externo.descartadas }} estimaciones descartadas: su cifra no aparecía literalmente en la página citada.</div>{% endif %}
   {% endif %}
   </div>
+  {% endif %}
+{% endmacro %}
+
+{% macro citas_mercado() %}
+  {% if c.get("citas_mercado") %}
+  <p class="fuente">Lo que la empresa dice de su mercado en el 10-K (citas literales del Item 1, apoyo para el analista):</p>
+  <ul>{% for cita in c.citas_mercado %}<li><span class="cita">«{{ cita }}»</span></li>{% endfor %}</ul>
   {% endif %}
 {% endmacro %}
 

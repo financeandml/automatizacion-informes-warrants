@@ -182,6 +182,16 @@ def cuotas_de_ingresos(ingresos: dict[str, float | None]) -> dict[str, float]:
     return {k: v / total for k, v in validos.items()} if total and len(validos) >= 2 else {}
 
 
+def margenes_operativos(estados, anios: list[int]) -> list[float]:
+    """Margen operativo (EBIT / ventas) de los ejercicios con los dos datos (C5: comparables con solo esas partidas)."""
+    salida = []
+    for a in anios:
+        ventas, ebit = estados.valor("ingresos", a), estados.valor("resultado_operativo", a)
+        if ventas and ebit is not None:
+            salida.append(ebit / ventas)
+    return salida
+
+
 def estabilidad_margen(margenes: list[float | None]) -> float | None:
     """Desviación típica (poblacional) del margen operativo en los ejercicios con dato; None con menos de 3."""
     import statistics

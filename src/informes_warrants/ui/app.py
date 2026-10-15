@@ -130,6 +130,8 @@ def _editor_estimaciones(c: dict) -> None:
     if c.get("perfil"):
         st.caption("Plantilla sectorial: valoración por múltiplos justificados, dividendos y comparables (sin DCF). "
                    "Los porcentajes, en %.")
+        st.warning("En banca, seguros, REIT y BDC la beta y los comparables los decides tú: revisa la beta de abajo y añade "
+                   "tu lista de comparables al cargar los datos.")
     else:
         st.caption("Supuestos del escenario base. Los porcentajes, en %.")
         anios = c["etiquetas_estimadas"][:len(est.crecimiento_ventas)]

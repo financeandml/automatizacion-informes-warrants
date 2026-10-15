@@ -22,6 +22,7 @@ from ..calculo.motor.modelo import (
     segmentos_del_modelo,
 )
 from ..calculo.normalizador import LTM, LTM_PREVIO
+from ..observabilidad import medido
 
 log = logging.getLogger(__name__)
 
@@ -125,6 +126,7 @@ def guardar_libro(resultado: dict, destino) -> str:
     return str(destino)
 
 
+@medido("excel")
 def exportar(c: dict, ruta_pdf, contrastar: bool = True) -> tuple[str | None, list[str]]:
     """Guarda el libro del informe (general o sectorial) junto al PDF, con el mismo nombre y extensión .xlsx, y lo
     contrasta celda a celda con LibreOffice (segunda vía de cálculo). Devuelve la ruta y los avisos de discrepancia, que
