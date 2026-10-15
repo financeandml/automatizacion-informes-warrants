@@ -71,3 +71,18 @@ def test_deteccion_hereda_lo_del_analista(tmp_path):
     assert nueva.contenido == {"textos": {"tesis": "Tesis"}, "estimaciones": {"g": 0.02}}  # sin métricas antiguas
     assert version_para_filing("AAPL", "0000320193-26-000099", "2026-10-30", 2026, "FY", almacen) is None
     assert [v.periodo for v in almacen.historial("AAPL")] == ["Q3", "FY"]
+
+
+def test_guardar_conexiones_en_el_env(tmp_path, monkeypatch):
+    """C3: la interfaz guarda la identidad de EDGAR y las claves en el .env local sin tocar el resto de líneas."""
+    from informes_warrants import config
+
+    env = tmp_path / ".env"
+    env.write_text("# comentario\nGROQ_API_KEY=antigua\nOTRA=1\n", encoding="utf-8")
+    monkeypatch.setattr(config, "ruta_env", lambda: env)
+    monkeypatch.delenv("EDGAR_IDENTITY", raising=False)
+    config.guardar_conexiones({"EDGAR_IDENTITY": "Ana Pérez ana@ejemplo.com", "GROQ_API_KEY": "nueva", "GEMINI_API_KEY": "",
+                               "NO_PERMITIDA": "x"})
+    assert env.read_text(encoding="utf-8").splitlines() == ["# comentario", "GROQ_API_KEY=nueva", "OTRA=1",
+                                                           'EDGAR_IDENTITY="Ana Pérez ana@ejemplo.com"']
+    assert config.configurar_identidad() == "Ana Pérez ana@ejemplo.com"

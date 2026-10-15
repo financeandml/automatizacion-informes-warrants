@@ -7,7 +7,7 @@ patrón de stock-screener `src/notifications/scheduler.py` (`ScreeningScheduler.
 from .almacen import Almacen
 from .versiones import Estado, Version, heredar
 
-FORMULARIOS = ["10-K", "10-Q"]
+FORMULARIOS = ["10-K", "10-Q", "20-F", "40-F"]  # P4: también emisores extranjeros
 
 
 def version_para_filing(ticker: str, accession: str, fecha_filing: str, ejercicio: int, periodo: str,

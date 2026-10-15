@@ -33,3 +33,7 @@ Plantilla/*.pdf
 
 # Documentos del motor de valoración aportados por el usuario (plantillas de terceros: no se publican)
 Motor de valoración/
+
+# Lanzadores generados por instalar.ps1 / instalar.sh (rutas locales)
+abrir.bat
+abrir.sh

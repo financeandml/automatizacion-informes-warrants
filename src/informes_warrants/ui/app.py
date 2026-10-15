@@ -306,8 +306,83 @@ def pantalla_editor(almacen: Almacen, ticker: str) -> None:
         st.iframe(render.html_autonomo(c), height=1400)  # HTML propio; los textos de terceros llegan escapados (render._md)
 
 
+GUIA = """1. **Escribe el ticker** de una empresa cotizada en EE. UU. (p. ej. AAPL) aquí arriba.
+2. **Empresas y versiones** → «Detectar 10-Q/10-K nuevo» y «Confirmar»: el SaaS crea la versión del último informe de la SEC.
+3. **Editor del informe** → «Cargar los datos» (1-2 minutos la primera vez). Revisa cada pestaña: los textos marcados como
+   pendientes son tuyos; las cifras salen de la SEC y no se editan.
+4. **Emisión** → revisa los avisos y pulsa «Confirmar emisión»: descargas el PDF y el modelo de valoración en Excel.
+
+Si algo no funciona: **Configuración → Diagnóstico** te dice qué falta."""
+
+
+def _formulario_conexiones(clave_formulario: str) -> None:
+    """Identidad de EDGAR (obligatoria) y claves de IA (opcionales), guardadas en el .env local (nunca en git)."""
+    from informes_warrants.config import guardar_conexiones
+
+    with st.form(clave_formulario):
+        nombre = st.text_input("Tu nombre o el de tu empresa", help="La SEC exige identificarse en cada consulta (no tiene coste).")
+        correo = st.text_input("Tu correo electrónico", help="Solo se envía a la SEC como identificación (cabecera User-Agent).")
+        gemini = st.text_input("Clave de Gemini (opcional)", type="password",
+                               help="Google AI Studio → Get API key. Activa los borradores de la IA y el consenso de analistas.")
+        groq = st.text_input("Clave de Groq (opcional, respaldo de la IA)", type="password", help="console.groq.com → API Keys.")
+        if st.form_submit_button("Guardar las conexiones", type="primary"):
+            if nombre.strip() and "@" in correo:
+                ruta = guardar_conexiones({"EDGAR_IDENTITY": f"{nombre.strip()} {correo.strip()}", "GEMINI_API_KEY": gemini,
+                                           "GROQ_API_KEY": groq})
+                st.success(f"Guardado en {ruta} (fichero local, fuera de git). Recarga la página.")
+            elif gemini or groq:
+                guardar_conexiones({"GEMINI_API_KEY": gemini, "GROQ_API_KEY": groq})
+                st.success("Claves guardadas.")
+            else:
+                st.error("Escribe tu nombre y un correo válido.")
+
+
+def pantalla_primeros_pasos() -> None:
+    st.title("Bienvenido a Warrants & Co · Informes")
+    st.markdown("Para empezar solo hace falta identificarte ante la SEC (gratis). Las claves de IA son opcionales: sin ellas "
+                "el informe sale igual, con los textos del analista marcados.")
+    _formulario_conexiones("primeros_pasos")
+    st.markdown(GUIA)
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def _filings_nuevos(tickers: tuple[str, ...]) -> list[str]:
+    """C4: una consulta ligera por empresa seguida, como mucho una vez al día."""
+    from edgar import Company
+
+    from informes_warrants.almacenamiento.deteccion import FORMULARIOS
+
+    almacen, nuevos = Almacen(), []
+    for t in tickers[:20]:
+        try:
+            f = Company(t).get_filings(form=FORMULARIOS, amendments=False).latest()
+            if f is not None and not almacen.conoce_accession(f.accession_no):
+                nuevos.append(f"{t}: {f.form} del {f.filing_date}")
+        except Exception:  # noqa: BLE001  (sin conexión: sin aviso)
+            continue
+    return nuevos
+
+
+def _avisos_de_filings(almacen: Almacen) -> None:
+    empresas = tuple(almacen.empresas())
+    if empresas:
+        for aviso in _filings_nuevos(empresas):
+            st.sidebar.info(f"Nuevo informe en la SEC · {aviso}. Ábrelo en «Empresas y versiones» → «Detectar».")
+
+
 def pantalla_configuracion() -> None:
     st.header("Configuración")
+    with st.expander("Diagnóstico de la instalación", expanded=False):
+        from informes_warrants.observabilidad import diagnostico, resumen_tiempos
+
+        for nombre, bien, detalle in diagnostico():
+            (st.success if bien else st.warning)(f"{nombre}: {detalle}")
+        tiempos = resumen_tiempos()
+        if tiempos:
+            st.dataframe([{"Etapa": k, "Veces": v["n"], "Mediana (s)": v["mediana"], "Máximo (s)": v["maximo"], "Errores": v["errores"]}
+                          for k, v in tiempos.items()], hide_index=True)
+    with st.expander("Conexiones (SEC y claves de IA)"):
+        _formulario_conexiones("conexiones")
     st.caption("Uso interno del SaaS: cada usuario introduce aquí su autoría; se guarda en su carpeta de datos, "
                "fuera del repositorio.")
     actual = autoria.cargar()
@@ -360,15 +435,18 @@ def main() -> None:
     st.set_page_config(page_title="Warrants & Co · Informes", layout="wide")
     try:
         configurar_identidad()
-    except Exception as e:  # noqa: BLE001  (sin EDGAR_IDENTITY no se puede consultar la SEC)
-        st.error(str(e))
+    except Exception:  # noqa: BLE001  (sin EDGAR_IDENTITY no se puede consultar la SEC: primeros pasos)
+        pantalla_primeros_pasos()
         st.stop()
     iniciar_sesion()
     with st.sidebar:
         st.markdown("**WARRANTS & CO.** · Apertura de posiciones")
         st.session_state.ticker = st.text_input("Empresa (ticker)", st.session_state.ticker).strip().upper()
         pantalla = st.radio("Pantalla", PANTALLAS)
+        with st.expander("Cómo se usa (4 pasos)"):
+            st.markdown(GUIA)
     almacen = _almacen()
+    _avisos_de_filings(almacen)
     if pantalla == "Configuración":
         pantalla_configuracion()
     elif not st.session_state.ticker:

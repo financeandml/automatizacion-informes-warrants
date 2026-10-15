@@ -65,6 +65,11 @@ class Almacen:
         emitidas = [v for v in self.historial(ticker) if v.estado == Estado.EMITIDA]
         return max(emitidas, key=lambda v: v.emitida or "", default=None)
 
+    def empresas(self) -> list[str]:
+        """Tickers con alguna versión (C4: los que se vigilan al abrir la interfaz)."""
+        with self._conexion() as con:
+            return [f[0] for f in con.execute("SELECT DISTINCT ticker FROM versiones ORDER BY ticker").fetchall()]
+
     def conoce_accession(self, accession: str) -> bool:
         with self._conexion() as con:
             return con.execute("SELECT 1 FROM versiones WHERE accession = ? LIMIT 1", (accession,)).fetchone() is not None

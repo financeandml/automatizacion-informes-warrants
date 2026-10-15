@@ -31,42 +31,32 @@ docs/                    documentación (empieza por docs/README.md)
 repositorios-github/     copias locales de los repos base (zips; no se publican)
 ```
 
-## Puesta en marcha
+## Puesta en marcha (5 minutos)
 
-Requisitos: Python 3.11-3.13 (recomendado 3.13).
+Lo único que necesitas: **Python 3.11-3.13** ([python.org](https://www.python.org/downloads/); en Windows marca «Add to PATH») y conexión a internet.
+
+1. **Descarga el repositorio**: botón «Code → Download ZIP» de GitHub (o `git clone`). Mejor en una carpeta que no sincronice OneDrive.
+2. **Instala** desde esa carpeta:
+   - Windows: `powershell -ExecutionPolicy Bypass -File instalar.ps1`
+   - macOS / Linux: `sh instalar.sh` (antes, para el PDF: `brew install pango` o `sudo apt install libpango-1.0-0 libpangoft2-1.0-0`)
+
+   El script crea el entorno de Python fuera de OneDrive, instala todo, prepara el PDF (en Windows descarga WeasyPrint autónomo si no tienes GTK) y comprueba la instalación.
+3. **Abre la interfaz**: doble clic en `abrir.bat` (Windows) o `sh abrir.sh`. Se abre en tu navegador en `http://localhost:8501`, solo accesible desde tu ordenador.
+4. **Primer uso**: la interfaz te pide tu nombre y tu correo (la SEC exige identificarse; es gratis). Las claves de IA son opcionales (Gemini o Groq): sin ellas, el informe sale igual con los textos del analista marcados.
+
+Si algo falla: `informes-warrants diagnostico` (o «Configuración → Diagnóstico» en la interfaz) dice qué falta y cómo arreglarlo. Opcional: [LibreOffice](https://www.libreoffice.org) para la segunda comprobación del modelo de valoración en Excel.
+
+<details><summary>Instalación manual (desarrolladores)</summary>
 
 ```bash
-# 1. Entorno virtual. Si el proyecto está en OneDrive, crea el entorno fuera
-#    (p. ej. %LOCALAPPDATA%\informes-warrants\venv): la sincronización lo ralentiza.
-python -m venv .venv
-.venv\Scripts\activate          # Windows (en macOS/Linux: source .venv/bin/activate)
-
-# 2. Dependencias (pdf = WeasyPrint)
-pip install -e ".[dev,pdf,ui]"   # ui: interfaz del analista (Streamlit)
-
-# 3. Configuración
-copy .env.example .env          # rellena EDGAR_IDENTITY y la key del modelo (docs/ia.md)
+python -m venv %LOCALAPPDATA%\informes-warrants\venv     # fuera de OneDrive
+%LOCALAPPDATA%\informes-warrants\venv\Scripts\activate
+pip install -e ".[dev,pdf,ui]"
+copy .env.example .env
 ```
 
-### WeasyPrint en Windows (PDF)
-
-WeasyPrint necesita las bibliotecas GTK/Pango, que se instalan con MSYS2:
-
-```powershell
-winget install MSYS2.MSYS2
-C:\msys64\usr\bin\bash.exe -lc "pacman -S --noconfirm mingw-w64-x86_64-pango"
-```
-
-El proyecto las encuentra solo en `C:\msys64\mingw64\bin`. Si las instalas en otra ruta, defínela en la variable `WEASYPRINT_DLL_DIRECTORIES`.
-
-### Modelo de lenguaje
-
-Por orden: llama4 en OpenRouter (`OPENROUTER_API_KEY`), `gpt-oss-120b` en Groq (`GROQ_API_KEY`, gratis) y Ollama en local. Detalle en [docs/ia.md](docs/ia.md).
-
-```powershell
-winget install Ollama.Ollama
-ollama pull llama3.2:3b
-```
+En Windows, WeasyPrint usa GTK de MSYS2 si está en `C:\msys64\mingw64\bin` (`winget install MSYS2.MSYS2` y `pacman -S mingw-w64-x86_64-pango`); si no, el ejecutable autónomo que instala `instalar.ps1` (`WEASYPRINT_EXE`). Modelo de lenguaje: [docs/ia.md](docs/ia.md).
+</details>
 
 ## Uso
 

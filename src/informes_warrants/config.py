@@ -41,3 +41,33 @@ def directorio_datos() -> Path:
         )
     ruta.mkdir(parents=True, exist_ok=True)
     return ruta
+
+
+CONEXIONES = ("EDGAR_IDENTITY", "GEMINI_API_KEY", "GROQ_API_KEY", "OPENROUTER_API_KEY")
+
+
+def ruta_env() -> Path:
+    """El .env del proyecto (ignorado por git): el que encuentre python-dotenv o, si no hay, en la raíz del repositorio."""
+    from dotenv import find_dotenv
+
+    encontrado = find_dotenv(usecwd=True) or find_dotenv()
+    return Path(encontrado) if encontrado else Path(__file__).resolve().parents[2] / ".env"
+
+
+def guardar_conexiones(valores: dict[str, str]) -> Path:
+    """Escribe en .env las conexiones dadas (vacías = no se tocan) conservando el resto de líneas, y las carga."""
+    ruta = ruta_env()
+    lineas = ruta.read_text(encoding="utf-8").splitlines() if ruta.exists() else []
+    for clave, valor in valores.items():
+        valor = (valor or "").strip()
+        if clave not in CONEXIONES or not valor:
+            continue
+        nueva = f'{clave}="{valor}"' if " " in valor else f"{clave}={valor}"
+        indice = next((i for i, x in enumerate(lineas) if x.split("=", 1)[0].strip() == clave), None)
+        if indice is None:
+            lineas.append(nueva)
+        else:
+            lineas[indice] = nueva
+        os.environ[clave] = valor
+    ruta.write_text("\n".join(lineas) + "\n", encoding="utf-8")
+    return ruta
