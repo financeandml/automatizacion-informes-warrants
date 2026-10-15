@@ -387,6 +387,9 @@ class FuenteEntityFacts:
 
     def __init__(self, facts):
         self._facts, self._cache = facts, {}
+        # Sin esto, edgartools calcula sugerencias difusas contra todos los conceptos por cada concepto no declarado
+        # antes de avisar (~0,08 s cada vez: 68 s en IOVA). Solo silencia avisos; los datos no cambian.
+        facts._suppress_warnings = True
         self._splits = desdoblamientos(facts)
         self._escalas = escalas_acciones(facts)
 

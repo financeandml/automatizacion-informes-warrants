@@ -677,8 +677,10 @@ def construir(ticker: str, con_ia: bool = True, comparables: list[str] | None = 
 
 @medido("reunir")
 def reunir(ticker: str, con_ia: bool = True, comparables: list[str] | None = None, anterior: dict | None = None,
-           historial_resumenes: list[dict] | None = None, estimaciones: Estimaciones | None = None) -> dict:
-    """Datos del informe (SEC, mercado, IA opcional), listos para `componer`. Requiere EDGAR_IDENTITY y red.
+           historial_resumenes: list[dict] | None = None, estimaciones: Estimaciones | None = None,
+           borradores: bool = True) -> dict:
+    """Datos del informe (SEC, mercado, IA opcional), listos para `componer`. `borradores=False`: sin los borradores
+    de la IA (la interfaz los pide después con `con_borradores_ia`, en segundo plano). Requiere EDGAR_IDENTITY y red.
 
     `comparables`: lista del analista; sin ella, el SaaS propone una por código SIC (marcada «Revisar»).
     `anterior`: resumen del informe anterior (R16). `historial_resumenes`: resúmenes de las versiones emitidas (R17).
@@ -694,7 +696,8 @@ def reunir(ticker: str, con_ia: bool = True, comparables: list[str] | None = Non
     if cobertura.plantilla not in (PLANTILLA_GENERAL, PENDIENTE_VALIDAR):  # banca, seguros, REIT y BDC (B2)
         from .sectorial import reunir_sectorial
 
-        return reunir_sectorial(empresa, ticker, cobertura, con_ia, comparables, anterior, historial_resumenes, estimaciones)
+        return reunir_sectorial(empresa, ticker, cobertura, con_ia, comparables, anterior, historial_resumenes, estimaciones,
+                                borradores)
     anuales = ["20-F", "40-F"] if cobertura.extranjera else ["10-K"]  # P4: emisores extranjeros con ADR en EE. UU.
     anuales_10k = empresa.get_filings(form=anuales, amendments=False).head(3)
     filing = anuales_10k[0]
@@ -827,7 +830,7 @@ def reunir(ticker: str, con_ia: bool = True, comparables: list[str] | None = Non
         precios_semanales=precios_semanales(ticker), fechas_disponibles=disponibles, anterior=anterior,
         historial_resumenes=historial_resumenes,
     )
-    return con_borradores_ia(datos, con_ia)
+    return con_borradores_ia(datos, con_ia and borradores)
 
 
 def con_borradores_ia(datos: dict, con_ia: bool) -> dict:

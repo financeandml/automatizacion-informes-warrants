@@ -16,6 +16,7 @@ log = logging.getLogger(__name__)
 MAX_FILIALES = 15
 MAX_FORM3_PERSONA = 15  # Form 3 de una persona (consejeros de varias empresas)
 MAX_FORM3 = 120  # Form 3 que se revisan, del más reciente al más antiguo, buscando el alta de cada persona
+LOTE_FORM3 = 8  # descargas simultáneas (la SEC admite 10 por segundo)
 
 
 def filiales(tenk) -> dict | None:
@@ -45,16 +46,24 @@ def altas_como_insider(empresa, nombres: list[str], ciks: dict[str, str] | None 
         filings = empresa.get_filings(form="3", amendments=False)
     except Exception:  # noqa: BLE001
         return altas, aproximadas
-    for filing in filings.head(MAX_FORM3):
-        if not pendientes:
-            break
+    from concurrent.futures import ThreadPoolExecutor
+
+    def declarante(filing) -> str:
         try:
-            nombre = " ".join(str(filing.obj().get_ownership_summary().insider_name).split())
+            return " ".join(str(filing.obj().get_ownership_summary().insider_name).split())
         except Exception:  # noqa: BLE001
-            continue
-        original = pendientes.pop(nombre.lower(), None)
-        if original:
-            altas[original] = date.fromisoformat(str(filing.filing_date)[:10])
+            return ""
+
+    recientes = list(filings.head(MAX_FORM3))
+    with ThreadPoolExecutor(max_workers=LOTE_FORM3) as hilos:  # C5: por lotes en paralelo, en orden de recencia
+        for inicio in range(0, len(recientes), LOTE_FORM3):
+            if not pendientes:
+                break
+            lote = recientes[inicio:inicio + LOTE_FORM3]
+            for filing, nombre in zip(lote, hilos.map(declarante, lote), strict=True):
+                original = pendientes.pop(nombre.lower(), None) if nombre else None
+                if original:
+                    altas[original] = date.fromisoformat(str(filing.filing_date)[:10])
     for original in list(pendientes.values()):
         cik = (ciks or {}).get(original)
         alta = _alta_por_cik(cik, empresa.cik, "3")

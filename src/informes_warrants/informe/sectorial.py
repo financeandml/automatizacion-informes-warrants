@@ -179,7 +179,7 @@ def _calidad(perfil: Perfil, historico: dict, ejercicio: int, xbrl, accession: s
 
 def reunir_sectorial(empresa, ticker: str, cobertura, con_ia: bool = True, comparables: list[str] | None = None,
                      anterior: dict | None = None, historial_resumenes: list[dict] | None = None,
-                     estimaciones: Estimaciones | None = None) -> dict:
+                     estimaciones: Estimaciones | None = None, borradores: bool = True) -> dict:
     """Argumentos de `componer` (con `perfil`) para una empresa de un perfil sectorial. Requiere EDGAR_IDENTITY y red."""
     from ..ingesta.mercado import precios_semanales
 
@@ -231,7 +231,7 @@ def reunir_sectorial(empresa, ticker: str, cobertura, con_ia: bool = True, compa
         comparables_del_analista=del_analista, precios_semanales=precios_semanales(ticker), anterior=anterior,
         historial_resumenes=historial_resumenes,
     )
-    return con_borradores_ia(datos, con_ia)
+    return con_borradores_ia(datos, con_ia and borradores)
 
 
 def _supuesto(nombre: str, m: dict, perfil_id: str, origen: str) -> str:

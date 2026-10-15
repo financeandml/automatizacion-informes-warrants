@@ -10,6 +10,7 @@ núcleo (aquí no se calcula nada: las cifras salen de `calculo/` a través de `
 3. Configuración: la autoría de cada usuario (uso interno del SaaS; se guarda fuera del repositorio).
 """
 
+import logging
 from dataclasses import replace
 
 import streamlit as st
@@ -27,6 +28,7 @@ from informes_warrants.ui import logica
 from informes_warrants.ui.tareas import Tareas
 
 PANTALLAS = ("Empresas y versiones", "Editor del informe", "Configuración")
+MAX_EMPRESAS_EN_MEMORIA = 5  # datos reunidos que se conservan al recargar el navegador
 ESCENARIOS = ("pesimista", "base", "optimista")
 
 
@@ -35,8 +37,39 @@ def iniciar_sesion() -> None:
                "memo": None, "informe_listo": None}
     for clave, valor in valores.items():
         st.session_state.setdefault(clave, valor)
-    if "tareas" not in st.session_state:
-        st.session_state.tareas = Tareas()
+    st.session_state.tareas = _tareas()
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def _nombre_empresa(ticker: str) -> str | None:
+    """Nombre en la SEC del ticker escrito (None si no existe): confirma la empresa antes de trabajar con ella."""
+    from edgar import Company
+
+    try:
+        return Company(ticker).name
+    except Exception:  # noqa: BLE001  (ticker inexistente o sin conexión)
+        return None
+
+
+@st.cache_resource
+def _tareas() -> Tareas:
+    """Del servidor, no de la pestaña: recargar el navegador no pierde lo que se está cargando o emitiendo."""
+    return Tareas()
+
+
+@st.cache_resource
+def _datos_cargados() -> dict:
+    """{etiqueta de la versión: datos reunidos}: recargar el navegador no obliga a volver a la SEC (C5)."""
+    return {}
+
+
+def _adoptar(version, datos: dict) -> None:
+    """La sesión pasa a editar `version` con sus datos ya reunidos y lo que el analista guardó en ella."""
+    contenido = version.contenido
+    s = st.session_state
+    s.datos, s.datos_de, s.memo, s.ajustes = datos, version.etiqueta, None, {}
+    s.textos = dict(contenido.get("textos") or {})
+    s.estimaciones = estimaciones_desde_dict(contenido["estimaciones"]) if contenido.get("estimaciones") else None
 
 
 @st.cache_resource
@@ -100,8 +133,16 @@ def _comparar(versiones: list) -> None:
 
 def _cargar(version, almacen: Almacen, con_ia: bool, comparables: list[str] | None) -> None:
     """Reúne los datos de la SEC y del mercado en segundo plano (C5): el analista puede ir a otras pantallas."""
-    st.session_state.tareas.lanzar("datos", f"cargando los datos de {version.etiqueta}", datos_de_la_version,
-                                   version, almacen, con_ia, comparables, datos={"version": version})
+    st.session_state.tareas.lanzar(f"datos:{version.etiqueta}", f"cargando los datos de {version.etiqueta}",
+                                   datos_de_la_version, version, almacen, con_ia, comparables, borradores=False,
+                                   datos={"version": version, "con_ia": con_ia})
+
+
+def _con_borradores(datos: dict) -> dict:
+    """En segundo plano, con el editor ya abierto: borradores de la IA de los apartados del analista (los más lentos)."""
+    from informes_warrants.informe.construir import con_borradores_ia
+
+    return con_borradores_ia(dict(datos), True)  # copia: la sesión sigue usando los datos sin borradores mientras
 
 
 def _generar(version, almacen: Almacen, datos: dict, emitir: bool):
@@ -117,20 +158,28 @@ def _generar(version, almacen: Almacen, datos: dict, emitir: bool):
 def _recoger_tareas() -> None:
     """Aplica a la sesión lo que terminó en segundo plano."""
     tareas = st.session_state.tareas
-    hecha = tareas.recoger("datos")
-    if hecha:
+    for clave in [k for k in tareas.claves() if k.startswith(("datos:", "borradores:"))]:
+        hecha = tareas.recoger(clave)
+        if not hecha:
+            continue
         tarea, datos, error = hecha
+        version = tarea.datos["version"]
         if error:
-            st.sidebar.error(f"No se pudieron cargar los datos: {error}")
-        else:
-            version = tarea.datos["version"]
-            contenido = version.contenido
-            st.session_state.datos, st.session_state.datos_de, st.session_state.memo = datos, version.etiqueta, None
-            st.session_state.textos = dict(contenido.get("textos") or {})
-            st.session_state.estimaciones = (estimaciones_desde_dict(contenido["estimaciones"])
-                                             if contenido.get("estimaciones") else None)
-            st.session_state.ajustes = {}
+            st.sidebar.error(f"No se pudieron cargar los datos de {version.etiqueta}: {error}")
+            continue
+        cargados = _datos_cargados()
+        cargados[version.etiqueta] = datos
+        for antigua in list(cargados)[:-MAX_EMPRESAS_EN_MEMORIA]:
+            del cargados[antigua]
+        if clave.startswith("datos:"):
+            _adoptar(version, datos)
             st.sidebar.success(f"Datos de {version.etiqueta} cargados: ya puedes editar el informe.")
+            if tarea.datos.get("con_ia"):
+                tareas.lanzar(f"borradores:{version.etiqueta}", f"la IA prepara los borradores de {version.etiqueta}",
+                              _con_borradores, datos, datos={"version": version})
+        elif st.session_state.datos_de == version.etiqueta:  # sin tocar textos ni estimaciones del analista
+            st.session_state.datos, st.session_state.memo = datos, None
+            st.sidebar.success("Borradores de la IA añadidos a los apartados del analista.")
     hecha = tareas.recoger("informe")
     if hecha:
         tarea, version, error = hecha
@@ -345,10 +394,12 @@ def pantalla_editor(almacen: Almacen, ticker: str) -> None:
         st.info("No hay ninguna versión abierta: detecta y confirma una en «Empresas y versiones».")
         return
     st.header(version.etiqueta)
-    if st.session_state.tareas.en_curso("datos"):
+    if st.session_state.tareas.en_curso(f"datos:{version.etiqueta}"):
         st.info("Cargando los datos de la SEC y del mercado en segundo plano (1-2 minutos la primera vez). Puedes ir a "
                 "«Empresas y versiones» o «Configuración» mientras tanto: la barra lateral avisa al terminar.")
         return
+    if st.session_state.datos_de != version.etiqueta and version.etiqueta in _datos_cargados():
+        _adoptar(version, _datos_cargados()[version.etiqueta])  # ya reunidos en esta sesión del servidor
     if st.session_state.datos is None or st.session_state.datos_de != version.etiqueta:
         con_ia = st.checkbox("Usar el modelo de lenguaje (riesgos, catalizadores y competencia)", value=True)
         lista = st.text_input("Comparables (tickers separados por comas; vacío = propuesta automática por SIC)",
@@ -376,6 +427,10 @@ def pantalla_editor(almacen: Almacen, ticker: str) -> None:
             _emision(c, version, almacen)
     with derecha:
         st.caption(f"Vista previa · {len(c['pendientes'])} apartados pendientes del analista · calidad {c['calidad'].nivel}")
+        if st.button("Volver a pedir los datos a la SEC", help="Solo si la SEC o el mercado han publicado algo nuevo desde la carga."):
+            _datos_cargados().pop(version.etiqueta, None)
+            st.session_state.datos = st.session_state.datos_de = None
+            st.rerun()
         st.iframe(memo["vista"], height=1400)  # HTML propio; los textos de terceros llegan escapados (render._md)
 
 
@@ -517,8 +572,17 @@ def main() -> None:
     iniciar_sesion()
     with st.sidebar:
         st.markdown("**WARRANTS & CO.** · Apertura de posiciones")
-        st.session_state.ticker = st.text_input("Empresa (ticker)", st.session_state.ticker).strip().upper()
-        pantalla = st.radio("Pantalla", PANTALLAS)
+        url = st.query_params  # ticker y pantalla en la dirección: recargar el navegador no los pierde
+        st.session_state.ticker = st.text_input("Empresa (ticker)", st.session_state.ticker or url.get("ticker", ""),
+                                                placeholder="p. ej. AAPL").strip().upper()
+        pantalla = st.radio("Pantalla", PANTALLAS, index=PANTALLAS.index(url.get("pantalla")) if url.get("pantalla") in PANTALLAS else 0)
+        url["pantalla"] = pantalla
+        empresa = None
+        if st.session_state.ticker:
+            url["ticker"] = st.session_state.ticker
+            empresa = _nombre_empresa(st.session_state.ticker)
+            if empresa:
+                st.caption(empresa)
         with st.expander("Cómo se usa (4 pasos)"):
             st.markdown(GUIA)
     _recoger_tareas()
@@ -527,14 +591,21 @@ def main() -> None:
         _informe_listo()
     almacen = _almacen()
     _avisos_de_filings(almacen)
-    if pantalla == "Configuración":
-        pantalla_configuracion()
-    elif not st.session_state.ticker:
-        st.info("Escribe el ticker de una empresa cotizada en EEUU en la barra lateral.")
-    elif pantalla == PANTALLAS[0]:
-        pantalla_versiones(almacen, st.session_state.ticker)
-    else:
-        pantalla_editor(almacen, st.session_state.ticker)
+    try:
+        if pantalla == "Configuración":
+            pantalla_configuracion()
+        elif not st.session_state.ticker:
+            st.info("Escribe el ticker de una empresa cotizada en EE. UU. en la barra lateral.")
+        elif empresa is None:
+            st.warning(f"No encuentro «{st.session_state.ticker}» en la SEC. Escribe el ticker tal como cotiza "
+                       "(p. ej. AAPL o BRK.B).")
+        elif pantalla == PANTALLAS[0]:
+            pantalla_versiones(almacen, st.session_state.ticker)
+        else:
+            pantalla_editor(almacen, st.session_state.ticker)
+    except Exception as e:  # noqa: BLE001  (un aviso claro en lugar del error técnico; el detalle, en el registro)
+        logging.getLogger(__name__).exception("Error en la pantalla %s", pantalla)
+        st.error(f"No se ha podido completar la operación: {e}. Si se repite, «Configuración → Diagnóstico» indica qué falta.")
 
 
 main()

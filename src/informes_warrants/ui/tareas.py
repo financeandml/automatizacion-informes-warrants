@@ -39,6 +39,9 @@ class Tareas:
     def descripciones_en_curso(self) -> list[str]:
         return [t.descripcion for t in self._tareas.values() if not t.futuro.done()]
 
+    def claves(self) -> list[str]:
+        return list(self._tareas)
+
     def hay_terminadas(self) -> bool:
         return any(t.futuro.done() for t in self._tareas.values())
 

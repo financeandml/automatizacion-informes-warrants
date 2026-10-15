@@ -71,7 +71,7 @@ def contexto(c: dict, texto_negocio: str = "") -> str:
     return "\n".join(partes)[:MAX_CARACTERES_CONTEXTO]
 
 
-LOTE = 6  # apartados por llamada: el contexto va una vez por lote (Groq gratuito limita los tokens por minuto)
+LOTE = 12  # apartados por llamada: el contexto va una vez por lote (Groq gratuito limita los tokens por minuto)
 FORMATO_LOTE = (
     "Te pido varios apartados numerados. Responde con un bloque por apartado, en el mismo orden, y empieza cada bloque "
     "con una línea que solo diga «### n» (n = número del apartado). Cada apartado se valora por separado: si a uno le "

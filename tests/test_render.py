@@ -502,6 +502,14 @@ def test_la_interfaz_carga_en_segundo_plano(tmp_path, monkeypatch):
     monkeypatch.setenv("INFORMES_DATA_DIR", str(tmp_path))
     monkeypatch.setattr(versionado, "ultima_abierta", lambda *a: Version("AAPL", 2023, "FY", 1, "x", "2023-11-03", contenido={}))
     monkeypatch.setattr(versionado, "datos_de_la_version", lambda *a, **k: time.sleep(1) or datos)
+    from informes_warrants.informe import construir
+
+    monkeypatch.setattr(construir, "con_borradores_ia", lambda d, con_ia: d)  # sin llamar a la IA
+    import types
+
+    import edgar
+
+    monkeypatch.setattr(edgar, "Company", lambda t: types.SimpleNamespace(name="Apple Inc."))  # sin red
     app = AppTest.from_file(str(Path(ui.__file__).parent / "app.py"), default_timeout=120).run()
     app.sidebar.text_input[0].set_value("AAPL")
     app.sidebar.radio[0].set_value("Editor del informe").run()
@@ -509,10 +517,15 @@ def test_la_interfaz_carga_en_segundo_plano(tmp_path, monkeypatch):
     assert not app.exception and any("segundo plano" in i.value for i in app.info)
     app.sidebar.radio[0].set_value("Empresas y versiones").run()  # mientras carga, otra pantalla
     assert not app.exception
-    app.session_state["tareas"]._tareas["datos"].futuro.result(10)
+    app.session_state["tareas"]._tareas["datos:AAPL · FY2023 · v1"].futuro.result(10)
     app.sidebar.radio[0].set_value("Editor del informe").run()
     assert not app.exception and app.session_state["datos"] is datos
     app.run()  # la primera vista rellena las estimaciones por defecto: una recomposición más
     memo = app.session_state["memo"]
     app.run()
     assert not app.exception and app.session_state["memo"] is memo  # sin cambios del analista, no se recompone
+    recargada = AppTest.from_file(str(Path(ui.__file__).parent / "app.py"), default_timeout=120)
+    recargada.query_params["ticker"], recargada.query_params["pantalla"] = "AAPL", "Editor del informe"
+    recargada.run()  # recargar el navegador: ticker, pantalla y datos siguen ahí, sin volver a la SEC
+    assert not recargada.exception and recargada.session_state["datos_de"] == "AAPL · FY2023 · v1"
+    assert not any(b.label.startswith("Cargar los datos") for b in recargada.button)

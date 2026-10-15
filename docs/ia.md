@@ -12,6 +12,7 @@
 
 **Dónde se puede usar llama4 (comprobado el 2026-10-11):**
 - **Groq** retiró Llama 4 de su catálogo: solo quedan los modelos `llama-prompt-guard`.
+- **Límites de Groq gratuito (medidos el 2026-10-16):** 8.000 tokens por minuto y 200.000 al día por modelo (unos 3-4 informes). Por eso: razonamiento `low` en gpt-oss (`LLM_REASONING`; 5 veces menos tokens), la selección ve 240 caracteres de cada fragmento (la cita sigue siendo literal y completa), los borradores van en lotes de 12 y, sin cupo (429/413), se prueban `gpt-oss-20b` y `qwen3.8-27b` (cupo propio) antes de Ollama local, que es lento (~80 s por llamada). Los respaldos se llaman sin reintentos con espera.
 - **Ollama** no lo ofrece en su nube; en local ocupa 67 GB (`llama4:scout`) y este portátil tiene 16 GB de RAM.
 - **OpenRouter** sí lo ofrece (Scout y Maverick). Es la vía para usar llama4 sin un servidor propio.
 

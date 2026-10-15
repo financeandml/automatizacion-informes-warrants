@@ -174,7 +174,8 @@ def _interfaz(args) -> None:
 
     app = Path(__file__).parent / "ui" / "app.py"
     tema = ["--theme.base=light", "--theme.primaryColor=#2B0B02", "--theme.backgroundColor=#FFFFFF",
-            "--theme.secondaryBackgroundColor=#FFFFFF", "--theme.textColor=#000000"]  # los tres colores de la marca
+            "--theme.secondaryBackgroundColor=#FFFFFF", "--theme.textColor=#000000",  # los tres colores de la marca
+            "--theme.borderColor=#2B0B02", "--theme.showWidgetBorder=true"]  # con fondo blanco, los campos necesitan borde
     seguridad = ["--server.address=localhost", "--server.enableXsrfProtection=true", "--server.maxUploadSize=20"]  # C5: solo este equipo
     subprocess.run([sys.executable, "-m", "streamlit", "run", str(app), "--browser.gatherUsageStats=false", *seguridad, *tema], check=False)
 

@@ -136,3 +136,26 @@ def test_json_de_la_respuesta_de_gemini():
     bloque = chr(96) * 3
     assert extraer_json(bloque + "json" + chr(10) + '{"a": [1, 2]}' + chr(10) + bloque) == {"a": [1, 2]}
     assert extraer_json("sin json") is None
+
+
+def test_sin_cupo_prueba_otro_modelo_del_proveedor(monkeypatch):
+    """C5: Groq gratuito agota el cupo diario por modelo; antes de bajar a Ollama (lento) se prueban los demás."""
+    from informes_warrants.ia import llm
+
+    class SinCupo(Exception):
+        status_code = 429
+
+    llamadas = []
+
+    def llamar(cfg, sistema, usuario, reintentos=2):
+        llamadas.append(cfg.modelo)
+        if cfg.modelo == "openai/gpt-oss-120b":
+            raise SinCupo("tokens per day")
+        return "ok"
+
+    monkeypatch.setattr(llm, "_llamar", llamar)
+    monkeypatch.setattr(llm, "_agotados", {})
+    cfg = llm.LLMSettings("groq", "openai/gpt-oss-120b", "https://api.groq.com/openai/v1", "clave")
+    assert llm.completar("s", "u", cfg)[1].modelo == "openai/gpt-oss-20b"
+    assert llm.completar("s", "u", cfg)[1].modelo == "openai/gpt-oss-20b"  # el agotado ya no se intenta
+    assert llamadas == ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "openai/gpt-oss-20b"]

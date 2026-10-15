@@ -6,8 +6,10 @@ Item 1A que extrae edgartools (`TenK.risk_factors`). El resultado es la lista co
 declarados, literal, que alimenta el bloque AUTO «riesgos.lista» y la selección de la IA.
 """
 
+import difflib
 import re
 import warnings
+from functools import lru_cache
 
 from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
 
@@ -51,24 +53,36 @@ VACIAS = frozenset("""the company company's companys and that could which with f
 may can are for has have been into than will would upon about including include includes inc""".split())
 
 
-def _palabras(texto: str) -> set[str]:
+@lru_cache(maxsize=8192)
+def _palabras(texto: str) -> frozenset[str]:
     """Palabras con contenido, sin plural final: «markets» y «market» cuentan igual."""
     palabras = re.findall(r"[a-z]+", normalizar(texto).lower())
-    return {p[:-1] if p.endswith("s") and len(p) > 4 else p for p in palabras if len(p) > 2 and p not in VACIAS}
+    return frozenset(p[:-1] if p.endswith("s") and len(p) > 4 else p for p in palabras if len(p) > 2 and p not in VACIAS)
+
+
+@lru_cache(maxsize=8192)
+def _normalizado(texto: str) -> str:
+    return normalizar(texto).lower()
 
 
 def _caracteres(a: str, b: str) -> float:
-    import difflib
-
-    return difflib.SequenceMatcher(None, normalizar(a).lower(), normalizar(b).lower()).ratio()
+    return difflib.SequenceMatcher(None, _normalizado(a), _normalizado(b)).ratio()
 
 
-def _similitud(a: str, b: str) -> float:
+def _similitud(a: str, b: str, minimo: float = -1.0) -> float:
     """Máximo de la similitud de caracteres (difflib) y del solapamiento de palabras con contenido
     (|A ∩ B| / min(|A|, |B|)): el segundo detecta los títulos ampliados o reformulados, que difflib no ve.
-    «Sin cambios» exige además casi el mismo texto (caracteres ≥ IGUAL)."""
+    «Sin cambios» exige además casi el mismo texto (caracteres ≥ IGUAL).
+
+    `minimo`: si el par no puede superarlo (cotas rápidas de difflib), devuelve un valor ≤ minimo sin calcular la
+    similitud completa; al buscar el máximo el resultado es el mismo (C5: 18 s → menos de 1 en IOVA)."""
     pa, pb = _palabras(a), _palabras(b)
     solapamiento = len(pa & pb) / min(len(pa), len(pb)) if pa and pb else 0.0
+    if solapamiento <= minimo:
+        m = difflib.SequenceMatcher(None, _normalizado(a), _normalizado(b))
+        if m.real_quick_ratio() <= minimo or m.quick_ratio() <= minimo:
+            return solapamiento
+        return max(m.ratio(), solapamiento)
     return max(_caracteres(a, b), solapamiento)
 
 
@@ -79,7 +93,12 @@ def comparar_riesgos(actual: list[str], anterior: list[str]) -> dict[str, list]:
     como «posible reformulación» para que el analista lo confirme.
     """
     def mejor(titulo, otros):
-        return max(((o, _similitud(titulo, o)) for o in otros), key=lambda x: x[1], default=(None, 0.0))
+        elegido = (None, 0.0)  # como max(): el primero con la similitud más alta
+        for o in otros:
+            s = _similitud(titulo, o, elegido[1] if elegido[0] is not None else -1.0)
+            if elegido[0] is None or s > elegido[1]:
+                elegido = (o, s)
+        return elegido
 
     nuevos, modificados = [], []
     for t in actual:

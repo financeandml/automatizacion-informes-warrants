@@ -55,7 +55,8 @@ def recomponer(datos: dict, estimaciones, textos: dict[str, str] | None, ajustes
     return aplicar_textos(c, textos)
 
 
-def datos_de_la_version(version: Version, almacen: Almacen, con_ia: bool = True, comparables: list[str] | None = None) -> dict:
+def datos_de_la_version(version: Version, almacen: Almacen, con_ia: bool = True, comparables: list[str] | None = None,
+                        borradores: bool = True) -> dict:
     """Argumentos de `componer` para la versión (SEC y mercado; con red). La interfaz los guarda en la sesión."""
     from .construir import reunir
 
@@ -63,7 +64,7 @@ def datos_de_la_version(version: Version, almacen: Almacen, con_ia: bool = True,
     emitidas = [v for v in almacen.historial(version.ticker) if v.estado == Estado.EMITIDA and v.contenido.get("resumen")]
     return reunir(version.ticker, con_ia=con_ia, comparables=comparables or contenido.get("comparables"),
                   anterior=emitidas[-1].contenido["resumen"] if emitidas else None,
-                  historial_resumenes=[v.contenido["resumen"] for v in emitidas])
+                  historial_resumenes=[v.contenido["resumen"] for v in emitidas], borradores=borradores)
 
 
 def preparar(version: Version, almacen: Almacen, con_ia: bool = True, comparables: list[str] | None = None,

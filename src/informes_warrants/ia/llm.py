@@ -10,7 +10,8 @@ Groq, Ollama local); si el elegido falla, se recurre a Ollama local. Ver docs/ia
 
 import logging
 import os
-from dataclasses import dataclass
+import time
+from dataclasses import dataclass, replace
 
 from dotenv import load_dotenv
 
@@ -30,6 +31,11 @@ PROVEEDORES = {
 RESPALDO = "ollama"
 log = logging.getLogger(__name__)
 PRIORIDAD = ("gemini", "openrouter", "groq", RESPALDO)  # sin LLM_PROVIDER, el primero con API key (Gemini: usuario, 2026-10-15)
+# Con el cupo agotado (429/413), los otros modelos del mismo proveedor tienen su propio cupo diario (Groq gratuito:
+# 200.000 tokens al día por modelo, unos 3-4 informes): se prueban antes de bajar a Ollama local, que es lento.
+MODELOS_ALTERNATIVOS = {"groq": ("openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b")}
+AGOTADO_DURANTE = 3600  # segundos que se salta un modelo sin cupo
+_agotados: dict[str, float] = {}  # modelo: hasta cuándo se salta
 
 
 class LLMError(RuntimeError):
@@ -64,34 +70,55 @@ class LLMSettings:
         )
 
 
-def _llamar(cfg: LLMSettings, sistema: str, usuario: str) -> str:
+def _llamar(cfg: LLMSettings, sistema: str, usuario: str, reintentos: int = 2) -> str:
     from openai import OpenAI
 
-    cliente = OpenAI(base_url=cfg.url_base, api_key=cfg.api_key, timeout=600)
+    cliente = OpenAI(base_url=cfg.url_base, api_key=cfg.api_key, timeout=600, max_retries=reintentos)
+    # gpt-oss razona antes de responder y ese razonamiento gasta el cupo de tokens por minuto (Groq gratuito: 8.000).
+    # Para elegir, resumir o traducir basta «low»: medido, 5 veces menos tokens de salida y 3 veces más rápido.
+    extra = {"extra_body": {"reasoning_effort": os.getenv("LLM_REASONING", "low")}} if "gpt-oss" in cfg.modelo else {}
     respuesta = cliente.chat.completions.create(
         model=cfg.modelo, temperature=cfg.temperatura, max_tokens=cfg.max_tokens,
-        messages=[{"role": "system", "content": sistema}, {"role": "user", "content": usuario}],
+        messages=[{"role": "system", "content": sistema}, {"role": "user", "content": usuario}], **extra,
     )
     return (respuesta.choices[0].message.content or "").strip()
+
+
+def _sin_cupo(error: Exception) -> bool:
+    return getattr(error, "status_code", None) in (413, 429)
+
+
+def _candidatos(cfg: LLMSettings) -> list[LLMSettings]:
+    """El modelo elegido y, detrás, los demás del mismo proveedor; sin los que agotaron su cupo hace poco."""
+    ahora = time.time()
+    modelos = [cfg.modelo] + [m for m in MODELOS_ALTERNATIVOS.get(cfg.proveedor, ()) if m != cfg.modelo]
+    vivos = [m for m in modelos if _agotados.get(m, 0) < ahora] or modelos[:1]
+    return [replace(cfg, modelo=m) for m in vivos]
 
 
 @medido("ia")
 def completar(sistema: str, usuario: str, cfg: LLMSettings | None = None) -> tuple[str, LLMSettings]:
     """Respuesta del modelo y la configuración que la produjo (para registrarla en la versión)."""
     cfg = cfg or LLMSettings.desde_entorno()
-    try:
-        return _llamar(cfg, sistema, usuario), cfg
-    except Exception as error:
-        if cfg.proveedor == RESPALDO:
-            raise LLMError(f"Ollama no responde en {cfg.url_base}: ¿está instalado y arrancado? ({error})") from error
-        # C5: primero los demás proveedores con clave (p. ej. Groq si falla Gemini) y, al final, el respaldo local
-        siguientes = [x for x in PRIORIDAD if x not in (cfg.proveedor, RESPALDO) and os.getenv(PROVEEDORES[x][2] or "")] + [RESPALDO]
-        errores = [f"{cfg.proveedor}: {error}"]
-        for proveedor in siguientes:
-            log.warning("Falló %s · %s (%s); se usa %s.", cfg.proveedor, cfg.modelo, str(errores[-1])[:200], proveedor)
-            respaldo = LLMSettings.desde_entorno(proveedor)
-            try:
-                return _llamar(respaldo, sistema, usuario), respaldo
-            except Exception as error2:  # noqa: BLE001
-                errores.append(f"{proveedor}: {error2}")
-        raise LLMError("Fallaron todos los proveedores: " + "; ".join(e[:200] for e in errores)) from error
+    errores = []
+    for intento in _candidatos(cfg):
+        try:
+            return _llamar(intento, sistema, usuario), intento
+        except Exception as error:  # noqa: BLE001
+            errores.append(f"{intento.proveedor} · {intento.modelo}: {error}")
+            if intento.proveedor == RESPALDO:
+                raise LLMError(f"Ollama no responde en {intento.url_base}: ¿está instalado y arrancado? ({error})") from error
+            if not _sin_cupo(error):
+                break
+            _agotados[intento.modelo] = time.time() + AGOTADO_DURANTE
+            log.warning("Sin cupo en %s · %s; se prueba el siguiente modelo.", intento.proveedor, intento.modelo)
+    # C5: después, los demás proveedores con clave y, al final, el respaldo local; sin reintentos con espera
+    siguientes = [x for x in PRIORIDAD if x not in (cfg.proveedor, RESPALDO) and os.getenv(PROVEEDORES[x][2] or "")] + [RESPALDO]
+    for proveedor in siguientes:
+        log.warning("Falló %s (%s); se usa %s.", cfg.proveedor, errores[-1][:200], proveedor)
+        respaldo = LLMSettings.desde_entorno(proveedor)
+        try:
+            return _llamar(respaldo, sistema, usuario, reintentos=0), respaldo
+        except Exception as error2:  # noqa: BLE001
+            errores.append(f"{proveedor}: {error2}")
+    raise LLMError("Fallaron todos los proveedores: " + "; ".join(e[:200] for e in errores))

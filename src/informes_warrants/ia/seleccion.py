@@ -29,6 +29,9 @@ def cita_valida(cita: str, texto_fuente: str) -> bool:
     return bool(cita) and normalizar(cita) in normalizar(texto_fuente)
 
 
+MAX_CARACTERES_FRAGMENTO = 240
+
+
 def _json(respuesta: str) -> list:
     bloque = re.search(r"\[.*\]", respuesta, re.DOTALL)
     if not bloque:
@@ -42,9 +45,12 @@ def seleccionar(candidatos: list[str], texto_fuente: str, instruccion: str, n: i
     candidatos = [c for c in candidatos if cita_valida(c, texto_fuente)]
     if not candidatos:
         return [], cfg or LLMSettings.desde_entorno()
-    lista = "\n".join(f"{i}. {c}" for i, c in enumerate(candidatos, 1))
+    # La IA elige por número viendo el comienzo de cada fragmento; la cita es el fragmento literal entero. Así la
+    # llamada cabe en el cupo por minuto de Groq gratuito (8.000 tokens) y gasta menos cupo diario.
+    lista = "\n".join(f"{i}. {c[:MAX_CARACTERES_FRAGMENTO]}" for i, c in enumerate(candidatos, 1))
     usuario = (f"{instruccion}\nElige como máximo {n} fragmentos. Devuelve una lista JSON de objetos "
-               '{"n": número del fragmento, "resumen": "una frase en español de 25 palabras como máximo"}.'
+               '{"n": número del fragmento, "resumen": "una frase en español de España, con registro formal de '
+               'informe de análisis, de 25 palabras como máximo"}.'
                f"\n\nFragmentos:\n{lista}")
     respuesta, usado = completar(SISTEMA, usuario, cfg)
     elegidos, vistos = [], set()

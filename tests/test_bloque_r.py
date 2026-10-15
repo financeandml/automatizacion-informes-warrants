@@ -582,15 +582,15 @@ def test_generar_borradores_con_modelo_simulado(monkeypatch):
         llamadas.append(usuario)
         if "titular" in usuario:
             return "### 1\nCrecimiento del 14,2 % con caja neta.\n### 2\nSIN DATOS\n**### 3**\nInventa un 99 %.", cfg
-        return "\n".join(f"### {n}\nCrece con caja neta." for n in range(1, 7)), cfg
+        return "\n".join(f"### {n}\nCrece con caja neta." for n in range(1, 13)), cfg
 
     monkeypatch.setattr(borradores, "completar", completar)
     r = borradores.generar(["titular de la tesis", "tamaño del mercado", "composición del consejo"], "Crece un 14,2 %.")
     assert r == {"titular de la tesis": "Crecimiento del 14,2 % con caja neta."}  # sin datos y cifra inventada: fuera
     assert len(llamadas) == 1  # un lote: el contexto se envía una vez
     llamadas.clear()
-    r = borradores.generar([f"apartado {n}" for n in range(8)], "Crece un 14,2 %.")
-    assert len(llamadas) == 2 and len(r) == 8  # 8 apartados = 2 lotes de como mucho 6
+    r = borradores.generar([f"apartado {n}" for n in range(14)], "Crece un 14,2 %.")
+    assert len(llamadas) == 2 and len(r) == 14  # 14 apartados = 2 lotes de como mucho 12
 
 
 def test_marcadores_con_borrador_siguen_pendientes():
