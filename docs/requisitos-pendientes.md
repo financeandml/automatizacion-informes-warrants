@@ -55,7 +55,7 @@ El estado de cada fase está en una sola tabla: [plan.md, «Fases»](plan.md#fas
 | E2 | Proveedor de LLM | ✅ Integrado: `gpt-oss-120b` en Groq (activo) + Ollama local. Groq retiró llama4; para usarlo, `OPENROUTER_API_KEY` (opcional, de pago, [ia.md](ia.md)) |
 | E3 | GTK para WeasyPrint | ✅ Instalado (MSYS2 + pango) y probado |
 | E4 | Alcance del universo | ✅ Plantilla general + 4 perfiles sectoriales validados con 12 empresas + extranjeros en USD; SPAC/ETF/fondos abiertos, «plantilla pendiente de validar» |
-| E5 | Comparables | ✅ Propuesta automática por SIC, **solo orientativa**: sin la lista del analista, aviso antes de emitir (no bloquea); la valoración por múltiplos entra en el precio objetivo únicamente con esa lista (`--comparables`) |
+| E5 | Comparables | ✅ Comparables modelo del SaaS (sector de Damodaran; SIC si la empresa no está clasificada, 2026-10-15): entran en el modelo de valoración, no en el método de comparables del precio objetivo. Propuesta automática **solo orientativa** para el precio: sin la lista del analista, aviso antes de emitir (no bloquea); la valoración por múltiplos entra en el precio objetivo únicamente con esa lista (`--comparables`) |
 | E6 | Índices de referencia | ✅ S&P 500 + ETF sectorial SPDR asignado por SIC (`ingesta/mercado.SIC_A_ETF`) |
 | E7 | `git push` | ✅ Autorizado; el repo es público |
 | E8 | Clave de Alpha Vantage (opcional) | Opcional, como respaldo de yfinance |
@@ -67,9 +67,9 @@ El estado de cada fase está en una sola tabla: [plan.md, «Fases»](plan.md#fas
 
 | # | Qué | Estado |
 |---|---|---|
-| F1 | **Motor de valoración**: modelos, plantillas e información que aportará el usuario | Pendiente. Mientras tanto, el informe funciona con lo hecho: DCF por escenarios, DCF inverso y comparables con la lista del analista |
+| ~~F1~~ | ~~Motor de valoración~~ | ✅ Plantillas recibidas el 2026-10-14 e implementadas (B1, [motor-valoracion.md](motor-valoracion.md)) |
 | ~~F2~~ | ~~Parámetros del fondo~~ | ✅ Los pone el analista bajo su responsabilidad (2026-10-12) |
-| ~~F3~~ | ~~Fuentes externas~~ | ✅ Aceptadas **solo** para opciones y posiciones en corto, etiquetadas «no auditadas» (2026-10-12) |
+| ~~F3~~ | ~~Fuentes externas~~ | ✅ Aceptadas **solo** para opciones y posiciones en corto, etiquetadas «no auditadas» (2026-10-12); excepciones: participación institucional (A6), prima de riesgo y beta y comparables modelo de Damodaran (2026-10-14/15); FactSet aparcado |
 | ~~F4~~ | ~~Alcance del apartado 21~~ | ✅ Resultados de la empresa; reacción bursátil a 5 sesiones, sin comparar (2026-10-12) |
 | ~~F5~~ | ~~Autoría~~ | ✅ Cada persona introduce sus datos en el SaaS (configuración de la interfaz) (2026-10-12) |
 | F7 | **LTM por segmento**: las empresas no publican cifras LTM por segmento, pero los 10-Q traen los trimestres y acumulados por segmento, con los que se podría calcular (anual + acumulado actual − acumulado anterior, validado contra el total LTM). Decisión del usuario del 2026-10-12: «LTM solo cuando la empresa lo publique» → hoy no hay columna LTM. Decisión del usuario (2026-10-13): **calcularlo así de forma provisional**, marcado como tal en el informe, y cerrar la decisión más adelante | Provisional (abierta) |
