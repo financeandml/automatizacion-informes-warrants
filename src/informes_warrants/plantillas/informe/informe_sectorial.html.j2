@@ -212,6 +212,11 @@
     <tr><td>Prima de riesgo de mercado</td><td>{{ c.origen_prima }}</td></tr>
     {% if c.motor and c.motor.get("modelo") %}<tr><td>Modelo de valoración</td><td>Libro de Excel de Warrants &amp; Co. con la valoración del perfil y la hoja de comparables, con fórmulas vivas (se descarga desde el SaaS)</td></tr>{% endif %}
     <tr><td>Comparables</td><td>{{ c.comparables_criterio or "sin comparables" }}</td></tr>
+    {% set fi = c.get("ficha") or {} %}{% if fi.get("empleados") %}<tr><td>Empleados (Item 1 del 10-K)</td><td>«{{ fi.empleados.frase|truncate(160, True, "…") }}»</td></tr>{% endif %}
+    {% if c.beta_sector %}<tr><td>Beta y comparables modelo (fuente externa)</td><td>{{ c.beta_sector.origen }}</td></tr>{% endif %}
+    {% set part = (c.insiders or {}).get("participaciones") %}{% if part %}<tr><td>Participación de insiders e instituciones (externa, no auditada)</td><td>yfinance · consulta del {{ part.consulta }}</td></tr>{% endif %}
+    {% if c.opciones %}<tr><td>Cadena de opciones (externa, no auditada)</td><td>yfinance · consulta del {{ c.opciones.consulta }}</td></tr>{% endif %}
+    {% if c.cortos %}<tr><td>Posiciones cortas (externa, no auditada)</td><td>FINRA vía yfinance · consulta del {{ c.cortos.consulta }}{% if c.cortos.fecha %} · dato a {{ c.cortos.fecha }}{% endif %}</td></tr>{% endif %}
   </table>
 </section>
 

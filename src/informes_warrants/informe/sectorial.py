@@ -43,6 +43,7 @@ from ..calculo.valoracion_sectorial import (
     valorar,
 )
 from ..calculo.valoracion_sectorial import NOMBRES as NOMBRES_MULTIPLOS
+from ..ingesta.ficha import empleados
 from .cambios import comparar as comparar_versiones
 from .cambios import resumen as resumen_version
 from .construir import (
@@ -252,7 +253,7 @@ def componer_sectorial(*, ticker: str, empresa: str, sic, cobertura, perfil: str
                        comparables_criterio: str = "", comparables_del_analista: bool = False, precios_semanales: list | None = None,
                        estimaciones: Estimaciones | None = None, escenarios=None, borradores_ia: dict | None = None,
                        anterior: dict | None = None, historial_resumenes: list | None = None, fecha: str | None = None,
-                       prima=None, beta_sector=None) -> dict:
+                       prima=None, beta_sector=None, bolsa: str | None = None, cierre_fiscal: str | None = None) -> dict:
     """Parte pura (sin red) de la plantilla sectorial: de los datos reunidos al contexto del informe.
 
     `escenarios` se acepta por compatibilidad con la interfaz y no se usa: el perfil no tiene DCF."""
@@ -381,7 +382,9 @@ def componer_sectorial(*, ticker: str, empresa: str, sic, cobertura, perfil: str
         "alarmas": alarmas or [], "autonomia": None,
         "opciones": mercado_de_opciones(opciones_cadena, cotizacion.precio, series_bolsa.get(ticker)),  # externos (B5)
         "cortos": {**cortos, "lectura": lectura_cortos(cortos.get("sobre_flotante"))} if cortos else None,
-        "motor": motor, "origen_prima": (f"{prima.fuente}{', ' + prima.fecha if prima.fecha else ''}" if prima is not None
+        "motor": motor, "beta_sector": beta_sector,
+        "ficha": {"bolsa": bolsa, "cierre_fiscal": cierre_fiscal, "empleados": empleados(texto_negocio)},
+        "origen_prima": (f"{prima.fuente}{', ' + prima.fecha if prima.fecha else ''}" if prima is not None
                                          else "Estimaciones del informe"),
         "textos": textos, "pendientes": [x for t in textos.values() for x in pendientes(t)],
         "fecha": fecha or date.today().isoformat(), "series_bolsa": series_bolsa, "precios_semanales": precios_semanales or [],

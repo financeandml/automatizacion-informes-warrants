@@ -10,5 +10,8 @@
         <tr><td>Valor contable por acción (USD)</td><td>{{ c.valor_contable_por_accion|num(2) }}</td></tr>
         {% if c.capital_flotante %}<tr><td>Capital flotante (USD bn, {{ c.capital_flotante[1] }})</td><td>{{ (c.capital_flotante[0]/1e9)|num(1) }}</td></tr>{% endif %}
         <tr><td>Beta (5a, semanal vs SPY)</td><td>{{ c.beta|num(2) }}</td></tr>
+        {% set fi = c.get("ficha") or {} %}{% if fi.get("bolsa") %}<tr><td>Bolsa</td><td>{{ fi.bolsa }}</td></tr>{% endif %}
+        {% if fi.get("cierre_fiscal") %}<tr><td>Cierre del ejercicio fiscal</td><td>{{ fi.cierre_fiscal }}</td></tr>{% endif %}
+        <tr><td>Empleados (10-K)</td><td>{{ fi.empleados.numero|num(0) if fi.get("empleados") else "n.d." }}</td></tr>
       </table>
 

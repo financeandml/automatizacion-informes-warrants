@@ -74,6 +74,7 @@ from ..calculo.valoracion_relativa import (
     valor_implicito,
     valor_por_multiplos,
 )
+from ..ingesta.ficha import empleados
 from .cambios import comparar as comparar_versiones
 from .cambios import resumen as resumen_version
 from .cobertura import PENDIENTE_VALIDAR, PLANTILLA_GENERAL, cobertura_de, es_biotecnologia
@@ -228,7 +229,8 @@ def componer_general(*, ticker: str, empresa: str, sic, cobertura, filing: dict,
              precios_semanales: list | None = None,
              fechas_disponibles: dict | None = None,
              anterior: dict | None = None, historial_resumenes: list | None = None, autoria=None,
-             capital_flotante: tuple | None = None, prima=None, beta_sector=None) -> dict:
+             capital_flotante: tuple | None = None, prima=None, beta_sector=None, bolsa: str | None = None,
+             cierre_fiscal: str | None = None) -> dict:
     """Parte pura (sin red): de los datos ya reunidos al contexto completo del informe.
 
     Sin `estimaciones` ni `escenarios`, se usan los de por defecto; el editor pasa los del analista y todo se
@@ -483,7 +485,8 @@ def componer_general(*, ticker: str, empresa: str, sic, cobertura, filing: dict,
         "valor_dcf": valor_dcf, "valor_multiplos": valor_multiplos, "valor_multiplos_orientativo": valor_multiplos_orientativo,
         "valor_dcf_escenarios": valor_dcf_escenarios,
         "potencial_dcf_escenarios": valor_dcf_escenarios / cotizacion.precio - 1 if valor_dcf_escenarios else None,
-        "motor": motor, "wacc_motor": wacc_motor, "origen_prima": origen_prima,
+        "motor": motor, "wacc_motor": wacc_motor, "origen_prima": origen_prima, "beta_sector": beta_sector,
+        "ficha": {"bolsa": bolsa, "cierre_fiscal": cierre_fiscal, "empleados": empleados(texto_negocio)},
         "precio_modelo": precio_modelo,
         "precio_objetivo": precio_objetivo, "potencial": potencial, "potencial_dcf": potencial_dcf, "recomendacion": propuesta,
         "avisos_valoracion": avisos_valoracion, "avisos_emision": avisos_emision, "datos_dcf": datos_dcf,
@@ -756,6 +759,8 @@ def _comunes(empresa, ticker: str, filing, xbrl, ejercicio: int, con_ia: bool, f
     from ..ingesta.directivos import filiales as filiales_10k
     from ..ingesta.eventos import ANIOS_ALARMAS, categoria_presentador, eventos_8k, hechos_relevantes
     from ..ingesta.eventos import alarmas as alarmas_sec
+    from ..ingesta.ficha import bolsa as bolsa_de
+    from ..ingesta.ficha import cierre_fiscal
     from ..ingesta.gobierno import gobierno as datos_gobierno
     from ..ingesta.mercado import INDICE, comportamiento, cotizacion, etf_sectorial, historico, prima_riesgo, tipo_libre_riesgo
     from ..ingesta.nombres import nombre_legible
@@ -813,6 +818,7 @@ def _comunes(empresa, ticker: str, filing, xbrl, ejercicio: int, con_ia: bool, f
         series_bolsa=_series_bolsa(ticker, etf_sectorial(empresa.sic), historico, INDICE),
         riesgos=riesgos, riesgos_lista=riesgos_lista, texto_negocio=texto_negocio, competencia_texto=competencia_texto,
         rf=tipo_libre_riesgo(), prima=prima_riesgo(), beta_sector=beta_sectorial(ticker), gobierno=datos_gobierno(empresa, xbrl),
+        bolsa=bolsa_de(empresa), cierre_fiscal=cierre_fiscal(cierre_ejercicio),  # P6: ficha de empresa
         insiders=_insiders(empresa, ticker), eventos=eventos, alarmas=alarmas_sec(empresa, date.today(), filing, eventos),
         riesgos_cambios=cambios, catalizadores=catalizadores, filiales=filiales_10k(tenk),
         opciones_cadena=cadena_opciones(ticker), cortos=posiciones_cortas(ticker),

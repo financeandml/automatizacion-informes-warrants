@@ -416,3 +416,13 @@ def test_indice_a_i_numera_el_informe(contexto):
     assert re.findall(r'<h2 id="sec-([A-I])">', html) == list(SECCIONES)
     enlaces = re.findall(r'<div class="indice-apartado"><a href="#ap-(\d+)">', html)
     assert [int(n) for n in enlaces] == sorted(APARTADOS)
+
+
+def test_fuentes_externas_fechadas_en_el_apartado_26():
+    """P10: las fuentes externas salen en «Documentos y datos utilizados» con su fuente y su fecha."""
+    from informes_warrants.informe import render
+    from informes_warrants.ingesta.damodaran import BetaSectorial
+
+    c = _componer(beta_sector=BetaSectorial("Computers/Peripherals", 1.32, 36, "January 2026"))
+    html = render.html(c)
+    assert "Beta y comparables modelo (fuente externa)" in html and "Computers/Peripherals" in html and "January 2026" in html

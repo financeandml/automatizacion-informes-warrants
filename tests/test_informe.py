@@ -207,3 +207,19 @@ def test_13g_solo_de_la_propia_empresa():
 
     r = accionistas_principales(SimpleNamespace(cik=19617, get_filings=filings), hoy)
     assert [(d["nombre"], d["porcentaje"]) for d in r["declaraciones"]] == [("Vanguard Capital Management", pytest.approx(0.071))]
+
+
+def test_ficha_empleados_bolsa_y_cierre():
+    """P6: empleados de la frase literal del Item 1 (la primera cifra que no es un año), cierre del ejercicio en español."""
+    from datetime import date
+
+    from informes_warrants.ingesta.ficha import cierre_fiscal, empleados
+
+    aapl = "Human Capital\n\nAs of September 27, 2025, the Company had approximately 166,000 full-time equivalent employees. Other."
+    ko = ("As of December 31, 2025 and 2024, our Company had approximately 65,900 and 69,700 employees, respectively, "
+          "of which approximately 8,900 were located in the United States.")
+    iova = "As of December 31, 2025, we had 975 employees, 775 of whom were engaged in research and development."
+    assert [empleados(x).numero for x in (aapl, ko, iova)] == [166_000, 65_900, 975]
+    assert empleados(aapl).frase.startswith("Human Capital As of September 27, 2025")
+    assert empleados("We design and sell smartphones.") is None
+    assert cierre_fiscal(date(2025, 9, 27)) == "27 de septiembre" and cierre_fiscal("2025-12-31") == "31 de diciembre"
