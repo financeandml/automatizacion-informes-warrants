@@ -36,6 +36,7 @@ from ..calculo.historial import historial as historial_recomendaciones
 from ..calculo.historico import METRICAS as METRICAS_HISTORICAS
 from ..calculo.historico import Anual, banda
 from ..calculo.historico import valor_implicito as valor_implicito_historico
+from ..calculo.insiders import participacion_institucional
 from ..calculo.metricas import Mercado, cagr, componentes_ev, fundamentales, ratio_de_sumas, valoracion
 from ..calculo.normalizador import (
     LTM,
@@ -500,6 +501,7 @@ def componer_general(*, ticker: str, empresa: str, sic, cobertura, filing: dict,
         "dupont": {**{f"FY{a}": dupont(estados, a) for a in ejercicios[-3:]}, "LTM": dupont(ltm, LTM)},
         "cascada": cascada_ebitda_fcf(estados, ejercicio, f), "vencimientos": vencimientos or {"importes": [], "motivo": ""},
         "puntuaciones": puntuaciones, "gobierno": gobierno, "riesgos_cambios": riesgos_cambios, "insiders": insiders,
+        "institucionales": participacion_institucional((insiders or {}).get("trece_f"), mercado.acciones),
         "catalizadores": catalizadores, "filiales": filiales, "gestion": gestion,
         "opciones": mercado_de_opciones(opciones_cadena, cotizacion.precio, series_bolsa.get(ticker)),  # externos (B5)
         "cortos": {**cortos, "lectura": lectura_cortos(cortos.get("sobre_flotante"))} if cortos else None,
@@ -606,11 +608,13 @@ def _insiders(empresa, ticker: str) -> dict:
     from ..ingesta.directivos import altas_como_insider
     from ..ingesta.insiders import accionistas_principales, transacciones
     from ..ingesta.mercado import participaciones
+    from ..ingesta.trece_f import tenedores as tenedores_13f
 
     hoy = date.today()
     tr = transacciones(empresa, hoy)
     return {**tr, "actividad": actividad(tr["operaciones"]), "accionistas": accionistas_principales(empresa, hoy),
-            "participaciones": participaciones(ticker), "altas": altas_como_insider(empresa, list(tr["personas"]))}
+            "participaciones": participaciones(ticker), "altas": altas_como_insider(empresa, list(tr["personas"])),
+            "trece_f": tenedores_13f(ticker)}  # P11: 13F de la SEC por emisora
 
 
 def construir(ticker: str, con_ia: bool = True, comparables: list[str] | None = None, anterior: dict | None = None,

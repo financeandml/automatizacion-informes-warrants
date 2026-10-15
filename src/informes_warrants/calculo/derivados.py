@@ -60,11 +60,12 @@ def actividad_inusual(calls, puts, precio: float) -> list[dict]:
         if df.empty or "volume" not in df or "openInterest" not in df:
             continue
         volumen, abiertas = df["volume"].fillna(0), df["openInterest"].fillna(0)
-        candidatos = df[(volumen >= MINIMO_INUSUAL) & (volumen > abiertas * MULTIPLO_INUSUAL)]
-        for f in candidatos.to_dict("records"):
+        candidatos = df.assign(volume=volumen, openInterest=abiertas)[(volumen >= MINIMO_INUSUAL) & (volumen > abiertas * MULTIPLO_INUSUAL)]
+        for f in candidatos.to_dict("records"):  # sin NaN: yfinance deja vacías las posiciones abiertas de algunos strikes
             filas.append({"tipo": tipo, "strike": float(f["strike"]), "vencimiento": str(f.get("vencimiento", "")),
                           "volumen": int(f["volume"]), "posiciones": int(f.get("openInterest") or 0),
-                          "prima_estimada": float(f["volume"]) * 100 * float(f.get("lastPrice") or 0),
+                          "prima_estimada": float(f["volume"]) * 100 * (float(f["lastPrice"]) if f.get("lastPrice") == f.get("lastPrice")
+                                                                          and f.get("lastPrice") is not None else 0.0),
                           "distancia": float(f["strike"]) / precio - 1 if precio else None})
     return sorted(filas, key=lambda f: -f["prima_estimada"])[:MAX_INUSUALES]
 

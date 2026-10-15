@@ -367,3 +367,31 @@ def test_dupont_golden(aapl):
     assert d["margen_neto"] * d["rotacion"] * d["apalancamiento"] == pytest.approx(d["roe"])
     cinco = d["carga_fiscal"] * d["carga_financiera"] * d["margen_operativo"] * d["rotacion"] * d["apalancamiento"]
     assert cinco == pytest.approx(d["roe"]) and d["roe"] == pytest.approx(96995 / 62146)
+
+
+def test_participacion_institucional_13f():
+    """P11: % del capital de cada tenedor del 13F y de la suma, sobre las acciones en circulación."""
+    from datetime import date
+
+    from informes_warrants.calculo.insiders import participacion_institucional
+
+    trece_f = {"periodo": date(2026, 6, 30), "conjunto": "x", "cusips": ["191216100"], "gestoras": 2, "acciones_totales": 722.7e6,
+               "filas": [{"gestora": "Berkshire Hathaway Inc", "acciones": 400e6, "valor": 32.5e9, "accession": "a", "presentado": "x"},
+                         {"gestora": "BlackRock, Inc.", "acciones": 322.7e6, "valor": 26.2e9, "accession": "b", "presentado": "x"}]}
+    r = participacion_institucional(trece_f, 4.3e9)
+    assert [round(f["porcentaje"], 4) for f in r["filas"]] == [0.093, 0.075]
+    assert r["porcentaje_total"] == pytest.approx(722.7 / 4300)
+    assert participacion_institucional(None, 4.3e9) is None
+
+
+def test_actividad_inusual_con_posiciones_vacias():
+    """yfinance deja vacías (NaN) las posiciones abiertas de algunos strikes: cuentan como 0, sin romper el informe."""
+    import math
+
+    import pandas as pd
+
+    from informes_warrants.calculo.derivados import actividad_inusual
+
+    calls = pd.DataFrame({"strike": [80.0], "volume": [900.0], "openInterest": [math.nan], "lastPrice": [math.nan]})
+    filas = actividad_inusual(calls, pd.DataFrame(), 81.0)
+    assert filas[0]["posiciones"] == 0 and filas[0]["volumen"] == 900 and filas[0]["prima_estimada"] == 0.0

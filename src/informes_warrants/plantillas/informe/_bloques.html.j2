@@ -30,6 +30,21 @@
   {% endif %}
 {% endmacro %}
 
+{% macro institucionales_13f() %}
+  {% set it = c.get("institucionales") %}
+  {% if it %}
+  <div style="break-inside: avoid">
+  <h3>Mayores tenedores institucionales (13F a {{ it.periodo.strftime("%d/%m/%Y") }})</h3>
+  <table class="datos">
+    <tr><th>Gestora</th><th>Acciones (mn)</th><th>% del capital</th><th>Valor (USD mn)</th><th>13F (accession)</th></tr>
+    {% for f in it.filas %}<tr><td>{{ f.gestora|truncate(40, True, "…") }}</td><td>{{ (f.acciones / 1e6)|num(1) }}</td><td>{{ f.porcentaje|pct }}</td><td>{{ (f.valor / 1e6)|num(0) }}</td><td>{{ f.accession }}</td></tr>{% endfor %}
+    <tr class="total"><td>Suma de los 13F ({{ it.gestoras }} gestoras)</td><td>{{ (it.acciones_totales / 1e6)|num(1) }}</td><td>{{ it.porcentaje_total|pct }}</td><td></td><td></td></tr>
+  </table>
+  <div class="fuente">Conjunto de datos del 13F de la SEC ({{ it.conjunto }}): posiciones en acciones (sin opciones) de los 13F-HR originales del trimestre, por el CUSIP {{ it.cusips|join(", ") }}. Porcentaje sobre las acciones en circulación del informe; la suma puede pasar del 100 % (una misma acción figura en el 13F de la gestora y en el de su matriz).{% if it.valor_en_miles %} {{ it.valor_en_miles }} gestoras declararon el valor en miles: corregido.{% endif %}{% if it.descartadas %} Descartadas {{ it.descartadas|length }} posiciones con acciones y valor incoherentes (precio implícito lejos de la mediana de {{ it.precio_implicito|num(2) }} USD).{% endif %}</div>
+  </div>
+  {% endif %}
+{% endmacro %}
+
 {% macro accionistas_e_insiders() %}
   {% if insiders %}{% set ins = c.insiders %}{% set a = ins.actividad %}
   <h3>Accionistas de más del 5 %</h3>

@@ -40,3 +40,12 @@ def compras_agrupadas(compras: list[dict]) -> dict | None:
         if len(nombres) >= MINIMO_COMPRADORES:
             return {"desde": inicio, "hasta": fin, "compradores": nombres, "importe": sum(o["importe"] or 0.0 for o in en_ventana)}
     return None
+
+
+def participacion_institucional(trece_f: dict | None, acciones: float | None) -> dict | None:
+    """Apartado 18 (P11): % del capital de cada gran tenedor y de la suma de los 13F sobre las acciones en circulación.
+    La suma puede pasar del 100 % (una misma acción figura en el 13F de la gestora y en el de su matriz)."""
+    if not trece_f or not acciones:
+        return None
+    filas = [{**f, "porcentaje": f["acciones"] / acciones} for f in trece_f["filas"]]
+    return {**trece_f, "filas": filas, "porcentaje_total": trece_f["acciones_totales"] / acciones}

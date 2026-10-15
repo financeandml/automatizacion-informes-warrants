@@ -22,6 +22,7 @@ from datetime import date
 from ..calculo.calidad import Informe as Calidad
 from ..calculo.hechos_clave import observaciones_sectoriales, seleccionar
 from ..calculo.historial import historial as historial_recomendaciones
+from ..calculo.insiders import participacion_institucional
 from ..calculo.metricas import Mercado, cagr
 from ..calculo.normalizador import LTM, FuenteEntityFacts, FuenteLTM, FuenteXBRL, acciones_en_circulacion
 from ..calculo.perfiles import IMPORTES, NOMBRES_ENTRADAS, PERFILES_SECTORIALES, POR_ACCION, VECES, Perfil
@@ -376,6 +377,7 @@ def componer_sectorial(*, ticker: str, empresa: str, sic, cobertura, perfil: str
         "catalizadores": catalizadores, "filiales": filiales, "equipo": _equipo(insiders, series_bolsa.get(ticker)),
         "cambios_direccion": [e for e in (eventos or []) if "5.02" in e["items"] and (date.today() - e["fecha"]).days <= 730],
         "insiders": insiders, "gobierno": gobierno, "cita_negocio": datos["cita_negocio"], "hechos": hechos,
+        "institucionales": participacion_institucional((insiders or {}).get("trece_f"), acciones),
         "competencia": {"texto": competencia_texto, "cuotas": {}, "nombres": {}, "roic": None, "wacc": None, "roic_menos_wacc": None,
                         "roic_mediana": None, "estabilidad": None, "estabilidad_mediana": None},
         "riesgos": riesgos, "riesgos_lista": riesgos_lista, "riesgos_cambios": riesgos_cambios, "puntuaciones": [],
