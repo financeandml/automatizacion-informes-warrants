@@ -112,6 +112,11 @@ class DatosMotor:
     componentes_ev: dict[str, float]  # nombre → importe (calculo.metricas.componentes_ev del LTM)
     comparables: list[Comparable] = field(default_factory=list)
     mediana_historica: dict[str, float] = field(default_factory=dict)  # ev_ebitda, per (5 años, R11)
+    # P19: flujos del accionista (hoja «DDM y RI»): dividendos por acción proyectados del informe, VC por acción y ROE
+    dpa_proyectados: list[float] = field(default_factory=list)
+    vc_por_accion: float | None = None
+    roe_sostenible: float | None = None
+    origen_roe: str = ""
     comparables_modelo: bool = False  # True: la propuesta del SaaS (no la lista del analista)
     origen_comparables: str = ""
     beta_sector: float | None = None  # «beta modelo»: desapalancada del sector de Damodaran (corregida por la caja)
@@ -282,14 +287,60 @@ class _Constructor:
         if self.e.ad is not None:
             hoja_acrecion(self, self.e.ad)
             self.con_ad = True
+        self._accionista()
         self._sintesis()
         self._controles()
         self._trazabilidad()
         orden = ["Portada", "Entradas", "Operating Model"] + [self._nombre_dcf(s) for s in self.d.segmentos] + \
-            ["Consolidated", "WACC", "Shares", "Comps", "LBO", "LBO Shares", "Acreción-dilución", "Síntesis", "Controles",
+            ["Consolidated", "WACC", "Shares", "Comps", "LBO", "LBO Shares", "Acreción-dilución", "DDM y RI", "Síntesis", "Controles",
              "IS", "BS", "CFS", "Segments", "Trazabilidad"]
         self.libro.hojas.sort(key=lambda h: orden.index(h.nombre))
         return self.libro
+
+    def _accionista(self):
+        """P19: descuento de dividendos por etapas e ingreso residual (FinRobot, adaptado en calculo/accionista.py), con
+        el Ke de la hoja WACC y el crecimiento a perpetuidad de Entradas."""
+        d = self.d
+        h = self.libro.hoja("DDM y RI")
+        h.poner(2, 2, "Dividend Discount Model & Residual Income", "titulo")
+        h.poner(4, 2, "Cost of Equity (Ke)", "etiqueta")
+        h.poner(4, 3, "=WACC!F10", "", "pct")
+        h.poner(5, 2, "Terminal growth (g)", "etiqueta")
+        h.poner(5, 3, "=Entradas!C12", "", "pct")
+        h.poner(6, 2, "Ke − g (mínimo 1,5 pp)", "etiqueta")
+        h.poner(6, 3, "=C4-C5", "", "pct")
+        h.poner(8, 2, "Dividend Discount Model", "seccion")
+        dpa = [x for x in d.dpa_proyectados if x is not None]
+        n = len(dpa)
+        for i, x in enumerate(dpa):
+            c = 3 + i
+            h.poner(9, c, f"Año {i + 1}", "cabecera")
+            h.poner(10, c, x, "entrada", "usd", "Proyección del informe: BPA × pay-out (calculo/proyeccion.py)")
+            h.poner(11, c, f"=1/(1+$C$4)^{i + 1}", "", "num")
+            h.poner(12, c, f"={col(c)}10*{col(c)}11", "", "usd")
+        h.poner(10, 2, "Dividend per share (USD)", "etiqueta")
+        h.poner(11, 2, "Discount factor", "etiqueta")
+        h.poner(12, 2, "PV of dividend", "etiqueta")
+        ultima = col(2 + n) if n else "C"
+        h.poner(14, 2, "PV of projected dividends", "etiqueta")
+        h.poner(14, 3, f"=SUM(C12:{ultima}12)" if n else '="--"', "", "usd")
+        h.poner(15, 2, "Terminal value (Gordon)", "etiqueta")
+        h.poner(15, 3, f'=IF(C6>0,{ultima}10*(1+C5)/C6,"--")' if n else '="--"', "", "usd")
+        h.poner(16, 2, "PV of terminal value", "etiqueta")
+        h.poner(16, 3, f'=IF(ISNUMBER(C15),C15/(1+C4)^{n},"--")' if n else '="--"', "", "usd")
+        h.poner(17, 2, "DDM value per share (USD)", "total")
+        h.poner(17, 3, f'=IF(AND(C6>=0.015,{ultima}10>0),C14+C16,"--")' if n else '="--"', "total", "usd")
+        h.poner(19, 2, "Residual Income (justified P/BV)", "seccion")
+        h.poner(20, 2, "Book value per share (USD)", "etiqueta")
+        h.poner(20, 3, d.vc_por_accion if d.vc_por_accion is not None else "--", "entrada", "usd", "Patrimonio LTM / acciones (SEC)")
+        h.poner(21, 2, "Sustainable ROE", "etiqueta")
+        h.poner(21, 3, d.roe_sostenible if d.roe_sostenible is not None else "--", "entrada", "pct", d.origen_roe or "Revisar")
+        h.poner(22, 2, "Justified P/BV = (ROE − g) / (Ke − g)", "etiqueta")
+        h.poner(22, 3, '=IF(AND(ISNUMBER(C21),C6>=0.015,C21>C5),(C21-C5)/C6,"--")', "", "x")
+        h.poner(23, 2, "Residual income value per share (USD)", "total")
+        h.poner(23, 3, '=IF(AND(ISNUMBER(C22),ISNUMBER(C20)),IF(C20>0,C20*C22,"--"),"--")', "total", "usd")
+        h.poner(25, 2, "Fórmulas de FinRobot (Apache-2.0) adaptadas: dividendos de la proyección; ingreso residual de una etapa.")
+        self.celdas.update(ddm=("DDM y RI", 17, 3), ingreso_residual=("DDM y RI", 23, 3))
 
     def _nombre_dcf(self, s: Segmento) -> str:
         limpio = "".join(ch for ch in s.nombre if ch not in "[]:*?/\\'")[:24]

@@ -84,7 +84,9 @@ def datos(c: dict) -> tuple[DatosMotor, str]:
         comparables_modelo=not c.get("comparables_del_analista"), origen_comparables=c.get("comparables_criterio") or "",
         beta_sector=getattr(c.get("beta_sector"), "desapalancada", None),
         origen_beta_sector=getattr(c.get("beta_sector"), "origen", ""),
-        mediana_historica={k: b.mediana for k, b in bandas.items() if getattr(b, "n", 0) and b.mediana})
+        mediana_historica={k: b.mediana for k, b in bandas.items() if getattr(b, "n", 0) and b.mediana},
+        dpa_proyectados=list(c.get("dpa_proyectados") or []), vc_por_accion=c.get("vc_por_accion"),
+        roe_sostenible=c.get("roe_sostenible"), origen_roe=c.get("origen_roe") or "")
     return datos_motor, motivo
 
 

@@ -318,13 +318,23 @@ def componer_general(*, ticker: str, empresa: str, sic, cobertura, filing: dict,
 
     # Motor de valoración (B1): las plantillas de «Motor de valoración» en un libro propio; prevalece sobre el DCF por
     # escenarios y los comparables anteriores, que se mantienen como análisis complementario (decisión D5).
+    from ..calculo.valoracion_sectorial import rentabilidad_del_ciclo
     from .motor import valorar as valorar_motor
+
+    # P19: datos de los flujos del accionista (DDM e ingreso residual), también en la hoja «DDM y RI» del libro
+    roe_sostenible = (base.rentabilidad_sostenible if base.rentabilidad_sostenible is not None
+                      else rentabilidad_del_ciclo([fund[a]["roe"] for a in ejercicios]))
+    patrimonio_ltm = ltm.valor("patrimonio", LTM)
+    vc_por_accion = patrimonio_ltm / acciones if patrimonio_ltm and acciones else None
     origen_prima = f"{prima.fuente}{', ' + prima.fecha if prima.fecha else ''}" if prima is not None else "Estimaciones del informe"
     motor = valorar_motor({
         "ticker": ticker, "empresa": empresa, "filing": filing, "segmentos": segmentos_dict or {}, "estados": estados, "estados_ltm": ltm,
         "fecha_ltm": fecha_ltm, "cotizacion": cotizacion, "estimaciones": base, "bandas": bandas, "mercado": mercado,
         "acciones_origen": acciones_origen, "beta": beta_estimada, "rf": rf, "origen_prima": origen_prima, "comparables": comps,
-        "comparables_del_analista": comparables_del_analista, "comparables_criterio": comparables_criterio, "beta_sector": beta_sector})
+        "comparables_del_analista": comparables_del_analista, "comparables_criterio": comparables_criterio, "beta_sector": beta_sector,
+        "dpa_proyectados": [a.dpa for a in proyeccion], "vc_por_accion": vc_por_accion, "roe_sostenible": roe_sostenible,
+        "origen_roe": ("ROE del analista" if base.rentabilidad_sostenible is not None
+                       else f"Media del ROE de FY{ejercicios[0]}-FY{ejercicios[-1]} (normalizador SEC) · Revisar")})
     sm = (motor or {}).get("salidas") or {}
     if motor and motor.get("error"):
         avisos_emision.append(f"Motor de valoración no disponible ({motor['error']}): el DCF es el de escenarios")
@@ -344,6 +354,20 @@ def componer_general(*, ticker: str, empresa: str, sic, cobertura, filing: dict,
         altos = [x for x in (sm.get("comps_ebitda_alto"), sm.get("comps_per_alto")) if x is not None and x > 0]
         if bajos and altos:
             rango_multiplos = (min(bajos), max(altos))
+
+    # P19: flujos del accionista (DDM por etapas e ingreso residual), con el Ke del modelo de valoración si lo hay
+    from ..calculo.accionista import ddm_por_etapas, ingreso_residual
+
+    ke_accionista = sm.get("ke") or base.coste_equity()
+    ddm = ddm_por_etapas([a.dpa for a in proyeccion], ke_accionista, base.g)
+    ri = ingreso_residual(vc_por_accion, roe_sostenible, ke_accionista, base.g)
+    for nombre, clave, python in (("DDM", "ddm", ddm), ("Ingreso residual", "ingreso_residual", ri)):  # libro = cálculo
+        en_libro, en_python = sm.get(clave), (python or {}).get("valor")
+        if sm and ((en_libro is None) != (en_python is None) or (en_libro and abs(en_libro / en_python - 1) > 1e-6)):
+            avisos_emision.append(f"Motor de valoración: «{nombre}» da {en_libro} en el libro y {en_python} en el informe")
+
+    def _p(x):
+        return f"{x * 100:.1f} %".replace(".", ",")
 
     # Suma de partes (R14): resultado de cada segmento del último ejercicio × EV/EBIT (analista o mediana de comparables).
     sotp = None
@@ -374,6 +398,12 @@ def componer_general(*, ticker: str, empresa: str, sic, cobertura, filing: dict,
                "Mediana de EV/EBITDA y PER de 5 años", base.pesos.get("Múltiplos históricos", 0.0)),
         Metodo("Suma de partes", sotp["por_accion"] if sotp else None, None, None, "EV/EBIT por segmento",
                base.pesos.get("Suma de partes", 0.0)),
+        Metodo("DDM", ddm["valor"] if ddm else None, None, None,
+               (f"Dividendos proyectados (pay-out {_p(base.payout)}) y Gordon; Ke {_p(ke_accionista)}" if ddm
+                else "Sin dividendos proyectados o Ke − g por debajo de 1,5 pp"), base.pesos.get("DDM", 0.0)),
+        Metodo("Ingreso residual", ri["valor"] if ri else None, None, None,
+               (f"Valor contable × (ROE {_p(ri['roe'])} − g) / (Ke − g)" if ri
+                else "Sin valor contable positivo o ROE por debajo de g"), base.pesos.get("Ingreso residual", 0.0)),
     ]
     precio_modelo, metodos = sintetizar(metodos)
     precio_objetivo = base.precio_objetivo_analista or precio_modelo  # el del analista prevalece si lo fija

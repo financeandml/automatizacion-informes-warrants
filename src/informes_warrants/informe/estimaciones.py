@@ -21,7 +21,8 @@ UMBRAL_VENDER = -0.10  # potencial máximo para proponer «Vender»
 ANIOS_EXPLICITOS = 5
 PROBABILIDADES = (0.25, 0.50, 0.25)  # pesimista, base, optimista
 # Peso de cada método en el precio objetivo (calculo/sintesis.py); se renormalizan entre los que tienen valor.
-PESOS_POR_DEFECTO = {"DCF": 0.5, "DCF por escenarios": 0.0, "Comparables": 0.5, "Múltiplos históricos": 0.0, "Suma de partes": 0.0}
+PESOS_POR_DEFECTO = {"DCF": 0.5, "DCF por escenarios": 0.0, "Comparables": 0.5, "Múltiplos históricos": 0.0, "Suma de partes": 0.0,
+                     "DDM": 0.0, "Ingreso residual": 0.0}  # P19: complementarios (peso 0 hasta que el analista lo cambie)
 SIGMA_MIN_CRECIMIENTO, SIGMA_MIN_MARGEN = 0.02, 0.01
 SIGMA_MAX_CRECIMIENTO, SIGMA_MAX_MARGEN = 0.05, 0.03
 

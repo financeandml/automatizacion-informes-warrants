@@ -60,6 +60,10 @@ DEFINICIONES: tuple[tuple[str, str, str], ...] = (
     ("Valoración", "WACC", "Ke = Rf + β · prima de riesgo; Kd = intereses de los últimos doce meses / deuda media, después de "
      "impuestos; pesos a valor de mercado. β semanal a 5 años frente al S&P 500 o, con comparables del analista, su β "
      "desapalancada y reapalancada. Prima de riesgo: la implícita del S&P 500 de Damodaran, actualizada cada semana."),
+    ("Valoración", "DDM", "Descuento de dividendos por etapas: los dividendos por acción de la proyección (BPA × pay-out) "
+     "descontados al Ke y un valor terminal de Gordon con g (FinRobot). Sin dividendos o con Ke − g < 1,5 pp, no aplica."),
+    ("Valoración", "Ingreso residual", "Valor contable por acción × (ROE sostenible − g) / (Ke − g): el valor en libros más el "
+     "valor actual de la rentabilidad por encima del coste del capital. ROE sostenible = media de los ejercicios o la del analista."),
     ("Valoración", "LBO", "Rentabilidad (TIR y MOIC) de un comprador financiero a la cotización más una prima, con la deuda "
      "por tramos, barrido de caja e intereses sobre saldos medios (cálculo iterativo) de la plantilla."),
     ("Valoración", "Escenarios", "Pesimista y optimista: base ∓ 1 desviación típica histórica del crecimiento y del margen "

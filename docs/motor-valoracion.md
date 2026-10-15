@@ -172,6 +172,7 @@ Cada paso termina con tests, documentación y commit; los pasos 7 y 9 terminan a
 | Libro de Warrants & Co. (estilo de marca, comentarios con el origen, nombres, validaciones, valores guardados) | `calculo/motor/libro.py` |
 | Modelo general (Portada, Entradas, Operating Model, DCF por segmento, Consolidated, WACC, Shares, Comps, LBO, Acreción-dilución, Síntesis, Controles, estados y Trazabilidad) | `calculo/motor/modelo.py` y `lbo.py` |
 | Modelo sectorial (D4) | `calculo/motor/sectorial.py` |
+| DDM e ingreso residual (P19, decisión del usuario del 2026-10-15) | Hoja «DDM y RI» (`modelo._accionista`) y `calculo/accionista.py` (FinRobot, Apache-2.0), contrastados entre sí |
 | Segunda vía (LibreOffice) | `calculo/motor/recalculo.py` |
 | Conexión con el informe: el DCF del informe es el del modelo; sección «Modelo de valoración» en el PDF; avisos | `informe/motor.py`, `informe/construir.py`, `informe/sectorial.py`, `plantillas/informe/_motor.html.j2` |
 | Interfaz: pestaña «Modelo de valoración» (crecimiento y margen por segmento, % por perpetuidad, convención, LBO, «He revisado») y descarga del .xlsx | `ui/app.py`, `ui/logica.py` |

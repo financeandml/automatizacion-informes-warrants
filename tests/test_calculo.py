@@ -395,3 +395,16 @@ def test_actividad_inusual_con_posiciones_vacias():
     calls = pd.DataFrame({"strike": [80.0], "volume": [900.0], "openInterest": [math.nan], "lastPrice": [math.nan]})
     filas = actividad_inusual(calls, pd.DataFrame(), 81.0)
     assert filas[0]["posiciones"] == 0 and filas[0]["volumen"] == 900 and filas[0]["prima_estimada"] == 0.0
+
+
+def test_ddm_por_etapas_e_ingreso_residual():
+    """P19 (FinRobot adaptado): DDM de los dividendos proyectados + Gordon; ingreso residual = VC × (ROE − g)/(Ke − g)."""
+    from informes_warrants.calculo.accionista import ddm_por_etapas, ingreso_residual
+
+    r = ddm_por_etapas([1.0, 1.1], ke=0.10, g=0.02)
+    esperado = 1.0 / 1.1 + 1.1 / 1.1 ** 2 + (1.1 * 1.02 / 0.08) / 1.1 ** 2
+    assert r["valor"] == pytest.approx(esperado)
+    assert ddm_por_etapas([0.0], 0.10, 0.02) is None and ddm_por_etapas([1.0], 0.03, 0.02) is None  # sin dividendo · Ke − g < 1,5 pp
+    ri = ingreso_residual(20.0, 0.15, 0.10, 0.02)
+    assert ri["valor"] == pytest.approx(20.0 * (1 + (0.15 - 0.10) / (0.10 - 0.02)))  # FinRobot: BVPS × [1 + (ROE − Ke)/(Ke − g)]
+    assert ingreso_residual(-5.0, 0.15, 0.10, 0.02) is None and ingreso_residual(20.0, 0.01, 0.10, 0.02) is None
