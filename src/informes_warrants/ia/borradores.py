@@ -71,19 +71,42 @@ def contexto(c: dict, texto_negocio: str = "") -> str:
     return "\n".join(partes)[:MAX_CARACTERES_CONTEXTO]
 
 
+LOTE = 6  # apartados por llamada: el contexto va una vez por lote (Groq gratuito limita los tokens por minuto)
+FORMATO_LOTE = (
+    "Te pido varios apartados numerados. Responde con un bloque por apartado, en el mismo orden, y empieza cada bloque "
+    "con una línea que solo diga «### n» (n = número del apartado). Cada apartado se valora por separado: si a uno le "
+    "faltan datos, ese bloque dice exactamente SIN DATOS."
+)
+
+
+def _bloques(respuesta: str, n: int) -> dict[int, str]:
+    """{número: texto} de una respuesta por bloques «### n»."""
+    partes = re.split(r"^[ \t*]*#{1,4}\s*(\d+)[ \t*]*$", respuesta or "", flags=re.M)
+    return {int(partes[i]): partes[i + 1].strip() for i in range(1, len(partes) - 1, 2) if 1 <= int(partes[i]) <= n}
+
+
 def generar(instrucciones: list[str], contexto_informe: str, cfg: LLMSettings | None = None) -> dict[str, str]:
-    """{instrucción: borrador verificado}. Las instrucciones sin borrador válido no aparecen (quedan para el analista)."""
+    """{instrucción: borrador verificado}. Las instrucciones sin borrador válido no aparecen (quedan para el analista).
+
+    Se piden por lotes de `LOTE` (antes, una llamada por apartado con todo el contexto: ~20 llamadas y esperas de
+    20-110 s cada una por el límite de Groq); cada borrador se verifica por separado, como antes."""
     borradores = {}
-    for instruccion in dict.fromkeys(instrucciones):
+    unicas = list(dict.fromkeys(instrucciones))
+    sistema = SISTEMA.format(extension="Respeta en cada apartado la extensión indicada entre paréntesis.") + " " + FORMATO_LOTE
+    for inicio in range(0, len(unicas), LOTE):
+        lote = unicas[inicio:inicio + LOTE]
+        pedidos = "\n".join(f"{n}. {ins} ({EXTENSION_FRASE if _es_frase(ins) else EXTENSION_PARRAFO})"
+                            for n, ins in enumerate(lote, 1))
         try:
-            sistema = SISTEMA.format(extension=EXTENSION_FRASE if _es_frase(instruccion) else EXTENSION_PARRAFO)
-            respuesta, cfg = completar(sistema, f"Apartado que debes redactar: {instruccion}\n\nContexto:\n{contexto_informe}", cfg)
-        except Exception as e:  # noqa: BLE001  (sin modelo, el apartado queda con su marcador)
-            log.warning("Sin borrador de la IA para «%s»: %s", instruccion, e)
+            respuesta, cfg = completar(sistema, f"Apartados que debes redactar:\n{pedidos}\n\nContexto:\n{contexto_informe}", cfg)
+        except Exception as e:  # noqa: BLE001  (sin modelo, los apartados quedan con su marcador)
+            log.warning("Sin borradores de la IA para %d apartados: %s", len(lote), e)
             continue
-        motivo = verificar_borrador(respuesta, contexto_informe, _es_frase(instruccion))
-        if motivo:
-            log.info("Borrador descartado («%s»): %s", instruccion[:60], motivo)
-            continue
-        borradores[instruccion] = " ".join(respuesta.split())
+        textos = _bloques(respuesta, len(lote))
+        for n, instruccion in enumerate(lote, 1):
+            motivo = verificar_borrador(textos.get(n, ""), contexto_informe, _es_frase(instruccion))
+            if motivo:
+                log.info("Borrador descartado («%s»): %s", instruccion[:60], motivo)
+                continue
+            borradores[instruccion] = " ".join(textos[n].split())
     return borradores
