@@ -82,9 +82,18 @@ def ordenar_por_tamano(candidatos: list[int], tamano: dict[int, float], referenc
     return sorted(validos, key=lambda c: (distancia(c), c))
 
 
-def proponer(sic: int | str | None, cik_propio: int, ingresos_propios: float | None, n: int = NUMERO) -> tuple[list[str], str]:
-    """(tickers propuestos, criterio usado). Lista vacía si no hay SIC, no hay candidatos cotizados o la SEC
-    no responde: el informe sale igual, con la valoración por múltiplos pendiente y el aviso «Revisar»."""
+def proponer(sic: int | str | None, cik_propio: int, ingresos_propios: float | None, n: int = NUMERO,
+             ticker: str | None = None) -> tuple[list[str], str]:
+    """(tickers propuestos, criterio usado): los «comparables modelo» del SaaS. Primero, las empresas del mismo
+    sector de Damodaran (clasificación de NYU Stern, mejor que el SIC); si la empresa no está clasificada, el código
+    SIC. Lista vacía si no hay candidatos cotizados o la SEC no responde: el informe sale igual, con aviso «Revisar»."""
+    if ticker:
+        try:
+            propuesta = _proponer_por_sector(ticker, cik_propio, ingresos_propios, n)
+            if propuesta:
+                return propuesta
+        except Exception as e:  # noqa: BLE001  (sin Damodaran: el código SIC)
+            log.warning("Comparables por sector de Damodaran no disponibles (%s): %s", ticker, e)
     if not sic or not str(sic).isdigit():
         return [], "sin código SIC"
     try:
@@ -92,6 +101,22 @@ def proponer(sic: int | str | None, cik_propio: int, ingresos_propios: float | N
     except Exception as e:  # noqa: BLE001  (sin red o SEC caída: el analista añade la lista)
         log.warning("Comparables no disponibles (SIC %s): %s", sic, e)
         return [], f"propuesta automática no disponible ({type(e).__name__}): añade la lista de comparables"
+
+
+def _proponer_por_sector(ticker: str, cik_propio: int, ingresos_propios: float | None, n: int) -> tuple[list[str], str] | None:
+    from .damodaran import empresas_del_sector
+
+    sector, tickers = empresas_del_sector(ticker)
+    if not sector:
+        return None
+    tabla = cotizadas()
+    por_ticker = {str(t).upper(): cik for cik, t in tabla["ticker"].items()}
+    candidatos = [por_ticker[t] for t in tickers if t in por_ticker and por_ticker[t] != int(cik_propio)]
+    if len(candidatos) < MINIMO:
+        return None
+    elegidos = ordenar_por_tamano(list(dict.fromkeys(candidatos)), ingresos_por_cik(date.today().year - 1), ingresos_propios)[:n]
+    return ([str(tabla.loc[c, "ticker"]) for c in elegidos],
+            f"sector «{sector}» de Damodaran (NYU Stern), cotizadas en NYSE/Nasdaq, las {n} más parecidas por ingresos")
 
 
 def _proponer(sic: int, cik_propio: int, ingresos_propios: float | None, n: int) -> tuple[list[str], str]:

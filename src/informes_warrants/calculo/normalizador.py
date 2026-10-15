@@ -637,6 +637,12 @@ EJES_SEGMENTOS = {"negocio": "StatementBusinessSegmentsAxis", "producto": "Produ
                   "geografia": "StatementGeographicalAxis"}
 EJE_CONSOLIDACION, MIEMBRO_SEGMENTOS = "ConsolidationItemsAxis", "OperatingSegmentsMember"
 TOLERANCIA_SEGMENTOS = 0.01  # los miembros deben sumar el total consolidado (±1 %)
+# D&A y capex por segmento de negocio (ASC 280 los exige si los revisa la dirección; ASU 2023-07 amplía el desglose):
+# tags por prioridad; solo los miembros y ejercicios ya validados por los ingresos
+SEGMENTO_AMORTIZACION = ("DepreciationDepletionAndAmortization", "DepreciationAmortizationAndAccretionNet",
+                         "DepreciationAndAmortization", "Depreciation")
+SEGMENTO_CAPEX = ("SegmentExpenditureAdditionToLongLivedAssets", "PaymentsToAcquirePropertyPlantAndEquipment",
+                  "PaymentsToAcquireProductiveAssets")
 PAISES = {"US": "EE. UU.", "CN": "China", "JP": "Japón", "GB": "Reino Unido", "DE": "Alemania", "FR": "Francia", "IN": "India",
           "CA": "Canadá", "MX": "México", "BR": "Brasil", "KR": "Corea del Sur", "TW": "Taiwán", "IE": "Irlanda", "NL": "Países Bajos",
           "CH": "Suiza", "IT": "Italia", "ES": "España", "AU": "Australia", "SG": "Singapur", "IL": "Israel"}
@@ -648,6 +654,8 @@ class Desglose:
     concepto: str  # tag de ingresos usado
     miembros: dict[str, dict[int, float]] = field(default_factory=dict)  # nombre → ejercicio → ingresos
     resultado_operativo: dict[str, dict[int, float]] = field(default_factory=dict)  # solo negocio
+    amortizacion: dict[str, dict[int, float]] = field(default_factory=dict)  # solo negocio (si la empresa lo publica)
+    capex: dict[str, dict[int, float]] = field(default_factory=dict)  # solo negocio (si la empresa lo publica)
     ejercicios: list[int] = field(default_factory=list)  # ejercicios que cuadran con el total
     rechazados: dict[int, str] = field(default_factory=dict)  # ejercicio → motivo
     origen: str = ""
@@ -727,7 +735,8 @@ def _hechos_eje(xbrl, concepto: str, eje: str, dias: tuple[int, int] = (350, 380
         propio = [c for c in dims if c.endswith(eje)]
         resto = [c for c in dims if not c.endswith(eje)]
         valido_resto = all(c.endswith(EJE_CONSOLIDACION) and str(dims[c]).endswith(MIEMBRO_SEGMENTOS) for c in resto)
-        if len(propio) != 1 or not valido_resto or not r.get("period_start") or not r.get("period_end"):
+        fechas_ok = all(str(r.get(c) or "")[:4].isdigit() for c in ("period_start", "period_end"))  # sin «nan» ni vacíos
+        if len(propio) != 1 or not valido_resto or not fechas_ok:
             continue
         inicio, fin = (date.fromisoformat(str(r[c])[:10]) for c in ("period_start", "period_end"))
         if not dias[0] <= (fin - inicio).days <= dias[1] or r.get("numeric_value") is None:
@@ -775,6 +784,15 @@ def segmentos(xbrls: list[tuple], totales: dict[int, float], fines: dict[int, da
                     if ej in totales:
                         nombre = _nombre_miembro(f["miembro"], f["etiqueta"])
                         d.resultado_operativo.setdefault(nombre, {}).setdefault(ej, f["valor"])
+                for destino, conceptos in ((d.amortizacion, SEGMENTO_AMORTIZACION), (d.capex, SEGMENTO_CAPEX)):
+                    for concepto in conceptos:  # el primer tag con datos en este 10-K
+                        filas = _hechos_eje(xbrl, concepto, eje)
+                        for f in filas:
+                            ej = ejercicio_de(f["fin"])
+                            if ej in totales:
+                                destino.setdefault(_nombre_miembro(f["miembro"], f["etiqueta"]), {}).setdefault(ej, abs(f["valor"]))
+                        if filas:
+                            break
         for ej, miembros in sorted(crudo.items()):
             valores = {local: valor for local, (_, valor) in miembros.items()}
             elegidos = seleccion_validada(valores, totales[ej], grupos_de.get(ej, []))
@@ -790,6 +808,10 @@ def segmentos(xbrls: list[tuple], totales: dict[int, float], fines: dict[int, da
         d.resultado_operativo = {k: {ej: x for ej, x in v.items() if ej in d.miembros.get(k, {})}
                                  for k, v in d.resultado_operativo.items() if k in d.miembros}
         d.resultado_operativo = {k: v for k, v in d.resultado_operativo.items() if v}
+        for atributo in ("amortizacion", "capex"):
+            valores = {k: {ej: x for ej, x in v.items() if ej in d.miembros.get(k, {})} for k, v in getattr(d, atributo).items()
+                       if k in d.miembros}
+            setattr(d, atributo, {k: v for k, v in valores.items() if v})
         if d.ejercicios:
             salida[clave] = d
     return salida

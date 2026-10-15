@@ -228,7 +228,7 @@ def componer_general(*, ticker: str, empresa: str, sic, cobertura, filing: dict,
              precios_semanales: list | None = None,
              fechas_disponibles: dict | None = None,
              anterior: dict | None = None, historial_resumenes: list | None = None, autoria=None,
-             capital_flotante: tuple | None = None, prima=None) -> dict:
+             capital_flotante: tuple | None = None, prima=None, beta_sector=None) -> dict:
     """Parte pura (sin red): de los datos ya reunidos al contexto completo del informe.
 
     Sin `estimaciones` ni `escenarios`, se usan los de por defecto; el editor pasa los del analista y todo se
@@ -321,7 +321,7 @@ def componer_general(*, ticker: str, empresa: str, sic, cobertura, filing: dict,
         "ticker": ticker, "empresa": empresa, "filing": filing, "segmentos": segmentos_dict or {}, "estados": estados, "estados_ltm": ltm,
         "fecha_ltm": fecha_ltm, "cotizacion": cotizacion, "estimaciones": base, "bandas": bandas, "mercado": mercado,
         "acciones_origen": acciones_origen, "beta": beta_estimada, "rf": rf, "origen_prima": origen_prima, "comparables": comps,
-        "comparables_del_analista": comparables_del_analista})
+        "comparables_del_analista": comparables_del_analista, "comparables_criterio": comparables_criterio, "beta_sector": beta_sector})
     sm = (motor or {}).get("salidas") or {}
     if motor and motor.get("error"):
         avisos_emision.append(f"Motor de valoración no disponible ({motor['error']}): el DCF es el de escenarios")
@@ -689,7 +689,7 @@ def reunir(ticker: str, con_ia: bool = True, comparables: list[str] | None = Non
     criterio = "lista del analista"
     if not del_analista:
         ingresos_ref = (estados_ltm or estados).valor("ingresos", LTM if estados_ltm else ejercicio)
-        comparables, criterio = ingesta_comparables.proponer(empresa.sic, empresa.cik, ingresos_ref)
+        comparables, criterio = ingesta_comparables.proponer(empresa.sic, empresa.cik, ingresos_ref, ticker=ticker)
     datos_comparables = [d for d in (ingesta_comparables.datos(t) for t in comparables) if d]
 
     # Fecha de cierre y de presentación de cada ejercicio: segmentos (R14) y múltiplos sin sesgo de anticipación (R11)
@@ -751,6 +751,7 @@ def _comunes(empresa, ticker: str, filing, xbrl, ejercicio: int, con_ia: bool, f
     (con los bloques de IA), gobierno, insiders, mercado, opciones y cortos, autoría y parámetros del fondo."""
     from ..calculo.calendario import borrador as borrador_calendario
     from ..ingesta.competencia import apartado_competencia
+    from ..ingesta.damodaran import beta_sectorial
     from ..ingesta.derivados import cadena_opciones, posiciones_cortas
     from ..ingesta.directivos import filiales as filiales_10k
     from ..ingesta.eventos import ANIOS_ALARMAS, categoria_presentador, eventos_8k, hechos_relevantes
@@ -811,7 +812,7 @@ def _comunes(empresa, ticker: str, filing, xbrl, ejercicio: int, con_ia: bool, f
         beta_estimada=_beta_semanal(ticker), comportamiento=comportamiento(ticker, empresa.sic),
         series_bolsa=_series_bolsa(ticker, etf_sectorial(empresa.sic), historico, INDICE),
         riesgos=riesgos, riesgos_lista=riesgos_lista, texto_negocio=texto_negocio, competencia_texto=competencia_texto,
-        rf=tipo_libre_riesgo(), prima=prima_riesgo(), gobierno=datos_gobierno(empresa, xbrl),
+        rf=tipo_libre_riesgo(), prima=prima_riesgo(), beta_sector=beta_sectorial(ticker), gobierno=datos_gobierno(empresa, xbrl),
         insiders=_insiders(empresa, ticker), eventos=eventos, alarmas=alarmas_sec(empresa, date.today(), filing, eventos),
         riesgos_cambios=cambios, catalizadores=catalizadores, filiales=filiales_10k(tenk),
         opciones_cadena=cadena_opciones(ticker), cortos=posiciones_cortas(ticker),

@@ -252,7 +252,7 @@ def componer_sectorial(*, ticker: str, empresa: str, sic, cobertura, perfil: str
                        comparables_criterio: str = "", comparables_del_analista: bool = False, precios_semanales: list | None = None,
                        estimaciones: Estimaciones | None = None, escenarios=None, borradores_ia: dict | None = None,
                        anterior: dict | None = None, historial_resumenes: list | None = None, fecha: str | None = None,
-                       prima=None) -> dict:
+                       prima=None, beta_sector=None) -> dict:
     """Parte pura (sin red) de la plantilla sectorial: de los datos reunidos al contexto del informe.
 
     `escenarios` se acepta por compatibilidad con la interfaz y no se usa: el perfil no tiene DCF."""

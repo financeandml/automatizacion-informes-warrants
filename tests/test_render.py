@@ -329,3 +329,74 @@ def test_dcf_negativo_del_motor_no_entra_en_el_precio(contexto):
     assert any("no entra en el precio objetivo" in a for a in c["avisos_emision"])
     assert "valor por acción negativo (−" in c["textos"]["valoracion.comentario"]
     assert next(m for m in c["metodos"] if m.nombre == "DCF").valor is None
+
+
+def test_da_publicado_por_segmento(contexto):
+    """D&A por segmento (ASC 280): el dato de la SEC de cada segmento + lo corporativo repartido por ventas; total = SEC."""
+    import dataclasses
+
+    from informes_warrants.calculo.motor.modelo import Segmento, construir
+    from informes_warrants.informe.motor import entradas
+
+    d = contexto["motor"]["datos"]
+    s = d.segmentos[0]
+    da = {a: d.estados.valor("amortizacion", a) for a in s.ingresos if d.estados.valor("amortizacion", a)}
+
+    def parte(nombre, peso, cuota_da):
+        return Segmento(nombre, {a: v * peso for a, v in s.ingresos.items()}, {a: v * peso for a, v in s.ebit.items()},
+                        amortizacion={a: x * cuota_da for a, x in da.items()}, origen="0000320193-23-000106")
+
+    d2 = dataclasses.replace(d, segmentos=[parte("A", 0.6, 0.5), parte("B", 0.4, 0.3)])
+    m = construir(d2, entradas(d2, contexto["estimaciones"]))
+    assert any("D&A con el dato de la SEC por segmento en FY2022, FY2023" in a for a in m.avisos)
+    filas = [f for (h, f, c), x in m.libro.a_libro().celdas.items() if h == "Operating Model" and c == 2 and x == "A"]
+    esperado = (0.5 + 0.6 * (1 - 0.5 - 0.3)) * da[2023] / 1e6  # publicado + su parte de lo corporativo
+    assert any(m.valores.get(("Operating Model", f, 7)) == pytest.approx(esperado) for f in filas)
+    total = next(f for (h, f, c), x in m.libro.a_libro().celdas.items() if h == "Operating Model" and c == 2 and x == "Total D&A")
+    assert m.valores[("Operating Model", total, 7)] == pytest.approx(da[2023] / 1e6)
+
+
+def test_beta_modelo_del_sector_reapalancada(contexto):
+    """Sin comparables del analista, la beta es la desapalancada del sector (Damodaran) reapalancada con la deuda bruta y
+    el tipo de la empresa (Hamada, fórmula de la plantilla); sin sector, la propia."""
+    import dataclasses
+
+    from informes_warrants.calculo.motor.modelo import construir
+    from informes_warrants.informe.motor import entradas
+
+    d = dataclasses.replace(contexto["motor"]["datos"], beta_sector=0.9, origen_beta_sector="Damodaran (prueba)")
+    m = construir(d, entradas(d, contexto["estimaciones"]))
+    v = m.valores
+    deuda, capitalizacion, tasa = v[("WACC", 15, 6)], v[("WACC", 8, 6)], v[("WACC", 18, 6)]
+    assert m.salidas["beta"] == pytest.approx(0.9 * (1 + (1 - tasa) * deuda / capitalizacion))
+    assert any("beta modelo del sector de Damodaran" in a for a in m.avisos)
+    assert contexto["motor"]["modelo"].salidas["beta"] == pytest.approx(1.2)  # sin sector: la propia
+
+
+def test_damodaran_betas_y_sectores():
+    """Lectura de las tablas de Damodaran (sin red): beta desapalancada corregida por la caja y sector de cada empresa."""
+    import io
+
+    import openpyxl
+
+    from informes_warrants.ingesta import damodaran
+
+    html = (b"<html><body><p>Date of Analysis: Data used is as of January 2026</p><table>"
+            b"<tr><td>Industry Name</td><td>Number of firms</td><td>Beta</td><td>Unlevered beta corrected for cash</td></tr>"
+            b"<tr><td>Beverage (Soft)</td><td>27</td><td>0.80</td><td>0.71</td></tr>"
+            b"<tr><td>Total Market</td><td>5994</td><td>0.91</td><td>0.76</td></tr></table></body></html>")
+    sectores, fecha = damodaran.parsear_betas(html)
+    assert sectores == {"Beverage (Soft)": {"desapalancada": 0.71, "empresas": 27}} and fecha == "January 2026"
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "By industry"
+    ws.append(["Company Name", "Exchange:Ticker", "Industry Group"])
+    ws.append(["The Coca-Cola Company (NYSE:KO)", "NYSE:KO", "Beverage (Soft)"])
+    ws.append(["PepsiCo, Inc. (NasdaqGS:PEP)", "NasdaqGS:PEP", "Beverage (Soft)"])
+    ws.append(["Fomento Económico (BMV:FEMSA)", "BMV:FEMSA", "Beverage (Soft)"])  # fuera: no cotiza en NYSE/Nasdaq
+    ws.append(["Berkshire Hathaway (NYSE:BRK.B)", "NYSE:BRK.B", "Insurance (Prop/Cas.)"])
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    assert damodaran.parsear_industrias(buffer.getvalue()) == {
+        "KO": ["The Coca-Cola Company", "Beverage (Soft)"], "PEP": ["PepsiCo, Inc.", "Beverage (Soft)"],
+        "BRK-B": ["Berkshire Hathaway", "Insurance (Prop/Cas.)"]}

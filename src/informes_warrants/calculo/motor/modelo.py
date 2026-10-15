@@ -63,6 +63,9 @@ class Segmento:
     ingresos: dict[int, float]
     ebit: dict[int, float]
     no_asignado: bool = False  # costes corporativos no asignados (EBIT consolidado − suma de segmentos)
+    amortizacion: dict[int, float] = field(default_factory=dict)  # D&A publicado por la empresa para el segmento (SEC)
+    capex: dict[int, float] = field(default_factory=dict)  # capex publicado por la empresa para el segmento (SEC)
+    origen: str = ""  # accession del 10-K del desglose
 
 
 @dataclass
@@ -109,6 +112,10 @@ class DatosMotor:
     componentes_ev: dict[str, float]  # nombre → importe (calculo.metricas.componentes_ev del LTM)
     comparables: list[Comparable] = field(default_factory=list)
     mediana_historica: dict[str, float] = field(default_factory=dict)  # ev_ebitda, per (5 años, R11)
+    comparables_modelo: bool = False  # True: la propuesta del SaaS (no la lista del analista)
+    origen_comparables: str = ""
+    beta_sector: float | None = None  # «beta modelo»: desapalancada del sector de Damodaran (corregida por la caja)
+    origen_beta_sector: str = ""
 
 
 @dataclass
@@ -192,7 +199,9 @@ def segmentos_del_modelo(desglose, estados, ejercicio: int, anios: list[int], no
         return [Segmento(nombre_empresa, ventas, ebit)], motivo
     validos = [a for a in desglose.ejercicios if all(a in desglose.resultado_operativo.get(n, {}) for n in desglose.miembros)]
     segmentos = [Segmento(n, {a: v for a, v in s.items() if a in desglose.ejercicios},
-                          {a: v for a, v in desglose.resultado_operativo[n].items() if a in validos}) for n, s in desglose.miembros.items()]
+                          {a: v for a, v in desglose.resultado_operativo[n].items() if a in validos},
+                          amortizacion=dict(desglose.amortizacion.get(n, {})), capex=dict(desglose.capex.get(n, {})),
+                          origen=desglose.origen) for n, s in desglose.miembros.items()]
     no_asignado = {}
     for a in validos:
         consolidado = estados.valor("resultado_operativo", a)
@@ -216,6 +225,7 @@ class _Constructor:
         self.trazas: list[tuple] = []
         self.controles_extra: list[tuple] = []
         self.con_lbo = self.con_ad = False
+        self.publicado: dict[str, list[int]] = {}  # D&A / capex: ejercicios con el dato por segmento de la SEC
 
     # -- utilidades
     def _mn(self, v):
@@ -322,7 +332,10 @@ class _Constructor:
                  (12, "Crecimiento a perpetuidad (TGR)", e.tgr, "pct", "Plantilla: 2,5 % · Revisar"),
                  (13, "% del valor terminal por perpetuidad", e.pct_perpetuidad, "pct", "Plantilla: 80 % · Revisar"),
                  (14, "Convención de descuento (1 = mitad de año, 2 = fin de año)", e.convencion, None, "Revisar"),
-                 (15, "Beta propia (5 años, semanal, frente a SPY)", d.beta_propia, "num", "Se usa si no hay comparables")]
+                 (15, "Beta propia (5 años, semanal, frente a SPY)", d.beta_propia, "num",
+                  "Se usa si no hay comparables del analista ni beta del sector"),
+                 (16, "Beta desapalancada del sector (beta modelo)", d.beta_sector if d.beta_sector is not None else "--", "num",
+                  (d.origen_beta_sector or "Sin sector de Damodaran") + " · Se reapalanca con la deuda y el tipo de la empresa · Revisar")]
         h.poner(9, 2, "Valoración", "seccion")
         for f, etiqueta, valor, formato, nota in filas:
             h.poner(f, 2, etiqueta, "etiqueta")
@@ -557,18 +570,34 @@ class _Constructor:
         # D&A, capex y capital circulante: por segmento con su % de ventas (media de 3 años); total de referencia: 5 años
         f = ft + 3
         self.om["da_seg"], self.om["capex_seg"], self.om["nwc_seg"] = {}, {}, {}
-        f = self._bloque_partida(h, f, "D&A", "da", filas_ventas, total_ventas, f"CFS!{{c}}{self.CFS['amortizacion']}", 1)
-        f = self._bloque_partida(h, f + 2, "CapEx", "capex", filas_ventas, total_ventas, f"CFS!{{c}}{self.CFS['capex']}", -1)
+        f = self._bloque_partida(h, f, "D&A", "da", filas_ventas, total_ventas, f"CFS!{{c}}{self.CFS['amortizacion']}", 1,
+                                 ("amortizacion", "amortizacion"))
+        f = self._bloque_partida(h, f + 2, "CapEx", "capex", filas_ventas, total_ventas, f"CFS!{{c}}{self.CFS['capex']}", -1,
+                                 ("capex", "capex"))
         f = self._bloque_partida(h, f + 2, "Net Working Capital", "nwc", filas_ventas, total_ventas,
                                  f"CFS!{{c}}{self.CFS['variacion_circulante']}", -1)
         self.filas_ventas, self.filas_ebit = filas_ventas, filas_ebit
 
-    def _bloque_partida(self, h: Hoja, f: int, titulo: str, clave: str, filas_ventas, total_ventas, origen: str, signo: int) -> int:
+    def _publicados(self, segs, atributo: str, partida: str) -> list[int]:
+        """Ejercicios en los que TODOS los segmentos traen el dato de la SEC y su suma no supera el consolidado (±1 %)."""
+        anios = []
+        for a in self.anios:
+            consolidado = self.d.estados.valor(partida, a)
+            valores = [getattr(s, atributo).get(a) for s in segs]
+            if consolidado and None not in valores and sum(valores) <= abs(consolidado) * (1 + 0.01):
+                anios.append(a)
+        return anios
+
+    def _bloque_partida(self, h: Hoja, f: int, titulo: str, clave: str, filas_ventas, total_ventas, origen: str, signo: int,
+                        publicado: tuple[str, str] | None = None) -> int:
         """Bloque de D&A, capex o variación del capital circulante del modelo operativo (plantilla avanzada, filas 54-122).
 
         Por segmento: asignación del total por su peso en las ventas en la historia (la SEC no siempre da el dato por
         segmento) y, en la proyección, la media de 3 años de su % de ventas × sus ventas. Total de referencia: el dato de
-        la SEC (CFS) y, en la proyección, la media de 5 años sobre ventas."""
+        la SEC (CFS) y, en la proyección, la media de 5 años sobre ventas. `publicado` = (atributo del segmento, partida
+        consolidada): en los ejercicios en que la empresa publica el dato de cada segmento (D&A y capex, como la plantilla
+        con los datos del 10-K), se usa ese dato y el resto corporativo se reparte por ventas, de modo que el total
+        sigue siendo el de la SEC."""
         todas = list(HIST) + [ACTUAL] + list(PROY)
         segs = [s for s in self.d.segmentos if not s.no_asignado]
         h.poner(f, 2, titulo, "seccion")
@@ -577,6 +606,9 @@ class _Constructor:
             h.poner(f, c, f"={ref(f, c - 1)}+1", "cabecera", "anio")
         fila = f + 2
         filas = {}
+        anios_sec = self._publicados(segs, *publicado) if publicado and len(segs) > 1 else []
+        if publicado and len(segs) > 1:
+            self.publicado[titulo] = anios_sec
         for s in segs:
             filas[s.nombre] = fila
             fila += 4
@@ -587,9 +619,17 @@ class _Constructor:
             h.poner(fs, 2, s.nombre, "etiqueta")
             h.poner(fs + 1, 2, f"% of {s.nombre} sales")
             h.poner(fs + 2, 2, "% of total sales (allocation)")
+            if anios_sec:
+                h.poner(fs + 3, 2, "Reported by the segment (SEC 10-K)")
             for c in list(HIST) + [ACTUAL]:
                 h.poner(fs + 2, c, f"={ref(fv + 2, c)}", "", "pct")
-                h.poner(fs, c, f"={ref(fs + 2, c)}*{ref(referencia, c)}", "", "mn")
+                a = self.anios[c - HIST[0]] if c in HIST else None
+                if a in anios_sec:
+                    h.poner(fs + 3, c, getattr(s, publicado[0])[a] / 1e6, "entrada", "mn", f"SEC 10-K {s.origen}: {titulo} del segmento")
+                    publicados = "+".join(ref(filas[x.nombre] + 3, c) for x in segs)
+                    h.poner(fs, c, f"={ref(fs + 3, c)}+{ref(fs + 2, c)}*({ref(referencia, c)}-({publicados}))", "", "mn")
+                else:
+                    h.poner(fs, c, f"={ref(fs + 2, c)}*{ref(referencia, c)}", "", "mn")
                 h.poner(fs + 1, c, f'=IF(ISERROR({ref(fs, c)}/{ref(fv, c)}),"--",{ref(fs, c)}/{ref(fv, c)})', "", "pct")
             for c in PROY:
                 h.poner(fs + 1, c, f"=AVERAGE({ref(fs + 1, c - 3)}:{ref(fs + 1, c - 1)})", "", "pct")
@@ -829,7 +869,7 @@ class _Constructor:
         h.poner(7, 2, "WACC", "seccion")
         filas = [(8, "Market Cap", "=Comps!F12*Shares!E14", "mn"), (9, "% of Equity", "=F8/$F$20", "pct"),
                  (10, "Cost of Equity", "=F11+F12*F13", "pct"), (11, "Risk Free Rate", "=Entradas!C10", "pct"),
-                 (12, "Beta", "=IF(COUNT(I28:I37)=0,Entradas!C15,E40)", "num"), (13, "Market Risk Premium", "=Entradas!C11", "pct"),
+                 (12, "Beta", "=IF(ISNUMBER(E40),E40,Entradas!C15)", "num"), (13, "Market Risk Premium", "=Entradas!C11", "pct"),
                  (15, "Debt", "=Consolidated!K43", "mn"), (16, "% of Debt", "=F15/$F$20", "pct"), (18, "Tax Rate",
                   f"=AVERAGE('Operating Model'!{ref(self.om['tasa'], 3)}:{ref(self.om['tasa'], 8)})", "pct"),
                  (20, "Total", "=F8+F15", "mn"), (22, "WACC", "=F9*F10+(F16*F17*(1-F18))", "pct")]
@@ -856,18 +896,20 @@ class _Constructor:
             f = 28 + i
             fila_comp = 14 + i
             h.poner(f, 2, cp.ticker, "etiqueta")
-            if cp.beta is not None:
+            if cp.beta is not None and not d.comparables_modelo:  # con los comparables modelo, la beta es la del sector
                 h.poner(f, 4, cp.beta, "entrada", "num", "Regresión semanal de 5 años frente a SPY (yfinance)")
             h.poner(f, 5, f"=Comps!D{fila_comp}", "", "mn")
             h.poner(f, 6, f"={(cp.deuda.get('deuda') or 0):.6f}", "entrada", "mn", f"Deuda financiera bruta LTM (SEC) · {cp.origen}")
             h.poner(f, 7, cp.tipo_impositivo if cp.tipo_impositivo is not None else 0.21, "entrada", "pct",
                     "Tipo efectivo LTM (SEC)" if cp.tipo_impositivo is not None else "Sin dato: 21 % (Revisar)")
-            if cp.beta is not None:
+            if cp.beta is not None and not d.comparables_modelo:
                 h.poner(f, 9, f"=(D{f}/(1+(1-G{f})*(F{f}/E{f})))", "", "num")  # E6: deuda bruta
         h.poner(39, 2, "Industry Average Unlevered Beta", "etiqueta")
-        h.poner(39, 5, '=IF(COUNT(I28:I37)=0,"--",AVERAGE(I28:I37))', "", "num")
+        # Media de los comparables del analista (plantilla); sin ellos, la beta modelo del sector (Damodaran), reapalancada igual
+        h.poner(39, 5, '=IF(COUNT(I28:I37)=0,IF(ISNUMBER(Entradas!C16),Entradas!C16,"--"),AVERAGE(I28:I37))', "", "num",
+                "Comparables del analista; si no hay, la beta desapalancada del sector (Entradas!C16)")
         h.poner(40, 2, f"{d.empresa} ({d.ticker}) Levered Beta", "total")
-        h.poner(40, 5, '=IF(COUNT(I28:I37)=0,"--",E39*(1+(1-F18)*(F15/F8)))', "total", "num")  # E6
+        h.poner(40, 5, '=IF(ISNUMBER(E39),E39*(1+(1-F18)*(F15/F8)),"--")', "total", "num")  # E6
         self.celdas.update(wacc=("WACC", 22, 6), ke=("WACC", 10, 6), beta=("WACC", 12, 6), kd=("WACC", 17, 6))
 
     def _acciones(self):
@@ -1220,12 +1262,23 @@ def construir(datos: DatosMotor, entradas: EntradasMotor) -> Modelo:
     leer = lambda clave: _numero(valores.get(c.celdas[clave])) if clave in c.celdas else None  # noqa: E731
     salidas = {k: valores.get(c.celdas[k]) if k.startswith("control_") else leer(k) for k in c.celdas}  # controles: True/False
     avisos = avisos_de_calculo(marcadas, errores)
+    if c.publicado:  # 2 o más segmentos: de dónde sale el D&A y el capex de cada uno
+        partes = [f"{titulo} con el dato de la SEC por segmento en FY{', FY'.join(str(x) for x in anios)}" if anios
+                  else f"{titulo} repartido por el peso de las ventas (la empresa no lo publica por segmento)"
+                  for titulo, anios in c.publicado.items()]
+        avisos.append("Motor de valoración: " + "; ".join(partes) + "; lo corporativo y el capital circulante, por ventas "
+                      "(nadie publica el circulante por segmento)")
     for nombre, celda in c.controles:
         v = valores.get(celda)
         if v is False:
             avisos.append(f"Motor de valoración: falla el control «{nombre}»")
+    beta = ("de los comparables del analista" if datos.comparables and not datos.comparables_modelo
+            else "modelo del sector de Damodaran" if datos.beta_sector is not None else "propia de la empresa")
     if not datos.comparables:
-        avisos.append("Motor de valoración: sin comparables del analista, beta propia y valor terminal 100 % por perpetuidad")
+        avisos.append(f"Motor de valoración: sin comparables, valor terminal 100 % por perpetuidad; beta {beta}")
+    elif datos.comparables_modelo:
+        avisos.append(f"Motor de valoración: comparables modelo del SaaS ({datos.origen_comparables}: "
+                      f"{', '.join(x.ticker for x in datos.comparables)}) y beta {beta}; revísalos o añade tu lista")
     salidas["sensibilidad"] = [[_numero(valores.get(("Consolidated", f, k))) for k in range(15, 20)] for f in range(60, 65)]
     salidas["sensibilidad_wacc"] = [_numero(valores.get(("Consolidated", 59, k))) for k in range(15, 20)]
     salidas["sensibilidad_tgr"] = [_numero(valores.get(("Consolidated", f, 14))) for f in range(60, 65)]

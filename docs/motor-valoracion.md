@@ -107,7 +107,8 @@ Todo lo demás sale de la SEC y del mercado. Cada entrada trae un valor por defe
 | Crecimiento de ventas de cada segmento (5 años) | Tasa de crecimiento anual compuesto de los 3 últimos ejercicios del segmento | Normalizador SEC (las plantillas usaban consenso) |
 | Margen EBIT de cada segmento | El último margen, constante (regla de la plantilla) | Plantilla |
 | Crecimiento a perpetuidad y reparto perpetuidad / múltiplo | 2,5 % y 80 / 20 | Plantilla |
-| Lista de comparables | La del analista (obligatoria para el múltiplo de salida y la beta; sin ella, 100 % perpetuidad y beta propia, con aviso) | Ya existe |
+| Lista de comparables | La del analista; sin ella, los **comparables modelo** del SaaS: empresas del mismo sector de Damodaran (NYU Stern) cotizadas en NYSE/Nasdaq, las 6 más parecidas por ingresos (SEC); si la empresa no está clasificada, el código SIC. Entran en el libro (múltiplo de salida, hoja Comps) con aviso «Revisar»; el método «Comparables» del precio objetivo sigue exigiendo la lista del analista (decisión del 2026-10-12) | `ingesta/damodaran.py`, `ingesta/comparables.py` |
+| Beta | La de los comparables del analista (plantilla); sin ellos, la **beta modelo**: desapalancada y corregida por la caja del sector de Damodaran, reapalancada con la deuda bruta y el tipo de la empresa (fórmula de la plantilla); sin sector, la propia | Damodaran, Betas.html (cada enero) |
 | Prima de riesgo de mercado | La vigente, actualizada cada semana (D7): prima implícita del S&P 500 de Damodaran (NYU), «ERP (T12 m with sustainable payout)»; sin conexión, la última guardada o el 5,5 % | `ingesta/mercado.prima_riesgo`; la propone el SaaS y la confirma o cambia el analista |
 | Convención de descuento | Mitad de año (la marca el analista: mitad o fin de año) | Plantilla |
 | Escenario | Base | Interruptor `CASE` de la plantilla LBO |
@@ -177,7 +178,9 @@ Cada paso termina con tests, documentación y commit; los pasos 7 y 9 terminan a
 | Versiones: cada versión guarda su libro junto al PDF y los avisos del contraste | `informe/versionado.py` |
 | Línea de comandos: `informes-warrants modelo TICKER` (solo el libro) e `informe` (PDF + libro) | `cli.py` |
 
+**D&A, capex y capital circulante por segmento (2026-10-15).** Fuente: la propia SEC (ASC 280 exige el D&A y el capex de cada segmento si los revisa la dirección; ASU 2023-07 amplía el desglose desde 2024); ninguna fuente gratuita externa los da por segmento (los proveedores los toman de estos mismos 10-K). El normalizador extrae el D&A y el capex de cada segmento de negocio (solo miembros y ejercicios validados por los ingresos); en los ejercicios en que todos los segmentos traen el dato y su suma no supera el consolidado, el modelo usa ese dato (tecleado con su *accession*) y reparte lo corporativo por ventas, de modo que el total sigue siendo el de la SEC; si no, el reparto por ventas de la plantilla, con aviso. El capital circulante no lo publica nadie por segmento: por ventas (regla de la plantilla). Probado con AMZN (D&A de la SEC en los 5 ejercicios; capex en 2 —en los demás, las altas por segmento incluyen arrendamientos y superan el capex consolidado, y se rechazan—).
+
 **Limitaciones conocidas:**
-- D&A, capex y circulante por segmento se asignan por el peso de las ventas: el XBRL no los trae por segmento de forma homogénea.
-- No hay acceso a FactSet (ni suscripción): las proyecciones son las entradas del analista con los valores por defecto del §4. Si se contrata, sería la única fuente externa admitida para el consenso.
+- El resultado por segmento se toma de `OperatingIncomeLoss`; las empresas que miden el segmento con otra magnitud (JNJ: beneficio antes de impuestos) salen con DCF consolidado.
+- FactSet, aparcado (decisión del usuario, 2026-10-15): las proyecciones son las entradas del analista. Alternativa oficial: la guía (*guidance*) que la empresa publica en sus 8-K de resultados (Item 2.02, anexo 99.1) y en el MD&A; de momento, la lee el analista.
 - Sin lista de comparables del analista, el valor terminal es 100 % por perpetuidad y la beta, la propia (se avisa).

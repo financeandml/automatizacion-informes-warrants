@@ -2,7 +2,8 @@
 
 - estados.py: estados del último 10-K tal como los presenta edgartools (comando `datos`).
 - mercado.py: cotización, histórico, comportamiento frente al S&P 500 y al ETF sectorial, tipo libre de riesgo.
-- comparables.py: propuesta de comparables por código SIC (solo SEC) y sus datos LTM.
+- comparables.py: comparables modelo (sector de Damodaran o código SIC; tamaño y datos de la SEC) y sus datos LTM.
+- damodaran.py: beta desapalancada del sector y clasificación de empresas por sector (Damodaran, NYU Stern).
 - gobierno.py: auditor y retribución (proxy DEF 14A).
 - riesgos.py: títulos del Item 1A y comparación con el informe anual anterior.
 - insiders.py: Form 4, accionistas de más del 5 % (proxy) y 13D/13G.

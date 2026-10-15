@@ -79,7 +79,11 @@ def datos(c: dict) -> tuple[DatosMotor, str]:
         origen_rf=(f"{c['rf'].fuente} a {c['rf'].fecha}" if c.get("rf") else "Valor por defecto"),
         erp=est.erp, origen_erp=c.get("origen_prima") or "Prima de riesgo del informe",
         componentes_ev=componentes_ev(c["estados_ltm"], LTM),
-        comparables=[x for x in (_comparable(x) for x in (c.get("comparables") or [])) if x] if c.get("comparables_del_analista") else [],
+        # comparables del analista o, sin su lista, los «comparables modelo» del SaaS (sector de Damodaran; Revisar)
+        comparables=[x for x in (_comparable(x) for x in (c.get("comparables") or [])) if x],
+        comparables_modelo=not c.get("comparables_del_analista"), origen_comparables=c.get("comparables_criterio") or "",
+        beta_sector=getattr(c.get("beta_sector"), "desapalancada", None),
+        origen_beta_sector=getattr(c.get("beta_sector"), "origen", ""),
         mediana_historica={k: b.mediana for k, b in bandas.items() if getattr(b, "n", 0) and b.mediana})
     return datos_motor, motivo
 
