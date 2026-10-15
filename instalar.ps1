@@ -1,4 +1,4 @@
-# Instalación en Windows (C3): ejecútalo en la carpeta del repositorio descargado de GitHub.
+﻿# Instalación en Windows (C3): ejecútalo en la carpeta del repositorio descargado de GitHub.
 #   PowerShell:  powershell -ExecutionPolicy Bypass -File instalar.ps1
 # Crea el entorno de Python FUERA de OneDrive, instala todo, prepara el PDF (WeasyPrint autónomo si no hay GTK)
 # y deja abrir.bat para arrancar la interfaz en http://localhost:8501.

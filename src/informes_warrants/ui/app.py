@@ -375,8 +375,9 @@ def pantalla_configuracion() -> None:
     with st.expander("Diagnóstico de la instalación", expanded=False):
         from informes_warrants.observabilidad import diagnostico, resumen_tiempos
 
-        for nombre, bien, detalle in diagnostico():
-            (st.success if bien else st.warning)(f"{nombre}: {detalle}")
+        if st.button("Comprobar la instalación"):  # genera un PDF de prueba: solo a petición
+            for nombre, bien, detalle in diagnostico():
+                (st.success if bien else st.warning)(f"{nombre}: {detalle}")
         tiempos = resumen_tiempos()
         if tiempos:
             st.dataframe([{"Etapa": k, "Veces": v["n"], "Mediana (s)": v["mediana"], "Máximo (s)": v["maximo"], "Errores": v["errores"]}

@@ -116,7 +116,8 @@ def _proponer_por_sector(ticker: str, cik_propio: int, ingresos_propios: float |
         return None
     elegidos = ordenar_por_tamano(list(dict.fromkeys(candidatos)), ingresos_por_cik(date.today().year - 1), ingresos_propios)[:n]
     return ([str(tabla.loc[c, "ticker"]) for c in elegidos],
-            f"sector «{sector}» de Damodaran (NYU Stern), cotizadas en NYSE/Nasdaq, las {n} más parecidas por ingresos")
+            f"sector «{sector}» de Damodaran (NYU Stern), cotizadas en NYSE/Nasdaq, "
+            f"hasta {n} de las más parecidas por ingresos con datos completos")
 
 
 def _proponer(sic: int, cik_propio: int, ingresos_propios: float | None, n: int) -> tuple[list[str], str]:

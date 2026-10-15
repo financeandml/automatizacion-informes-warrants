@@ -66,15 +66,15 @@ Plan de trabajo de cada una y de la API de Gemini (2026-10-15): [plan-pendientes
 | ~~P9~~ | Apartado 25: comparación automática de lo real frente a lo estimado con cada 10-Q nuevo | ✅ Hecho (2026-10-15), ver [plan-pendientes.md](plan-pendientes.md) |
 | ~~P10~~ | Apartado 26: fuentes externas (yfinance, FINRA) con su fecha en el anexo de documentos | ✅ Hecho (2026-10-15), ver [plan-pendientes.md](plan-pendientes.md) |
 | ~~P11~~ | Apartado 18: tenedores institucionales desde los 13F de la SEC (trazable), en lugar de yfinance | ✅ Hecho (2026-10-15), ver [plan-pendientes.md](plan-pendientes.md) |
-| P12 | Apartados 15-17: sesgo, movimiento implícito, estructura temporal de la volatilidad y coste de cobertura; foto diaria de la volatilidad implícita para su ranking histórico; volumen de *dark pool* de FINRA (semanal, gratis, con 2-4 semanas de retraso) | Pendiente de decidir |
-| P13 | Batería de regresión con 15-20 empresas de sectores distintos (hoy 14: 10 generales y 4 sectoriales) | Pendiente |
-| P14 | Restos de la B2: segmentos y trimestres en los perfiles sectoriales, bandas históricas de P/BV y P/TBV, criterios del fondo propios del sector (hoy EV/EBITDA sale «sin dato») y nombres con mayúsculas internas («Jpmorgan») | Pendiente |
-| P15 | Apartado 13: citas literales del 10-K cuando la empresa cifra su mercado, como apoyo al analista | Pendiente |
-| P16 | Apartado 20: matriz probabilidad × impacto de los riesgos (del analista) | Pendiente |
+| P12 | Apartados 15-17: sesgo, movimiento implícito, estructura temporal de la volatilidad y coste de cobertura; foto diaria de la volatilidad implícita para su ranking histórico; volumen de *dark pool* de FINRA (semanal, gratis, con 2-4 semanas de retraso) | Aparcada (usuario, 2026-10-15) · [plan-pendientes.md](plan-pendientes.md) §4 |
+| ~~P13~~ | Batería de regresión con 15-20 empresas de sectores distintos (hoy 14: 10 generales y 4 sectoriales) | Cerrada: no es necesaria · [plan-pendientes.md](plan-pendientes.md) §4 |
+| P14 | Restos de la B2: segmentos y trimestres en los perfiles sectoriales, bandas históricas de P/BV y P/TBV, criterios del fondo propios del sector (hoy EV/EBITDA sale «sin dato») y nombres con mayúsculas internas («Jpmorgan») | Aparcada: se hará en el futuro · [plan-pendientes.md](plan-pendientes.md) §4 |
+| ~~P15~~ | Apartado 13: citas literales del 10-K cuando la empresa cifra su mercado, como apoyo al analista | ✅ Hecho · [plan-pendientes.md](plan-pendientes.md) §4 |
+| ~~P16~~ | Apartado 20: matriz probabilidad × impacto de los riesgos (del analista) | ✅ Hecho · [plan-pendientes.md](plan-pendientes.md) §4 |
 | P17 | SPAC, ETF y fondos abiertos: hoy «plantilla pendiente de validar»; decidir si entran en el SaaS | Decidido (2026-10-15): no por ahora; se integrarán más adelante |
-| P18 | Apartado 5: fecha de alta (Form 3) de directivos con más de 120 formularios de antigüedad (p. ej. Tim Cook) | Pendiente |
+| ~~P18~~ | Apartado 5: fecha de alta (Form 3) de directivos con más de 120 formularios de antigüedad (p. ej. Tim Cook) | ✅ Hecho · [plan-pendientes.md](plan-pendientes.md) §4 |
 | ~~P19~~ | Motor: DDM e ingreso residual (FinRobot) como métodos de la plantilla general; no están en las plantillas del usuario, así que antes se decide si entran | ✅ Hecho (2026-10-15), ver [plan-pendientes.md](plan-pendientes.md) |
-| P20 | Beta modelo y comparables modelo de Damodaran también en los perfiles sectoriales (hoy, beta propia y empresas de referencia del perfil) | Pendiente |
+| ~~P20~~ | Beta modelo y comparables modelo de Damodaran también en los perfiles sectoriales (hoy, beta propia y empresas de referencia del perfil) | ✅ Hecho (lo marca el SaaS; lo decide el analista) · [plan-pendientes.md](plan-pendientes.md) §4 |
 | ~~P21~~ | Segmentos del motor: las empresas que miden el segmento con otra magnitud (JNJ: beneficio antes de impuestos) o que cambian sus segmentos (KO desde 2023) salen con DCF consolidado; decidir si se admite esa magnitud | ✅ Hecho (2026-10-15), ver [plan-pendientes.md](plan-pendientes.md) |
 | ~~P22~~ | Consenso de analistas: FactSet aparcado; alternativa oficial, la *guidance* de la empresa en sus 8-K de resultados (Item 2.02, anexo 99.1), hoy la lee el analista | ✅ Hecho (2026-10-15), ver [plan-pendientes.md](plan-pendientes.md) |
 
@@ -131,13 +131,14 @@ Objetivo: que el analista genere, complete, emita (PDF descargable) y versione i
 
 | # | Tarea | Detalle |
 |---|---|---|
-| C1 | Sustituir vectorbt | Commons Clause: prohíbe venderlo. Revisión del 2026-10-14: no se llegó a usar (la B4 se hizo con cotizaciones propias); queda comprobarlo y cerrarla |
-| C2 | Usuarios y permisos | Autenticación, roles (analista, revisor), varias empresas cubiertas por usuario |
-| C3 | Despliegue | Servidor, base de datos gestionada, copias de seguridad, cachés de la SEC y del mercado |
-| C4 | Avisos automáticos | Nuevo 10-Q/10-K → versión detectada → aviso al analista |
-| C5 | Rendimiento | Caché de companyfacts y de comparables; generación en segundo plano |
-| C6 | Migración a edgartools 6 | Fijado en `<6`: la 6.0 cambia la API |
-| C7 | Legal y licencias | Revisión legal del aviso (el sistema de recomendación R7 ya está en el anexo B), atribuciones (MIT/Apache) y licencias de datos |
-| C8 | Observabilidad | Registro de errores, tiempos y uso del modelo de lenguaje |
-| C9 | Facturación y planes | Propuesta nueva (2026-10-14), a valorar: suscripciones y límites por plan |
-| C10 | Manual del usuario | Propuesta nueva (2026-10-14), a valorar: guía del analista dentro del SaaS |
+| ~~C1~~ | Sustituir vectorbt | ✅ Hecho · [plan-pendientes.md](plan-pendientes.md) §4 |
+| ~~C2~~ | Usuarios y permisos | ✅ Hecho (la visibilidad del repositorio la decide el usuario) · [plan-pendientes.md](plan-pendientes.md) §4 |
+| ~~C3~~ | Despliegue | ✅ Hecho · [plan-pendientes.md](plan-pendientes.md) §4 |
+| ~~C4~~ | Avisos automáticos | ✅ Hecho · [plan-pendientes.md](plan-pendientes.md) §4 |
+| ~~C5~~ | Rendimiento | ✅ Hecho · [plan-pendientes.md](plan-pendientes.md) §4 |
+| ~~C6~~ | Migración a edgartools 6 | Cerrada: no se migra · [plan-pendientes.md](plan-pendientes.md) §4 |
+| C7 | Legal y licencias | Fuera del alcance (equipo legal) · [plan-pendientes.md](plan-pendientes.md) §4 |
+| ~~C8~~ | Observabilidad | ✅ Hecho · [plan-pendientes.md](plan-pendientes.md) §4 |
+| C9 | Facturación y planes | Fuera del alcance · [plan-pendientes.md](plan-pendientes.md) §4 |
+| ~~C10~~ | Manual del usuario | ✅ Hecho · [plan-pendientes.md](plan-pendientes.md) §4 |
+| ~~C11~~ | ~~Optimización absoluta, limpieza y pruebas desde cero~~ | Propuesta del usuario (2026-10-15) | ✅ Hecho · [plan-pendientes.md](plan-pendientes.md) §4 |

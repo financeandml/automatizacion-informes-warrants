@@ -187,6 +187,19 @@ def test_la_interfaz_arranca(tmp_path, monkeypatch):
     assert not app.exception and app.header[0].value == "Configuración"
 
 
+def test_primer_uso_sin_identidad_muestra_los_primeros_pasos(tmp_path, monkeypatch):
+    """C3: sin identidad de EDGAR la interfaz no se detiene con un error: pide los datos para empezar."""
+    from streamlit.testing.v1 import AppTest
+
+    from informes_warrants import config, ui
+
+    monkeypatch.delenv("EDGAR_IDENTITY", raising=False)
+    monkeypatch.setattr(config, "load_dotenv", lambda *a, **k: None)  # sin el .env del equipo
+    monkeypatch.setenv("INFORMES_DATA_DIR", str(tmp_path))
+    app = AppTest.from_file(str(Path(ui.__file__).parent / "app.py"), default_timeout=60).run()
+    assert not app.exception and app.title[0].value.startswith("Bienvenido") and len(app.text_input) >= 2
+
+
 def test_el_html_de_terceros_no_se_ejecuta():
     from informes_warrants.informe.render import _md
 

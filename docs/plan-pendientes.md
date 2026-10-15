@@ -56,3 +56,29 @@ Orden de trabajo: primero lo que no depende de Gemini (de menor a mayor esfuerzo
 | P2 | Riesgos sin clasificar por tipo | Títulos literales del Item 1A; selección con cita (`ia/seleccion.py`) | ✅ Hecho (2026-10-15): categoría (R5) y supuesto amenazado, validados contra listas cerradas, en el apartado 20 |
 | P22 | Consenso de analistas | Ver §1; FinRobot `forward_estimates.py` (FMP/Yahoo, idea) | ✅ Hecho (2026-10-15): guidance del comunicado de resultados con cita literal (funciona con cualquier proveedor) y consenso con Gemini verificado en su fuente; la prueba real del consenso espera la clave |
 | F7 | LTM por segmento | `segmentos_ltm` (provisional, validado contra el total LTM) | ✅ Hecho (2026-10-15): conciliación del 10-Q incluida y emparejamiento de nombres por la IA validado por la suma del LTM |
+
+## 4. Segunda tanda (decisiones del usuario, 2026-10-15)
+
+| # | Decisión | Estado |
+|---|---|---|
+| P12 | Se queda como está (quizás en el futuro) | Aparcada |
+| P13 | No es necesaria | Cerrada |
+| P14 | Se hará en el futuro | Aparcada |
+| P15 | Integrar | ✅ Citas literales del Item 1 que cifran el mercado (dinero o pacientes), apartado 13 |
+| P16 | Con la API de Gemini | ✅ Matriz probabilidad × impacto (valores cerrados) en la misma llamada que la clasificación de riesgos, apartado 20 |
+| P18 | Solo si siguen en la empresa | ✅ Los que presentan Form 4 en 12 meses: Form 3 por su CIK o, si es anterior a 2003, su primer Form 4 («≥») |
+| P20 | Lo decide el analista y lo marca el SaaS | ✅ Aviso antes de emitir y en la interfaz en banca, seguros, REIT y BDC |
+| C1 | Sustituir vectorbt | ✅ No se usa ni es dependencia |
+| C2 | Repositorio en GitHub con acceso controlado por el usuario; uso intuitivo para cualquiera | ✅ Primeros pasos, guía de 4 pasos, conexiones y diagnóstico en la interfaz. La visibilidad del repositorio (hoy público) la decide el usuario en GitHub |
+| C3 | Descargar de GitHub y abrir en localhost | ✅ `instalar.ps1` / `instalar.sh` y `abrir.bat` / `abrir.sh`; probado desde un clon limpio (3,5 min de instalación, 175 tests, informe de KO en 76 s) |
+| C4 | Avisos de informes nuevos, sin complicarse | ✅ Una consulta al día por empresa seguida al abrir la interfaz |
+| C5 | Rendimiento y seguridad, prioritarios | ✅ Plan abajo |
+| C6 | No migrar a edgartools 6 | Cerrada: se mantiene `<6` |
+| C7, C9 | Equipo legal / sin planes | Fuera del alcance |
+| C8 | Observabilidad | ✅ Plan abajo |
+| C10 | Solo si ayuda a instalar y usar | ✅ README «Puesta en marcha (5 minutos)» y guía en la interfaz |
+| C11 | Optimización, limpieza y pruebas | ✅ Sin código muerto (todos los módulos se usan), sin caracteres de control, prueba desde cero y AppTest de la interfaz |
+
+**C5, plan interno.** Rendimiento: medir por etapas (C8) → atacar lo que más pesa: comparables en paralelo y normalizando solo las 3 partidas que usan; consultas independientes del informe en paralelo; evaluador del modelo con el grafo inverso en caché (36 s → 1,8 s); diagnóstico de la interfaz solo a petición. Resultado: `reunir` de MSFT de 318 s a 51 s. Seguridad: interfaz solo en `localhost` y con protección XSRF; claves solo en el `.env` local (ignorado por git), nunca en registros ni en URLs (Gemini, en cabecera); textos de terceros escapados en el HTML; datos fuera de OneDrive.
+
+**C8, plan interno.** Registro rotativo (5 × 1 MB) y tiempos por etapa (`reunir`, `componer`, `pdf`, `excel`, `ia`) en la carpeta de datos; `informes-warrants diagnostico` y «Configuración → Diagnóstico» comprueban Python, dependencias, PDF, LibreOffice, identidad y claves (presentes o no, nunca su valor) y resumen tiempos y errores.
