@@ -10,7 +10,7 @@ núcleo (aquí no se calcula nada: las cifras salen de `calculo/` a través de `
 3. Configuración: la autoría de cada usuario (uso interno del SaaS; se guarda fuera del repositorio).
 """
 
-from dataclasses import asdict, replace
+from dataclasses import replace
 
 import streamlit as st
 
@@ -470,7 +470,6 @@ def pantalla_configuracion() -> None:
         if st.form_submit_button("Guardar"):
             autoria.guardar(autoria.Autoria(**valores))
             st.success("Guardado.")
-    st.json(asdict(autoria.cargar()))
     _configuracion_parametros()
 
 
