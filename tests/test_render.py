@@ -465,3 +465,54 @@ def test_tesis_atada_a_las_cifras_del_modelo(contexto):
     assert filas["Precio objetivo"]["valor"] == contexto["precio_objetivo"]
     assert filas["Valor por comparables"]["valor"] == "falta la lista del analista"  # sin lista del analista
     assert "Supuesto de la tesis" in render.html(contexto)
+
+
+def test_tareas_en_segundo_plano():
+    """C5: la carga y la emisión corren en un hilo; una por clave, con su resultado o su error."""
+    import threading
+
+    from informes_warrants.ui.tareas import Tareas
+
+    tareas, puerta = Tareas(), threading.Event()
+    assert tareas.lanzar("datos", "cargando", lambda: puerta.wait(5) and 42, datos={"version": "v1"})
+    assert not tareas.lanzar("datos", "otra", lambda: 0)  # ya hay una en curso
+    assert tareas.descripciones_en_curso() == ["cargando"] and tareas.recoger("datos") is None
+    puerta.set()
+    tareas._tareas["datos"].futuro.result(5)
+    tarea, resultado, error = tareas.recoger("datos")
+    assert (resultado, error, tarea.datos["version"]) == (42, None, "v1") and not tareas.hay_terminadas()
+    tareas.lanzar("informe", "emitiendo", lambda: 1 / 0)
+    tareas._tareas["informe"].futuro.exception(5)
+    assert tareas.hay_terminadas() and isinstance(tareas.recoger("informe")[2], ZeroDivisionError)
+
+
+def test_la_interfaz_carga_en_segundo_plano(tmp_path, monkeypatch):
+    """C5: «Cargar los datos» no bloquea (se puede cambiar de pantalla) y el editor no recompone si nada cambia."""
+    pytest.importorskip("streamlit")
+    import time
+
+    from streamlit.testing.v1 import AppTest
+
+    from informes_warrants import ui
+    from informes_warrants.almacenamiento.versiones import Version
+    from informes_warrants.informe import versionado
+
+    datos = _datos()
+    monkeypatch.setenv("EDGAR_IDENTITY", "Prueba prueba@ejemplo.com")
+    monkeypatch.setenv("INFORMES_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(versionado, "ultima_abierta", lambda *a: Version("AAPL", 2023, "FY", 1, "x", "2023-11-03", contenido={}))
+    monkeypatch.setattr(versionado, "datos_de_la_version", lambda *a, **k: time.sleep(1) or datos)
+    app = AppTest.from_file(str(Path(ui.__file__).parent / "app.py"), default_timeout=120).run()
+    app.sidebar.text_input[0].set_value("AAPL")
+    app.sidebar.radio[0].set_value("Editor del informe").run()
+    next(b for b in app.button if b.label.startswith("Cargar los datos")).click().run()
+    assert not app.exception and any("segundo plano" in i.value for i in app.info)
+    app.sidebar.radio[0].set_value("Empresas y versiones").run()  # mientras carga, otra pantalla
+    assert not app.exception
+    app.session_state["tareas"]._tareas["datos"].futuro.result(10)
+    app.sidebar.radio[0].set_value("Editor del informe").run()
+    assert not app.exception and app.session_state["datos"] is datos
+    app.run()  # la primera vista rellena las estimaciones por defecto: una recomposición más
+    memo = app.session_state["memo"]
+    app.run()
+    assert not app.exception and app.session_state["memo"] is memo  # sin cambios del analista, no se recompone

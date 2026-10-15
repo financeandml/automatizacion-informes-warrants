@@ -16,7 +16,7 @@ import streamlit as st
 
 from informes_warrants.almacenamiento.almacen import Almacen
 from informes_warrants.almacenamiento.deteccion import detectar
-from informes_warrants.almacenamiento.versiones import Estado, TransicionInvalida
+from informes_warrants.almacenamiento.versiones import Estado
 from informes_warrants.config import configurar_identidad
 from informes_warrants.informe import autoria, render
 from informes_warrants.informe.cambios import estimaciones_desde_dict
@@ -24,15 +24,19 @@ from informes_warrants.informe.plantillas import pendientes, sin_marcas_ia
 from informes_warrants.informe.secciones import BLOQUES, Tipo
 from informes_warrants.informe.versionado import datos_de_la_version, preparar, ultima_abierta
 from informes_warrants.ui import logica
+from informes_warrants.ui.tareas import Tareas
 
 PANTALLAS = ("Empresas y versiones", "Editor del informe", "Configuración")
 ESCENARIOS = ("pesimista", "base", "optimista")
 
 
 def iniciar_sesion() -> None:
-    valores = {"ticker": "", "datos": None, "datos_de": None, "textos": {}, "estimaciones": None, "ajustes": {}}
+    valores = {"ticker": "", "datos": None, "datos_de": None, "textos": {}, "estimaciones": None, "ajustes": {},
+               "memo": None, "informe_listo": None}
     for clave, valor in valores.items():
         st.session_state.setdefault(clave, valor)
+    if "tareas" not in st.session_state:
+        st.session_state.tareas = Tareas()
 
 
 @st.cache_resource
@@ -95,13 +99,88 @@ def _comparar(versiones: list) -> None:
 
 
 def _cargar(version, almacen: Almacen, con_ia: bool, comparables: list[str] | None) -> None:
-    with st.spinner("Reuniendo los datos de la SEC y del mercado (puede tardar unos minutos)…"):
-        st.session_state.datos = datos_de_la_version(version, almacen, con_ia, comparables)
-    st.session_state.datos_de = version.etiqueta
-    contenido = version.contenido
-    st.session_state.textos = dict(contenido.get("textos") or {})
-    st.session_state.estimaciones = estimaciones_desde_dict(contenido["estimaciones"]) if contenido.get("estimaciones") else None
-    st.session_state.ajustes = {}
+    """Reúne los datos de la SEC y del mercado en segundo plano (C5): el analista puede ir a otras pantallas."""
+    st.session_state.tareas.lanzar("datos", f"cargando los datos de {version.etiqueta}", datos_de_la_version,
+                                   version, almacen, con_ia, comparables, datos={"version": version})
+
+
+def _generar(version, almacen: Almacen, datos: dict, emitir: bool):
+    """En segundo plano: PDF y libro de Excel del borrador y, si se pide, la emisión (la versión ya no cambia)."""
+    preparada, _ = preparar(version, almacen, datos=datos)
+    if not emitir:
+        return preparada
+    emitida = preparada.emitir()
+    almacen.guardar(emitida)
+    return emitida
+
+
+def _recoger_tareas() -> None:
+    """Aplica a la sesión lo que terminó en segundo plano."""
+    tareas = st.session_state.tareas
+    hecha = tareas.recoger("datos")
+    if hecha:
+        tarea, datos, error = hecha
+        if error:
+            st.sidebar.error(f"No se pudieron cargar los datos: {error}")
+        else:
+            version = tarea.datos["version"]
+            contenido = version.contenido
+            st.session_state.datos, st.session_state.datos_de, st.session_state.memo = datos, version.etiqueta, None
+            st.session_state.textos = dict(contenido.get("textos") or {})
+            st.session_state.estimaciones = (estimaciones_desde_dict(contenido["estimaciones"])
+                                             if contenido.get("estimaciones") else None)
+            st.session_state.ajustes = {}
+            st.sidebar.success(f"Datos de {version.etiqueta} cargados: ya puedes editar el informe.")
+    hecha = tareas.recoger("informe")
+    if hecha:
+        tarea, version, error = hecha
+        st.session_state.informe_listo = {"error": str(error)} if error else {"version": version}
+
+
+@st.fragment(run_every=3)
+def _vigilar_tareas() -> None:
+    """Barra lateral: qué sigue en segundo plano; al terminar algo, recarga la pantalla para mostrarlo."""
+    tareas = st.session_state.tareas
+    for descripcion in tareas.descripciones_en_curso():
+        st.info(f"En segundo plano: {descripcion}… Puedes seguir en otras pantallas.")
+    if tareas.hay_terminadas():
+        st.rerun()
+
+
+def _informe_listo() -> None:
+    """Barra lateral: el último PDF y Excel generados, descargables desde cualquier pantalla."""
+    listo = st.session_state.informe_listo
+    if not listo:
+        return
+    if listo.get("error"):
+        st.error(f"No se pudo generar el informe: {listo['error']}")
+    else:
+        v = listo["version"]
+        st.success(f"{v.etiqueta} emitida: ya no se puede modificar." if v.estado == Estado.EMITIDA
+                   else f"Borrador guardado: {_nombre(v.contenido['pdf'])}")
+        for aviso in v.contenido["avisos_emision"]:
+            if aviso.startswith("Motor de valoración"):
+                st.warning(aviso)
+        with open(v.contenido["pdf"], "rb") as f:
+            st.download_button("Descargar el PDF", f.read(), file_name=_nombre(v.contenido["pdf"]), mime="application/pdf")
+        if v.contenido.get("modelo_xlsx"):
+            with open(v.contenido["modelo_xlsx"], "rb") as f:
+                st.download_button("Descargar el modelo de valoración (Excel)", f.read(),
+                                   file_name=_nombre(v.contenido["modelo_xlsx"]), mime=XLSX)
+    if st.button("Cerrar este aviso"):
+        st.session_state.informe_listo = None
+        st.rerun()
+
+
+def _informe_en_pantalla() -> dict:
+    """El informe y su vista previa, recompuestos solo si cambió lo que aportó el analista: Streamlit recarga la
+    pantalla en cada clic y recomponer cuesta unos segundos (componer, vista previa y libro de Excel)."""
+    s = st.session_state
+    clave = repr((s.datos_de, s.estimaciones, sorted(s.textos.items()), sorted(s.ajustes.items())))
+    if s.memo is None or s.memo["clave"] != clave:
+        c = logica.recomponer(s.datos, s.estimaciones, s.textos, s.ajustes)
+        s.memo = {"clave": clave, "c": c, "vista": render.html_autonomo(c)}
+    return s.memo
 
 
 def _bloques_editables(c: dict) -> list:
@@ -169,7 +248,10 @@ def _nombre(ruta: str) -> str:
 
 def _editor_motor(c: dict) -> None:
     """Entradas del modelo de valoración (B1) y descarga del libro de Excel para comprobarlo número a número."""
-    libro = logica.libro_del_motor(c)
+    memo = st.session_state.memo
+    if "libro" not in memo:  # una vez por recomposición, no en cada clic
+        memo["libro"] = logica.libro_del_motor(c)
+    libro = memo["libro"]
     if libro is not None:
         st.download_button("Descargar el modelo de valoración (Excel, fórmulas vivas)", libro,
                            file_name=f"{c['ticker']}_FY{c['filing']['ejercicio']}_modelo.xlsx", mime=XLSX)
@@ -244,31 +326,17 @@ def _emision(c: dict, version, almacen: Almacen) -> None:
     for m in motivos:
         st.error(m)
     contenido = {**version.contenido, **logica.contenido_editable(c), "ajustes_escenarios": st.session_state.ajustes}
+    tareas = st.session_state.tareas
+    ocupado = tareas.en_curso("informe")
+    if ocupado:
+        st.info("Generando el PDF y el Excel en segundo plano; la barra lateral tendrá las descargas.")
     c1, c2 = st.columns(2)
-    if c1.button("Guardar borrador (regenera el PDF)", use_container_width=True):
-        preparada, _ = preparar(replace(version, contenido=contenido), almacen, datos=st.session_state.datos)
-        st.success(f"Guardado: {preparada.contenido['pdf']}" + (f" y {preparada.contenido['modelo_xlsx']}"
-                                                                 if preparada.contenido.get("modelo_xlsx") else ""))
-        for aviso in preparada.contenido["avisos_emision"]:
-            if aviso.startswith("Motor de valoración"):
-                st.warning(aviso)
-    if c2.button("Confirmar emisión del informe", type="primary", disabled=bool(motivos), use_container_width=True):
-        preparada, _ = preparar(replace(version, contenido=contenido), almacen, datos=st.session_state.datos)
-        try:
-            emitida = preparada.emitir()
-        except TransicionInvalida as e:
-            st.error(str(e))
-            return
-        almacen.guardar(emitida)
-        st.success(f"{emitida.etiqueta} emitida: ya no se puede modificar.")
-        with open(emitida.contenido["pdf"], "rb") as f:
-            st.download_button("Descargar el PDF", f.read(), file_name=emitida.contenido["pdf"].split("\\")[-1].split("/")[-1],
-                               mime="application/pdf")
-        if emitida.contenido.get("modelo_xlsx"):
-            with open(emitida.contenido["modelo_xlsx"], "rb") as f:
-                st.download_button("Descargar el modelo de valoración (Excel)", f.read(),
-                                   file_name=_nombre(emitida.contenido["modelo_xlsx"]),
-                                   mime=XLSX)
+    for boton, emitir, columna, opciones in (("Guardar borrador (regenera el PDF)", False, c1, {}),
+                                             ("Confirmar emisión del informe", True, c2, {"type": "primary"})):
+        if columna.button(boton, disabled=ocupado or (emitir and bool(motivos)), use_container_width=True, **opciones):
+            tareas.lanzar("informe", "emitiendo el informe" if emitir else "generando el borrador", _generar,
+                          replace(version, contenido=contenido), almacen, st.session_state.datos, emitir)
+            st.rerun()
 
 
 def pantalla_editor(almacen: Almacen, ticker: str) -> None:
@@ -277,6 +345,10 @@ def pantalla_editor(almacen: Almacen, ticker: str) -> None:
         st.info("No hay ninguna versión abierta: detecta y confirma una en «Empresas y versiones».")
         return
     st.header(version.etiqueta)
+    if st.session_state.tareas.en_curso("datos"):
+        st.info("Cargando los datos de la SEC y del mercado en segundo plano (1-2 minutos la primera vez). Puedes ir a "
+                "«Empresas y versiones» o «Configuración» mientras tanto: la barra lateral avisa al terminar.")
+        return
     if st.session_state.datos is None or st.session_state.datos_de != version.etiqueta:
         con_ia = st.checkbox("Usar el modelo de lenguaje (riesgos, catalizadores y competencia)", value=True)
         lista = st.text_input("Comparables (tickers separados por comas; vacío = propuesta automática por SIC)",
@@ -285,7 +357,8 @@ def pantalla_editor(almacen: Almacen, ticker: str) -> None:
             _cargar(version, almacen, con_ia, [t.strip().upper() for t in lista.split(",") if t.strip()] or None)
             st.rerun()
         return
-    c = logica.recomponer(st.session_state.datos, st.session_state.estimaciones, st.session_state.textos, st.session_state.ajustes)
+    memo = _informe_en_pantalla()
+    c = memo["c"]
     izquierda, derecha = st.columns([2, 3])
     with izquierda:
         pestanas = st.tabs(["Textos", "Estimaciones", "Modelo de valoración", "Escenarios", "Calendario y catalizadores", "Emisión"])
@@ -303,14 +376,16 @@ def pantalla_editor(almacen: Almacen, ticker: str) -> None:
             _emision(c, version, almacen)
     with derecha:
         st.caption(f"Vista previa · {len(c['pendientes'])} apartados pendientes del analista · calidad {c['calidad'].nivel}")
-        st.iframe(render.html_autonomo(c), height=1400)  # HTML propio; los textos de terceros llegan escapados (render._md)
+        st.iframe(memo["vista"], height=1400)  # HTML propio; los textos de terceros llegan escapados (render._md)
 
 
 GUIA = """1. **Escribe el ticker** de una empresa cotizada en EE. UU. (p. ej. AAPL) aquí arriba.
 2. **Empresas y versiones** → «Detectar 10-Q/10-K nuevo» y «Confirmar»: el SaaS crea la versión del último informe de la SEC.
-3. **Editor del informe** → «Cargar los datos» (1-2 minutos la primera vez). Revisa cada pestaña: los textos marcados como
-   pendientes son tuyos; las cifras salen de la SEC y no se editan.
-4. **Emisión** → revisa los avisos y pulsa «Confirmar emisión»: descargas el PDF y el modelo de valoración en Excel.
+3. **Editor del informe** → «Cargar los datos» (1-2 minutos la primera vez, en segundo plano: puedes ir a otras
+   pantallas mientras tanto). Revisa cada pestaña: los textos marcados como pendientes son tuyos; las cifras salen de
+   la SEC y no se editan.
+4. **Emisión** → revisa los avisos y pulsa «Confirmar emisión»: el PDF y el modelo de valoración en Excel se generan en
+   segundo plano y se descargan desde la barra lateral.
 
 Si algo no funciona: **Configuración → Diagnóstico** te dice qué falta."""
 
@@ -372,6 +447,7 @@ def _avisos_de_filings(almacen: Almacen) -> None:
 
 def pantalla_configuracion() -> None:
     st.header("Configuración")
+    st.session_state.memo = None  # los parámetros y la autoría cambian el informe: se recompone al volver al editor
     with st.expander("Diagnóstico de la instalación", expanded=False):
         from informes_warrants.observabilidad import diagnostico, resumen_tiempos
 
@@ -446,6 +522,10 @@ def main() -> None:
         pantalla = st.radio("Pantalla", PANTALLAS)
         with st.expander("Cómo se usa (4 pasos)"):
             st.markdown(GUIA)
+    _recoger_tareas()
+    with st.sidebar:
+        _vigilar_tareas()
+        _informe_listo()
     almacen = _almacen()
     _avisos_de_filings(almacen)
     if pantalla == "Configuración":
