@@ -1,6 +1,6 @@
 # Cómo contribuir
 
-1. Lee [CLAUDE.md](CLAUDE.md): reglas del proyecto y mapa de archivos.
+1. Lee [CLAUDE.md](CLAUDE.md): reglas del proyecto y mapa de archivos ([AGENTS.md](AGENTS.md) es su copia exacta para otros agentes de IA; si cambias uno, copia el otro).
 2. Antes de programar algo, búscalo en [docs/inventario/README.md](docs/inventario/README.md): probablemente ya existe en un repo base.
 3. Prepara el entorno (ver [README.md](README.md#puesta-en-marcha)).
 4. Trabaja en una rama, con tests:

@@ -32,3 +32,11 @@ def test_directorio_datos_fuera_de_onedrive(monkeypatch, tmp_path):
     monkeypatch.setenv("INFORMES_DATA_DIR", str(tmp_path / "OneDrive" / "datos"))
     with pytest.raises(ConfiguracionError, match="OneDrive"):
         config.directorio_datos()
+
+
+def test_guia_de_agentes_al_dia():
+    """AGENTS.md (Codex y otros agentes) es copia exacta de CLAUDE.md: si cambia uno, se copia al otro."""
+    from pathlib import Path
+
+    raiz = Path(__file__).resolve().parents[1]
+    assert (raiz / "AGENTS.md").read_text(encoding="utf-8") == (raiz / "CLAUDE.md").read_text(encoding="utf-8")
