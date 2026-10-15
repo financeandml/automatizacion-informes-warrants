@@ -189,6 +189,7 @@ def test_la_interfaz_arranca(tmp_path, monkeypatch):
 
 def test_primer_uso_sin_identidad_muestra_los_primeros_pasos(tmp_path, monkeypatch):
     """C3: sin identidad de EDGAR la interfaz no se detiene con un error: pide los datos para empezar."""
+    pytest.importorskip("streamlit")  # la CI instala sin la interfaz
     from streamlit.testing.v1 import AppTest
 
     from informes_warrants import config, ui
