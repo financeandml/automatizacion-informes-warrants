@@ -24,7 +24,7 @@ from informes_warrants.informe.cambios import estimaciones_desde_dict
 from informes_warrants.informe.plantillas import pendientes, sin_marcas_ia
 from informes_warrants.informe.secciones import BLOQUES, Tipo
 from informes_warrants.informe.versionado import datos_de_la_version, preparar, ultima_abierta
-from informes_warrants.ui import logica
+from informes_warrants.ui import logica, vista
 from informes_warrants.ui.tareas import Tareas
 
 PANTALLAS = ("Empresas y versiones", "Editor del informe", "Configuración")
@@ -49,6 +49,12 @@ def _nombre_empresa(ticker: str) -> str | None:
         return Company(ticker).name
     except Exception:  # noqa: BLE001  (ticker inexistente o sin conexión)
         return None
+
+
+@st.cache_resource
+def _servidor_vista() -> str:
+    """Dirección del servidor local de la vista previa (uno por proceso; ver ui/vista.py)."""
+    return vista.arrancar()
 
 
 @st.cache_resource
@@ -228,7 +234,7 @@ def _informe_en_pantalla() -> dict:
     clave = repr((s.datos_de, s.estimaciones, sorted(s.textos.items()), sorted(s.ajustes.items())))
     if s.memo is None or s.memo["clave"] != clave:
         c = logica.recomponer(s.datos, s.estimaciones, s.textos, s.ajustes)
-        s.memo = {"clave": clave, "c": c, "vista": render.html_autonomo(c)}
+        s.memo = {"clave": clave, "c": c, "vista": vista.publicar(render.html(c), _servidor_vista())}
     return s.memo
 
 
@@ -431,7 +437,7 @@ def pantalla_editor(almacen: Almacen, ticker: str) -> None:
             _datos_cargados().pop(version.etiqueta, None)
             st.session_state.datos = st.session_state.datos_de = None
             st.rerun()
-        st.iframe(memo["vista"], height=1400)  # HTML propio; los textos de terceros llegan escapados (render._md)
+        st.iframe(memo["vista"], height=1400)  # servida en local (ui/vista.py); textos de terceros escapados (render._md)
 
 
 GUIA = """1. **Escribe el ticker** de una empresa cotizada en EE. UU. (p. ej. AAPL) aquí arriba.
@@ -587,7 +593,8 @@ def main() -> None:
             st.markdown(GUIA)
     _recoger_tareas()
     with st.sidebar:
-        _vigilar_tareas()
+        if st.session_state.tareas.claves():  # el fragmento se refresca cada 3 s solo si hay algo en curso
+            _vigilar_tareas()
         _informe_listo()
     almacen = _almacen()
     _avisos_de_filings(almacen)

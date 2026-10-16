@@ -529,3 +529,25 @@ def test_la_interfaz_carga_en_segundo_plano(tmp_path, monkeypatch):
     recargada.run()  # recargar el navegador: ticker, pantalla y datos siguen ahí, sin volver a la SEC
     assert not recargada.exception and recargada.session_state["datos_de"] == "AAPL · FY2023 · v1"
     assert not any(b.label.startswith("Cargar los datos") for b in recargada.button)
+
+
+def test_vista_previa_servida_en_local(tmp_path, monkeypatch, contexto):
+    """C5: la vista previa pesa ~0,2 MB (antes 2,4 MB con las fuentes dentro) y solo se sirven sus archivos."""
+    import urllib.error
+    import urllib.request
+
+    from informes_warrants.informe import render
+    from informes_warrants.ui import vista
+
+    monkeypatch.setenv("INFORMES_DATA_DIR", str(tmp_path))
+    html = render.html(contexto)
+    assert len(html) < 600_000
+    base = vista.arrancar()
+    url = vista.publicar(html, base)
+    assert url == vista.publicar(html, base)  # misma huella, mismo archivo
+    assert "Apple Inc." in urllib.request.urlopen(url, timeout=10).read().decode("utf-8")
+    for ruta in ("/informe/estilo.css", "/fuentes/Inter.ttf", "/marca/logo.svg"):
+        assert urllib.request.urlopen(base + ruta, timeout=10).status == 200
+    for ruta in ("/informe/../../config.py", "/fuentes/..%5C..%5Cconfig.py", "/", "/informe/render.py", "/a/b/c"):
+        with pytest.raises(urllib.error.HTTPError):
+            urllib.request.urlopen(base + ruta, timeout=10)
