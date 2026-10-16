@@ -19,12 +19,13 @@ from informes_warrants.almacenamiento.almacen import Almacen
 from informes_warrants.almacenamiento.deteccion import detectar
 from informes_warrants.almacenamiento.versiones import Estado
 from informes_warrants.config import configurar_identidad
-from informes_warrants.informe import autoria, render
+from informes_warrants.informe import autoria
 from informes_warrants.informe.cambios import estimaciones_desde_dict
 from informes_warrants.informe.plantillas import pendientes, sin_marcas_ia
 from informes_warrants.informe.secciones import BLOQUES, Tipo
-from informes_warrants.informe.versionado import datos_de_la_version, preparar, ultima_abierta
+from informes_warrants.informe.versionado import ultima_abierta
 from informes_warrants.ui import logica, vista
+from informes_warrants.ui import tareas as trabajos
 from informes_warrants.ui.tareas import Tareas
 
 PANTALLAS = ("Empresas y versiones", "Editor del informe", "Configuración")
@@ -140,25 +141,8 @@ def _comparar(versiones: list) -> None:
 def _cargar(version, almacen: Almacen, con_ia: bool, comparables: list[str] | None) -> None:
     """Reúne los datos de la SEC y del mercado en segundo plano (C5): el analista puede ir a otras pantallas."""
     st.session_state.tareas.lanzar(f"datos:{version.etiqueta}", f"cargando los datos de {version.etiqueta}",
-                                   datos_de_la_version, version, almacen, con_ia, comparables, borradores=False,
+                                   trabajos.cargar, version, almacen, con_ia, comparables,
                                    datos={"version": version, "con_ia": con_ia})
-
-
-def _con_borradores(datos: dict) -> dict:
-    """En segundo plano, con el editor ya abierto: borradores de la IA de los apartados del analista (los más lentos)."""
-    from informes_warrants.informe.construir import con_borradores_ia
-
-    return con_borradores_ia(dict(datos), True)  # copia: la sesión sigue usando los datos sin borradores mientras
-
-
-def _generar(version, almacen: Almacen, datos: dict, emitir: bool):
-    """En segundo plano: PDF y libro de Excel del borrador y, si se pide, la emisión (la versión ya no cambia)."""
-    preparada, _ = preparar(version, almacen, datos=datos)
-    if not emitir:
-        return preparada
-    emitida = preparada.emitir()
-    almacen.guardar(emitida)
-    return emitida
 
 
 def _recoger_tareas() -> None:
@@ -182,7 +166,7 @@ def _recoger_tareas() -> None:
             st.sidebar.success(f"Datos de {version.etiqueta} cargados: ya puedes editar el informe.")
             if tarea.datos.get("con_ia"):
                 tareas.lanzar(f"borradores:{version.etiqueta}", f"la IA prepara los borradores de {version.etiqueta}",
-                              _con_borradores, datos, datos={"version": version})
+                              trabajos.con_borradores, datos, datos={"version": version})
         elif st.session_state.datos_de == version.etiqueta:  # sin tocar textos ni estimaciones del analista
             st.session_state.datos, st.session_state.memo = datos, None
             st.sidebar.success("Borradores de la IA añadidos a los apartados del analista.")
@@ -190,6 +174,15 @@ def _recoger_tareas() -> None:
     if hecha:
         tarea, version, error = hecha
         st.session_state.informe_listo = {"error": str(error)} if error else {"version": version}
+    hecha = tareas.recoger("componer")
+    if hecha:
+        tarea, resultado, error = hecha
+        if error:
+            st.sidebar.error(f"No se pudo componer el informe: {error}")
+        elif tarea.datos["datos_de"] == st.session_state.datos_de:
+            c, html, libro = resultado
+            st.session_state.memo = {"clave": tarea.datos["clave"], "c": c, "libro": libro,
+                                     "vista": vista.publicar(html, _servidor_vista())}
 
 
 @st.fragment(run_every=3)
@@ -227,14 +220,20 @@ def _informe_listo() -> None:
         st.rerun()
 
 
-def _informe_en_pantalla() -> dict:
-    """El informe y su vista previa, recompuestos solo si cambió lo que aportó el analista: Streamlit recarga la
-    pantalla en cada clic y recomponer cuesta unos segundos (componer, vista previa y libro de Excel)."""
+def _clave_informe() -> str:
     s = st.session_state
-    clave = repr((s.datos_de, s.estimaciones, sorted(s.textos.items()), sorted(s.ajustes.items())))
-    if s.memo is None or s.memo["clave"] != clave:
-        c = logica.recomponer(s.datos, s.estimaciones, s.textos, s.ajustes)
-        s.memo = {"clave": clave, "c": c, "vista": vista.publicar(render.html(c), _servidor_vista())}
+    return repr((s.datos_de, s.estimaciones, sorted(s.textos.items()), sorted(s.ajustes.items())))
+
+
+def _informe_en_pantalla() -> dict | None:
+    """El informe, su vista previa y el libro de Excel, recompuestos solo si cambió lo que aportó el analista y en el
+    proceso de trabajo (unos 3 s de CPU que congelaban la página en cada cambio). Mientras tanto se ve el anterior;
+    None la primera vez, hasta que llega."""
+    s = st.session_state
+    clave = _clave_informe()
+    if (s.memo is None or s.memo["clave"] != clave) and not s.tareas.en_curso("componer"):
+        s.tareas.lanzar("componer", "", trabajos.componer, s.datos, s.estimaciones, s.textos, s.ajustes,
+                        datos={"clave": clave, "datos_de": s.datos_de})
     return s.memo
 
 
@@ -372,7 +371,7 @@ def _editor_catalizadores(c: dict) -> None:
                                             catalizadores=[dict(f) for f in catalizadores] if propios else [])
 
 
-def _emision(c: dict, version, almacen: Almacen) -> None:
+def _emision(c: dict, version, almacen: Almacen, al_dia: bool = True) -> None:
     for aviso in c["avisos_emision"] + logica.pendientes_aviso(c):  # avisos: no bloquean la emisión
         st.warning(aviso)
     motivos = logica.motivos_para_no_emitir(c)
@@ -382,14 +381,16 @@ def _emision(c: dict, version, almacen: Almacen) -> None:
         st.error(m)
     contenido = {**version.contenido, **logica.contenido_editable(c), "ajustes_escenarios": st.session_state.ajustes}
     tareas = st.session_state.tareas
-    ocupado = tareas.en_curso("informe")
-    if ocupado:
+    ocupado = tareas.en_curso("informe") or not al_dia  # sin emitir lo que aún no incluye los últimos cambios
+    if tareas.en_curso("informe"):
         st.info("Generando el PDF y el Excel en segundo plano; la barra lateral tendrá las descargas.")
+    elif not al_dia:
+        st.info("Incorporando tus últimos cambios al informe; los botones se activan en unos segundos.")
     c1, c2 = st.columns(2)
     for boton, emitir, columna, opciones in (("Guardar borrador (regenera el PDF)", False, c1, {}),
                                              ("Confirmar emisión del informe", True, c2, {"type": "primary"})):
         if columna.button(boton, disabled=ocupado or (emitir and bool(motivos)), use_container_width=True, **opciones):
-            tareas.lanzar("informe", "emitiendo el informe" if emitir else "generando el borrador", _generar,
+            tareas.lanzar("informe", "emitiendo el informe" if emitir else "generando el borrador", trabajos.generar,
                           replace(version, contenido=contenido), almacen, st.session_state.datos, emitir)
             st.rerun()
 
@@ -415,7 +416,11 @@ def pantalla_editor(almacen: Almacen, ticker: str) -> None:
             st.rerun()
         return
     memo = _informe_en_pantalla()
+    if memo is None:
+        st.info("Preparando el informe (unos segundos)…")
+        return
     c = memo["c"]
+    al_dia = memo["clave"] == _clave_informe()
     izquierda, derecha = st.columns([2, 3])
     with izquierda:
         pestanas = st.tabs(["Textos", "Estimaciones", "Modelo de valoración", "Escenarios", "Calendario y catalizadores", "Emisión"])
@@ -430,9 +435,10 @@ def pantalla_editor(almacen: Almacen, ticker: str) -> None:
         with pestanas[4]:
             _editor_catalizadores(c)
         with pestanas[5]:
-            _emision(c, version, almacen)
+            _emision(c, version, almacen, al_dia)
     with derecha:
-        st.caption(f"Vista previa · {len(c['pendientes'])} apartados pendientes del analista · calidad {c['calidad'].nivel}")
+        st.caption(f"Vista previa · {len(c['pendientes'])} apartados pendientes del analista · calidad {c['calidad'].nivel}"
+                   + ("" if al_dia else " · actualizando con tus últimos cambios…"))
         if st.button("Volver a pedir los datos a la SEC", help="Solo si la SEC o el mercado han publicado algo nuevo desde la carga."):
             _datos_cargados().pop(version.etiqueta, None)
             st.session_state.datos = st.session_state.datos_de = None
@@ -579,9 +585,12 @@ def main() -> None:
     with st.sidebar:
         st.markdown("**WARRANTS & CO.** · Apertura de posiciones")
         url = st.query_params  # ticker y pantalla en la dirección: recargar el navegador no los pierde
-        st.session_state.ticker = st.text_input("Empresa (ticker)", st.session_state.ticker or url.get("ticker", ""),
-                                                placeholder="p. ej. AAPL").strip().upper()
-        pantalla = st.radio("Pantalla", PANTALLAS, index=PANTALLAS.index(url.get("pantalla")) if url.get("pantalla") in PANTALLAS else 0)
+        # Con clave fija y el valor inicial en la sesión (no como parámetro): si el parámetro cambia entre recargas,
+        # Streamlit lo trata como otro control y lo reinicia (la pantalla volvía sola a la anterior).
+        st.session_state.setdefault("entrada_ticker", url.get("ticker", ""))
+        st.session_state.setdefault("pantalla", url.get("pantalla") if url.get("pantalla") in PANTALLAS else PANTALLAS[0])
+        st.session_state.ticker = st.text_input("Empresa (ticker)", key="entrada_ticker", placeholder="p. ej. AAPL").strip().upper()
+        pantalla = st.radio("Pantalla", PANTALLAS, key="pantalla")
         url["pantalla"] = pantalla
         empresa = None
         if st.session_state.ticker:

@@ -520,10 +520,21 @@ def test_la_interfaz_carga_en_segundo_plano(tmp_path, monkeypatch):
     app.session_state["tareas"]._tareas["datos:AAPL · FY2023 · v1"].futuro.result(10)
     app.sidebar.radio[0].set_value("Editor del informe").run()
     assert not app.exception and app.session_state["datos"] is datos
-    app.run()  # la primera vista rellena las estimaciones por defecto: una recomposición más
+
+    def esperar_y_recargar():  # el informe se recompone en segundo plano: se espera y se recarga la pantalla
+        tareas = app.session_state["tareas"]
+        for clave in tareas.claves():
+            tareas._tareas[clave].futuro.result(60)
+        app.run()
+
+    assert any("Preparando el informe" in i.value for i in app.info)  # sin congelar la página mientras
+    for _ in range(3):  # la primera vista rellena las estimaciones por defecto: alguna recomposición más
+        esperar_y_recargar()
     memo = app.session_state["memo"]
+    assert memo is not None and len(app.tabs) == 6
     app.run()
     assert not app.exception and app.session_state["memo"] is memo  # sin cambios del analista, no se recompone
+    assert not app.session_state["tareas"].en_curso("componer")
     recargada = AppTest.from_file(str(Path(ui.__file__).parent / "app.py"), default_timeout=120)
     recargada.query_params["ticker"], recargada.query_params["pantalla"] = "AAPL", "Editor del informe"
     recargada.run()  # recargar el navegador: ticker, pantalla y datos siguen ahí, sin volver a la SEC
@@ -551,3 +562,18 @@ def test_vista_previa_servida_en_local(tmp_path, monkeypatch, contexto):
     for ruta in ("/informe/../../config.py", "/fuentes/..%5C..%5Cconfig.py", "/", "/informe/render.py", "/a/b/c"):
         with pytest.raises(urllib.error.HTTPError):
             urllib.request.urlopen(base + ruta, timeout=10)
+
+
+def test_tareas_en_otro_proceso(monkeypatch):
+    """C5: el trabajo pesado va en otro proceso para no congelar la página (el GIL de Python): aquí, de verdad."""
+    import math
+    import os
+
+    from informes_warrants.ui import tareas
+
+    monkeypatch.setattr(tareas, "EN_PROCESOS", True)
+    t = tareas.Tareas()
+    t.lanzar("pid", "proceso", os.getpid)
+    t.lanzar("calculo", "cálculo", math.factorial, 20)
+    assert t._tareas["pid"].futuro.result(120) != os.getpid()
+    assert t._tareas["calculo"].futuro.result(120) == math.factorial(20)
